@@ -1,4 +1,4 @@
-# gitignore padrão do C++, não modifiquei nada
+### gitignore padrão do C++, não modifiquei nada
 
 # Prerequisites
 *.d
@@ -41,3 +41,8 @@
 
 # debug information files
 *.dwo
+
+###
+
+# ignore pasta de testes
+./examples/tests/*
