@@ -36,9 +36,12 @@ ImVec2 Viewport::GetViewportSize() {
     return ImGui::GetContentRegionAvail();
 }
 
+ImDrawList* Viewport::GetDrawList() {
+    return ImGui::GetWindowDrawList();
+}
+
 void Viewport::run() {
     ImGui::Begin("Viewport");
-    static ImVector<ImVec2> points;
 
     if (ImGui::Button("Point"))
         log.AddLog("Point button was clicked.\n");
@@ -47,8 +50,6 @@ void Viewport::run() {
     if (ImGui::Button("Wireframe"))
         log.AddLog("Wireframe button was clicked.\n");
 
-    //ImGui::Checkbox("Enable grid", &opt_enable_grid);
-    //ImGui::Checkbox("Enable context menu", &opt_enable_context_menu);
     ImGui::Text("Mouse Left: drag to add lines,\nMouse Right: drag to scroll0");
 
     // Typically you would use a BeginChild()/EndChild() pair to benefit from a clipping region + own scrolling.
@@ -71,7 +72,6 @@ void Viewport::run() {
 
     // Draw border and background color
     // DEVE SER PASSADO PARA O RENDERER
-    //ImGuiIO& io = ImGui::GetIO();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
     draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
@@ -80,21 +80,13 @@ void Viewport::run() {
     ImGui::InvisibleButton("canvas", canvas_sz, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
     const bool is_hovered = ImGui::IsItemHovered(); // Hovered
     const bool is_active = ImGui::IsItemActive();   // Held
-    //const ImVec2 origin(canvas_p0.x + scrolling.x, canvas_p0.y + scrolling.y); // Lock scrolled origin
-    //const ImVec2 mouse_pos_in_canvas(io.MousePos.x - origin.x, io.MousePos.y - origin.y);
 
-    // Add 
     if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-    {
         HandleLeftClick();
-    }
 
-    // HANDLE DRAGGING
     const float mouse_threshold_for_pan = 0.0f;
     if (is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Right, mouse_threshold_for_pan))
-    {
         HandleRightDragging();
-    }
 
     // Draw all lines in the canvas
     // PASSAR PARA O RENDERER

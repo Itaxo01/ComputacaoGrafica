@@ -19,9 +19,10 @@ private:
     void HandlePointButtonClick();
     void HandleLineButtonClick();
     void HandleWireframeButtonClick();
-    ImVec2 GetViewportSize();
 public:
     void run();
+    ImVec2 GetViewportSize();
+    ImDrawList* GetDrawList();
 };
 
 enum Mode {
