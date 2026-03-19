@@ -12,6 +12,20 @@
 #include "log_app.h"
 
 class Viewport {
+private:
+    ExampleAppLog log;
+    void HandleLeftClick();
+    void HandleRightDragging(); 
+    void HandlePointButtonClick();
+    void HandleLineButtonClick();
+    void HandleWireframeButtonClick();
+    ImVec2 GetViewportSize();
 public:
     void run();
+};
+
+enum Mode {
+    POINT,
+    LINE,
+    WIREFRAME
 };
