@@ -1,4 +1,4 @@
-#include "headers/viewport.h"
+#include "viewport.h"
 
 void Viewport::HandleLeftClick() {
     const float magic_constant = 5;
@@ -71,7 +71,7 @@ void Viewport::run() {
 
     // Draw border and background color
     // DEVE SER PASSADO PARA O RENDERER
-    ImGuiIO& io = ImGui::GetIO();
+    //ImGuiIO& io = ImGui::GetIO();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
     draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
