@@ -7,7 +7,12 @@ void Viewport::HandleLeftClick() {
     float x = mouse_pos.x - window_pos.x;
     float y = window_pos.y - mouse_pos.y - magic_constant;
     log.AddLog("Canvas was clicked. Position = (%.1f, %.1f)\n", x, y);
-    // TO DO
+
+    points.push_back(ImVec2(x, y));
+
+    if (mode == POINT || (mode == LINE && points.size() == 2)) {
+        AddGraphicObject();
+    }
 }
 
 void Viewport::HandleRightDragging() {
@@ -19,17 +24,33 @@ void Viewport::HandleRightDragging() {
 
 void Viewport::HandlePointButtonClick() {
     log.AddLog("Point button was clicked.\n");
+    points.clear();
+    mode = POINT;
     // TO DO
 }
 
 void Viewport::HandleLineButtonClick() {
     log.AddLog("Line button was clicked.\n");
+    points.clear();
+    mode = LINE;
     // TO DO
 }
 
 void Viewport::HandleWireframeButtonClick() {
     log.AddLog("Wireframe button was clicked.\n");
+    points.clear();
+    mode = WIREFRAME;
     // TO DO
+}
+
+void Viewport::HandleEnterButtonClick() {
+    log.AddLog("Wireframe button was clicked.\n");
+    if (points.size() > 2) {
+        AddGraphicObject();
+    } else {
+        log.AddLog("[error] Cannot create Wireframe object with less than 3 points.\n");
+        points.clear();
+    }
 }
 
 ImVec2 Viewport::GetViewportSize() {
@@ -40,15 +61,31 @@ ImDrawList* Viewport::GetDrawList() {
     return ImGui::GetWindowDrawList();
 }
 
+void Viewport::AddGraphicObject() {
+    /* 
+        TO DO: Criar objetos e encaminhá-los para o display file.
+    */
+    if (mode == POINT) {
+        log.AddLog("[info] Creating new point...\n");
+    } else if (mode == LINE) {
+        log.AddLog("[info] Creating new line...\n");
+    } else if (mode == WIREFRAME) {
+        log.AddLog("[info] Creating new wireframe...\n");
+    }
+    points.clear();
+}
+
 void Viewport::run() {
     ImGui::Begin("Viewport");
 
     if (ImGui::Button("Point"))
-        log.AddLog("Point button was clicked.\n");
+        HandlePointButtonClick();
     if (ImGui::Button("Line"))
-        log.AddLog("Line button was clicked.\n");
+        HandleLineButtonClick();
     if (ImGui::Button("Wireframe"))
-        log.AddLog("Wireframe button was clicked.\n");
+        HandleWireframeButtonClick();
+    if (ImGui::Button("Enter"))
+        HandleEnterButtonClick();
 
     ImGui::Text("Mouse Left: drag to add lines,\nMouse Right: drag to scroll0");
 

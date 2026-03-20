@@ -11,22 +11,27 @@
 
 #include "log_app.h"
 
+enum Mode {
+    POINT,
+    LINE,
+    WIREFRAME,
+    NONE
+};
+
 class Viewport {
 private:
+    Mode mode = NONE;
     ExampleAppLog log;
+    ImVector<ImVec2> points;
     void HandleLeftClick();
     void HandleRightDragging(); 
     void HandlePointButtonClick();
     void HandleLineButtonClick();
     void HandleWireframeButtonClick();
+    void HandleEnterButtonClick();
 public:
-    void run();
     ImVec2 GetViewportSize();
     ImDrawList* GetDrawList();
-};
-
-enum Mode {
-    POINT,
-    LINE,
-    WIREFRAME
+    void AddGraphicObject();
+    void run();
 };
