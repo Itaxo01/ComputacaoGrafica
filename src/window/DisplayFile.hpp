@@ -42,9 +42,11 @@ class DisplayFile{
         pointList.push_back(k);
     }
     void add(core::Line &k, const std::string &name, const long long id) {
+        manifest.push_back(ManifestEntry(id, ShapeType::LINE, name));
         lineList.push_back(k);
     }
     void add(core::Wireframe &k, const std::string &name, const long long id) {
+        manifest.push_back(ManifestEntry(id, ShapeType::WIREFRAME, name));
         wireframeList.push_back(k);
     }
 };

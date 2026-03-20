@@ -1,4 +1,14 @@
 #include "viewport.h"
+#include "EntityManager.hpp"
+
+std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p){
+    std::vector<std::pair<float, float>> result;
+    result.reserve(p.Size);
+    for(int i = 0; i<p.Size; i++){
+        result.emplace_back(p[i].x, p[i].y);
+    }
+    return result;
+}
 
 void Viewport::HandleLeftClick() {
     const float magic_constant = 5;
@@ -10,7 +20,7 @@ void Viewport::HandleLeftClick() {
 
     points.push_back(ImVec2(x, y));
 
-    if (mode == POINT || (mode == LINE && points.size() == 2)) {
+    if (mode == Mode::POINT || (mode == Mode::LINE && points.size() == 2)) {
         AddGraphicObject();
     }
 }
@@ -25,22 +35,19 @@ void Viewport::HandleRightDragging() {
 void Viewport::HandlePointButtonClick() {
     log.AddLog("Point button was clicked.\n");
     points.clear();
-    mode = POINT;
-    // TO DO
+    mode = Mode::POINT;
 }
 
 void Viewport::HandleLineButtonClick() {
     log.AddLog("Line button was clicked.\n");
     points.clear();
-    mode = LINE;
-    // TO DO
+    mode = Mode::LINE;
 }
 
 void Viewport::HandleWireframeButtonClick() {
     log.AddLog("Wireframe button was clicked.\n");
     points.clear();
-    mode = WIREFRAME;
-    // TO DO
+    mode = Mode::WIREFRAME;
 }
 
 void Viewport::HandleEnterButtonClick() {
@@ -62,16 +69,8 @@ ImDrawList* Viewport::GetDrawList() {
 }
 
 void Viewport::AddGraphicObject() {
-    /* 
-        TO DO: Criar objetos e encaminhá-los para o display file.
-    */
-    if (mode == POINT) {
-        log.AddLog("[info] Creating new point...\n");
-    } else if (mode == LINE) {
-        log.AddLog("[info] Creating new line...\n");
-    } else if (mode == WIREFRAME) {
-        log.AddLog("[info] Creating new wireframe...\n");
-    }
+    std::vector<std::pair<float, float>> points_vec = ImVecToVec(points);
+    entityManager.add(points_vec); // precisa de um nome também
     points.clear();
 }
 

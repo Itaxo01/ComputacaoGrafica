@@ -14,7 +14,7 @@
 
 #include "log_app.h"
 
-enum Mode {
+enum class Mode {
     POINT,
     LINE,
     WIREFRAME,
@@ -23,9 +23,12 @@ enum Mode {
 
 class Viewport {
 private:
-    Mode mode = NONE;
+    EntityManager entityManager;
+    Mode mode = Mode::NONE;
     ExampleAppLog log;
     ImVector<ImVec2> points;
+
+    std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p);
     void HandleLeftClick();
     void HandleRightDragging(); 
     void HandlePointButtonClick();
