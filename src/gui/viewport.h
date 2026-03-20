@@ -13,6 +13,7 @@
 #include <math.h> // fmodf
 
 #include "log_app.h"
+#include "EntityManager.hpp"
 
 enum class Mode {
     POINT,
@@ -36,16 +37,11 @@ private:
     void HandleWireframeButtonClick();
     void HandleEnterButtonClick();
 public:
+    Viewport(EntityManager &em) : entityManager(em) {};
     ImVec2 GetViewportSize();
     ImDrawList* GetDrawList();
     void AddGraphicObject();
     void run();
-};
-
-enum Mode {
-    POINT,
-    LINE,
-    WIREFRAME
 };
 
 #endif // VIEWPORT_H

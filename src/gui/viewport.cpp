@@ -1,7 +1,7 @@
 #include "viewport.h"
 #include "EntityManager.hpp"
 
-std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p){
+std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
     std::vector<std::pair<float, float>> result;
     result.reserve(p.Size);
     for(int i = 0; i<p.Size; i++){
@@ -70,7 +70,7 @@ ImDrawList* Viewport::GetDrawList() {
 
 void Viewport::AddGraphicObject() {
     std::vector<std::pair<float, float>> points_vec = ImVecToVec(points);
-    entityManager.add(points_vec); // precisa de um nome também
+    entityManager.add("DEFAULT_NAME", points_vec); // precisa de um nome também
     points.clear();
 }
 

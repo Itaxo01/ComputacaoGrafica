@@ -27,6 +27,7 @@ struct ManifestEntry {
 */
 
 class DisplayFile{
+private:
     std::vector<core::Point> pointList;
     std::vector<core::Line> lineList;
     std::vector<core::Wireframe> wireframeList;
@@ -35,8 +36,7 @@ class DisplayFile{
 
     std::unordered_map<long long, int> id_hash;
 
-    DisplayFile(){}
-
+public:
     void add(core::Point &k, const std::string &name, const long long id) {
         manifest.push_back(ManifestEntry(id, ShapeType::POINT, name));
         pointList.push_back(k);
@@ -49,6 +49,7 @@ class DisplayFile{
         manifest.push_back(ManifestEntry(id, ShapeType::WIREFRAME, name));
         wireframeList.push_back(k);
     }
+    DisplayFile(){}
 };
 
 
