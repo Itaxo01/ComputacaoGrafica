@@ -1,5 +1,4 @@
 #include "viewport.h"
-#include "EntityManager.hpp"
 
 std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
     std::vector<std::pair<float, float>> result;
@@ -129,6 +128,5 @@ void Viewport::run() {
         draw_list->AddLine(ImVec2(origin.x + points[n].x, origin.y + points[n].y), ImVec2(origin.x + points[n + 1].x, origin.y + points[n + 1].y), IM_COL32(255, 255, 0, 255), 2.0f);
     draw_list->PopClipRect();*/
     ImGui::End();
-
     log.Draw("Log");
 }

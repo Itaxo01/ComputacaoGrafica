@@ -7,11 +7,14 @@
 #include "Line.hpp"
 #include "Point.hpp"
 #include "Wireframe.hpp"
+#include "log_app.h"
 
 class Renderer {
 private:
     DisplayFile &displayFile;
     Viewport &viewport;
+
+    ExampleAppLog log; // REMOVER DEPOIS
 
     void RenderBackground();
     void DrawObject(core::Point point);

@@ -9,8 +9,12 @@ void Renderer::RenderBackground() {
     draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
 }
 
-void Renderer::DrawObject(core::Point point) {
+void Renderer::DrawObject(core::Point p) {
+    ImDrawList* draw_list = viewport.GetDrawList();
     // TO DO
+    const int rad = 5;
+    //draw_list->AddCircle(ImVec2(p1.x + offset_x, p1.y + offset_y), rad, IM_COL32_WHITE);
+    draw_list->AddCircle(ImVec2(p.x, p.y), rad, IM_COL32_WHITE);
     return;
 }
 
@@ -21,4 +25,5 @@ void Renderer::render() {
     for (core::Point point : pointList) {
         DrawObject(point);
     }
+    log.Draw("Log");
 }
