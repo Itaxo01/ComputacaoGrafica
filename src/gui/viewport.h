@@ -29,6 +29,10 @@ private:
     ExampleAppLog log;
     ImVector<ImVec2> points;
 
+    ImVec2 canvas_p0;
+    ImVec2 canvas_p1;
+    ImDrawList* draw_list;
+
     // object creation
     bool enable_object_creation = false;
     int e = 0;
@@ -41,9 +45,10 @@ private:
 public:
     Viewport(EntityManager &em) : entityManager(em) {};
     ImVec2 GetViewportSize();
-    ImDrawList* GetDrawList();
+    ImDrawList* GetDrawList() {return draw_list;}
     void AddGraphicObject();
     void run();
+    std::pair<ImVec2, ImVec2> GetCanvasP() {return std::make_pair(canvas_p0, canvas_p1);}
 };
 
 #endif // VIEWPORT_H

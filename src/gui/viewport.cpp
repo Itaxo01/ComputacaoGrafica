@@ -43,10 +43,6 @@ ImVec2 Viewport::GetViewportSize() {
     return ImGui::GetContentRegionAvail();
 }
 
-ImDrawList* Viewport::GetDrawList() {
-    return ImGui::GetWindowDrawList();
-}
-
 void Viewport::AddGraphicObject() {
     std::string name(obj_name);
     if (name == "" || name == "\1") { // Substituir por um regex depois...
@@ -105,17 +101,14 @@ void Viewport::run() {
     //      ImGui::EndChild();
 
     // Using InvisibleButton() as a convenience 1) it will advance the layout cursor and 2) allows us to use IsItemHovered()/IsItemActive()
-    ImVec2 canvas_p0 = ImGui::GetCursorScreenPos();      // ImDrawList API uses screen coordinates!
+    canvas_p0 = ImGui::GetCursorScreenPos();      // ImDrawList API uses screen coordinates!
     ImVec2 canvas_sz = ImGui::GetContentRegionAvail();   // Resize canvas to what's available
     if (canvas_sz.x < 50.0f) canvas_sz.x = 50.0f;
     if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
-    ImVec2 canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);
+    canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);
 
-    // Draw border and background color
     // DEVE SER PASSADO PARA O RENDERER
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
-    draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
+    draw_list = ImGui::GetWindowDrawList();
 
     // This will catch our interactions
     ImGui::InvisibleButton("canvas", canvas_sz, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);

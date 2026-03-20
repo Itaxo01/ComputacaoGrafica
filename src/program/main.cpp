@@ -138,9 +138,9 @@ int main(int, char**)
 
     // Nossas classes
     DisplayFile displayFile;
-    Renderer renderer(displayFile);
     EntityManager entityManager(displayFile);
     Viewport viewport(entityManager);
+    Renderer renderer(displayFile, viewport);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
