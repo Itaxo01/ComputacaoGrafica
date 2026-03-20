@@ -25,19 +25,19 @@ enum class Mode {
 class Viewport {
 private:
     EntityManager entityManager;
-    Mode mode = Mode::NONE;
+    Mode mode = Mode::POINT;
     ExampleAppLog log;
     ImVector<ImVec2> points;
 
     // object creation
     bool enable_object_creation = false;
     int e = 0;
-    char obj_name[16];
+    char obj_name[16] = "DEFAULT_NAME";
 
     std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p);
     void HandleLeftClick();
     void HandleRightDragging(); 
-    
+
 public:
     Viewport(EntityManager &em) : entityManager(em) {};
     ImVec2 GetViewportSize();

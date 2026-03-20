@@ -48,9 +48,8 @@ ImDrawList* Viewport::GetDrawList() {
 }
 
 void Viewport::AddGraphicObject() {
-    std::string name = obj_name;
-    log.AddLog("{%d}", name == " ");
-    if (name == "") { // Substituir por um regex depois...
+    std::string name(obj_name);
+    if (name == "" || name == "\1") { // Substituir por um regex depois...
         log.AddLog("[error] Cannot create object (Invalid name): {%s}\n", obj_name);
         return;
     }
