@@ -1,5 +1,19 @@
-/*
-    O Renderer vai abusar do polimorfismo para determinar como desenhar objetos. 
-    Haverá por exemplo multiplas funções de draw, mudando apenas o objeto na assinatura, e assim também seu funcionamento
-    draw(core::circle), draw(core::line) etc 
-*/
+#ifndef RENDERER_H
+#define RENDERER_H
+
+#include "DisplayFile.hpp"
+#include "Line.hpp"
+#include "Point.hpp"
+#include "Wireframe.hpp"
+
+class Renderer {
+private:
+    DisplayFile &displayFile;
+
+    void DrawObject(core::Point point);
+public:
+    Renderer(DisplayFile &df): displayFile(df) {}
+    void render();
+};
+
+#endif

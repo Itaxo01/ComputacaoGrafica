@@ -19,7 +19,9 @@ IMGUI_DIR = ../imgui
 GUI_DIR = ../gui
 CORE_DIR = ../core
 WINDOW_DIR = ../window
+GRAPHICS_DIR = ../graphics
 SOURCES = main.cpp
+SOURCES += $(GRAPHICS_DIR)/Renderer.cpp
 SOURCES += $(WINDOW_DIR)/DisplayFile.cpp
 SOURCES += $(CORE_DIR)/EntityManager.cpp
 SOURCES += $(GUI_DIR)/viewport.cpp
@@ -29,7 +31,7 @@ OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++11 -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
+CXXFLAGS = -std=c++11 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 CXXFLAGS += -g -Wall -Wformat
 LIBS =
 
@@ -77,6 +79,9 @@ endif
 ##---------------------------------------------------------------------
 
 %.o:%.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o:$(GRAPHICS_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(WINDOW_DIR)/%.cpp

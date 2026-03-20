@@ -49,6 +49,9 @@ public:
         manifest.push_back(ManifestEntry(id, ShapeType::WIREFRAME, name));
         wireframeList.push_back(k);
     }
+    std::vector<core::Point> getPointList() {return pointList;}
+    std::vector<core::Line> getLineList() {return lineList;}
+    std::vector<core::Wireframe> getWireframeList() {return wireframeList;}
     DisplayFile(){}
 };
 
