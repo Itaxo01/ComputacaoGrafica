@@ -1,3 +1,6 @@
+#ifndef VIEWPORT_H
+#define VIEWPORT_H
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -35,3 +38,11 @@ public:
     void AddGraphicObject();
     void run();
 };
+
+enum Mode {
+    POINT,
+    LINE,
+    WIREFRAME
+};
+
+#endif // VIEWPORT_H
