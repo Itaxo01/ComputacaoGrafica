@@ -29,13 +29,15 @@ private:
     ExampleAppLog log;
     ImVector<ImVec2> points;
 
+    // object creation
+    bool enable_object_creation = false;
+    int e = 0;
+    char obj_name[16];
+
     std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p);
     void HandleLeftClick();
     void HandleRightDragging(); 
-    void HandlePointButtonClick();
-    void HandleLineButtonClick();
-    void HandleWireframeButtonClick();
-    void HandleEnterButtonClick();
+    
 public:
     Viewport(EntityManager &em) : entityManager(em) {};
     ImVec2 GetViewportSize();

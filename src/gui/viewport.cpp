@@ -18,10 +18,17 @@ void Viewport::HandleLeftClick() {
     float y = window_pos.y - mouse_pos.y - magic_constant;
     log.AddLog("Canvas was clicked. Position = (%.1f, %.1f)\n", x, y);
 
-    points.push_back(ImVec2(x, y));
+    if (enable_object_creation) {
+        if (points.size() > 2 && mode == Mode::WIREFRAME &&
+            x == points[points.size()-1].x && y == points[points.size()-1].y) {
+            AddGraphicObject();
+            return;
+        }
 
-    if (mode == Mode::POINT || (mode == Mode::LINE && points.size() == 2)) {
-        AddGraphicObject();
+        points.push_back(ImVec2(x, y));
+        if (mode == Mode::POINT || (mode == Mode::LINE && points.size() == 2)) {
+            AddGraphicObject();
+        }
     }
 }
 
@@ -30,34 +37,6 @@ void Viewport::HandleRightDragging() {
     log.AddLog("Canvas is being dragged. dx = {%.1f}, dy = {%.1f}\n",
     io.MouseDelta.x, io.MouseDelta.y);
     // TO DO
-}
-
-void Viewport::HandlePointButtonClick() {
-    log.AddLog("Point button was clicked.\n");
-    points.clear();
-    mode = Mode::POINT;
-}
-
-void Viewport::HandleLineButtonClick() {
-    log.AddLog("Line button was clicked.\n");
-    points.clear();
-    mode = Mode::LINE;
-}
-
-void Viewport::HandleWireframeButtonClick() {
-    log.AddLog("Wireframe button was clicked.\n");
-    points.clear();
-    mode = Mode::WIREFRAME;
-}
-
-void Viewport::HandleEnterButtonClick() {
-    log.AddLog("Wireframe button was clicked.\n");
-    if (points.size() > 2) {
-        AddGraphicObject();
-    } else {
-        log.AddLog("[error] Cannot create Wireframe object with less than 3 points.\n");
-        points.clear();
-    }
 }
 
 ImVec2 Viewport::GetViewportSize() {
@@ -69,24 +48,51 @@ ImDrawList* Viewport::GetDrawList() {
 }
 
 void Viewport::AddGraphicObject() {
+    std::string name = obj_name;
+    log.AddLog("{%d}", name == " ");
+    if (name == "") { // Substituir por um regex depois...
+        log.AddLog("[error] Cannot create object (Invalid name): {%s}\n", obj_name);
+        return;
+    }
+    log.AddLog("Creating new object... name: {%s}\n", obj_name);
     std::vector<std::pair<float, float>> points_vec = ImVecToVec(points);
-    entityManager.add("DEFAULT_NAME", points_vec); // precisa de um nome também
+    entityManager.add(name, points_vec);
     points.clear();
 }
 
 void Viewport::run() {
     ImGui::Begin("Viewport");
 
-    if (ImGui::Button("Point"))
-        HandlePointButtonClick();
-    if (ImGui::Button("Line"))
-        HandleLineButtonClick();
-    if (ImGui::Button("Wireframe"))
-        HandleWireframeButtonClick();
-    if (ImGui::Button("Enter"))
-        HandleEnterButtonClick();
-
-    ImGui::Text("Mouse Left: drag to add lines,\nMouse Right: drag to scroll0");
+    // OBJECT CREATION
+    ImGui::Begin("Create New Object");
+        if (ImGui::Checkbox("Enable Object Creation:", &enable_object_creation)) {
+            points.clear();
+        }
+        if (ImGui::RadioButton("Point", &e, 0)) {
+            log.AddLog("Mode changed to POINT\n");
+            mode = Mode::POINT;
+            points.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Line", &e, 1)) {
+            log.AddLog("Mode changed to LINE\n");
+            mode = Mode::LINE;
+            points.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Wireframe", &e, 2)) {
+            log.AddLog("Mode changed to WIREFRAME\n");
+            mode = Mode::WIREFRAME;
+            points.clear();
+        }
+        // BEGIN INPUT TEXT
+        ImGui::Text("Object name:"); ImGui::SameLine();
+        ImGui::InputText("##", obj_name, IM_COUNTOF(obj_name));
+        // END INPUT TEXT
+        ImGui::Text("To create a point: \nclick on canvas 1 time\n");
+        ImGui::Text("To create a line: \nClick on canvas 2 times\n");
+        ImGui::Text("To create a wireframe: \nClick on canvas at least 3 times and\nclick on the same location again.\n");
+    ImGui::End();
 
     // Typically you would use a BeginChild()/EndChild() pair to benefit from a clipping region + own scrolling.
     // Here we demonstrate that this can be replaced by simple offsetting + custom drawing + PushClipRect/PopClipRect() calls.
