@@ -38,10 +38,6 @@ void Viewport::HandleRightDragging() {
     // TO DO
 }
 
-ImVec2 Viewport::GetViewportSize() {
-    return ImGui::GetContentRegionAvail();
-}
-
 void Viewport::AddGraphicObject() {
     std::string name(obj_name);
     if (name == "" || name == "\1") { // Substituir por um regex depois...
@@ -101,7 +97,7 @@ void Viewport::run() {
 
     // Using InvisibleButton() as a convenience 1) it will advance the layout cursor and 2) allows us to use IsItemHovered()/IsItemActive()
     canvas_p0 = ImGui::GetCursorScreenPos();      // ImDrawList API uses screen coordinates!
-    ImVec2 canvas_sz = ImGui::GetContentRegionAvail();   // Resize canvas to what's available
+    canvas_sz = ImGui::GetContentRegionAvail();   // Resize canvas to what's available
     if (canvas_sz.x < 50.0f) canvas_sz.x = 50.0f;
     if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
     canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);

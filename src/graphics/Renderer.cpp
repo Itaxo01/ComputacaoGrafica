@@ -11,10 +11,13 @@ void Renderer::RenderBackground() {
 
 void Renderer::DrawObject(core::Point p) {
     ImDrawList* draw_list = viewport.GetDrawList();
+    std::pair<ImVec2, ImVec2> cp = viewport.GetCanvasP();
+    ImVec2 canvas_sz = viewport.GetCanvasSize();
+
     // TO DO
     const int rad = 5;
     //draw_list->AddCircle(ImVec2(p1.x + offset_x, p1.y + offset_y), rad, IM_COL32_WHITE);
-    draw_list->AddCircle(ImVec2(p.x, p.y), rad, IM_COL32_WHITE);
+    draw_list->AddCircle(ImVec2(p.x + cp.first.x, canvas_sz.y - p.y + cp.first.y), rad, IM_COL32_WHITE);
     return;
 }
 

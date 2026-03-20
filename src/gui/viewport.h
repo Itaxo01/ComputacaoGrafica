@@ -31,6 +31,7 @@ private:
 
     ImVec2 canvas_p0;
     ImVec2 canvas_p1;
+    ImVec2 canvas_sz;
     ImDrawList* draw_list;
 
     // object creation
@@ -49,6 +50,7 @@ public:
     void AddGraphicObject();
     void run();
     std::pair<ImVec2, ImVec2> GetCanvasP() {return std::make_pair(canvas_p0, canvas_p1);}
+    ImVec2 GetCanvasSize() {return canvas_sz;};
 };
 
 #endif // VIEWPORT_H
