@@ -6,6 +6,7 @@
 
 namespace core{
     class Line{
+        public:
         core::Point a, b;
         Line(core::Point &a, core::Point &b): a(a), b(b) {}
 

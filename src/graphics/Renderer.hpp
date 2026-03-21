@@ -18,6 +18,8 @@ private:
 
     void RenderBackground();
     void DrawObject(core::Point point);
+    void DrawObject(core::Line line);
+    void DrawObject(core::Wireframe wireframe);
 public:
     Renderer(DisplayFile &df, Viewport &v): displayFile(df), viewport(v) {}
     void render();

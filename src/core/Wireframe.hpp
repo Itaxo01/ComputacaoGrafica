@@ -7,6 +7,7 @@
 
 namespace core{
     class Wireframe{
+        public:
         std::vector<core::Point> data;
         Wireframe(std::vector<core::Point> &data): data(data) {}
 

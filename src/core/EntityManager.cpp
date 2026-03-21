@@ -7,13 +7,20 @@ void EntityManager::addPoint(const std::string &name, float x, float y){
 }
 
 void EntityManager::addLine(const std::string &name, float x1, float y1, float x2, float y2){
-    // TO DO
-    return;
+    long long id = this->nextID(Types::LINE);
+    core::Point p1(x1, y1); core::Point p2(x2, y2);
+    core::Line l(p1, p2);
+    displayFile.add(l, name, id);
 }
 
-void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>>){
-    // TO DO
-    return;
+void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> vp) {
+    long long id = this->nextID(Types::WIREFRAME);
+    std::vector<core::Point> core_vp;
+    for (std::pair<float, float> p : vp) {
+        core_vp.push_back(core::Point(p.first, p.second));
+    }
+    core::Wireframe w(core_vp);
+    displayFile.add(w, name, id);
 }
 
 void EntityManager::add(const std::string &name, std::vector<std::pair<float, float>> &p) {
