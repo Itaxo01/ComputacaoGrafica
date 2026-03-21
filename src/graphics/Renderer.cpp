@@ -37,7 +37,7 @@ void Renderer::DrawObject(core::Wireframe wireframe) {
     const float width = 2.0f;
     int size = wireframe.data.size();
     for (int i = 0; i < size; i++) {
-        core::Point p0 = wireframe.data[i]; core::Point p1 = wireframe.data[i%size];
+        core::Point p0 = wireframe.data[i]; core::Point p1 = wireframe.data[(i+1)%size];
         draw_list->AddLine(ImVec2(p0.x + cp.first.x, canvas_sz.y - p0.y + cp.first.y), ImVec2(cp.first.x + p1.x, cp.first.y + canvas_sz.y - p1.y), IM_COL32_WHITE, width);
     }
 }
