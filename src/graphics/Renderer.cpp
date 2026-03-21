@@ -16,7 +16,6 @@ void Renderer::DrawObject(core::Point p) {
 
     const int rad = 5;
     draw_list->AddCircle(ImVec2(p.x + cp.first.x, canvas_sz.y - p.y + cp.first.y), rad, IM_COL32_WHITE);
-    return;
 }
 
 void Renderer::DrawObject(core::Line line) {

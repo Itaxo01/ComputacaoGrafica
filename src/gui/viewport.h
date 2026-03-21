@@ -14,6 +14,7 @@
 
 #include "log_app.h"
 #include "EntityManager.hpp"
+#include "Window.hpp"
 
 enum class Mode {
     POINT,
@@ -25,6 +26,7 @@ enum class Mode {
 class Viewport {
 private:
     EntityManager entityManager;
+    //Window &window = nullptr;
     Mode mode = Mode::POINT;
     ExampleAppLog log;
     ImVector<ImVec2> points;
@@ -45,6 +47,7 @@ private:
 
 public:
     Viewport(EntityManager &em) : entityManager(em) {};
+    //void SetWindow(Window &w) {window = w;}
     ImVec2 GetViewportSize();
     ImDrawList* GetDrawList() {return draw_list;}
     void AddGraphicObject();
