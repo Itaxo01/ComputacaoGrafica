@@ -1,20 +1,20 @@
 #include "EntityManager.hpp"
 
 void EntityManager::addPoint(const std::string &name, float x, float y){
-    long long id = this->nextID(ShapeType::POINT);
+    long long id = this->nextID(core::ShapeType::POINT);
     core::Point p(x, y);
     displayFile.add(p, name, id);
 }
 
 void EntityManager::addLine(const std::string &name, float x1, float y1, float x2, float y2){
-    long long id = this->nextID(ShapeType::LINE);
+    long long id = this->nextID(core::ShapeType::LINE);
     core::Point p1(x1, y1); core::Point p2(x2, y2);
     core::Line l(p1, p2);
     displayFile.add(l, name, id);
 }
 
 void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> vp) {
-    long long id = this->nextID(ShapeType::WIREFRAME);
+    long long id = this->nextID(core::ShapeType::WIREFRAME);
     std::vector<core::Point> core_vp;
     core_vp.reserve(vp.size()); // small optimization
     for (std::pair<float, float> p : vp) {

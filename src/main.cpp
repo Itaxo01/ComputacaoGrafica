@@ -19,7 +19,7 @@
 #include <math.h> // fmodf
 
 // NOSSOS IMPORTS
-#include "viewport.h"
+#include "Viewport.hpp"
 #include "Renderer.hpp"
 #include "log_app.h"
 #include "Window.hpp"
@@ -142,11 +142,11 @@ int main(int, char**)
     DisplayFile displayFile;
     EntityManager entityManager(displayFile);
     Viewport viewport(entityManager);
-    //Window worldWindow;
-    //viewport.SetWindow(worldWindow);
-    //worldWindow.SetViewport(viewport);
-    //Renderer renderer(displayFile, viewport, worldWindow);
-    Renderer renderer(displayFile, viewport);
+    Window programWindow(viewport);
+    viewport.setWindow(&programWindow);
+
+
+    Renderer renderer(displayFile, viewport, programWindow);
 
     // Main loop
 #ifdef __EMSCRIPTEN__

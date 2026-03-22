@@ -3,12 +3,15 @@
 
 #include <ostream>
 #include "Point.hpp"
+#include "Shape.hpp"
 
 namespace core{
-    class Line{
+    class Line: public Shape{
         public:
         core::Point a, b;
-        Line(core::Point &a, core::Point &b): a(a), b(b) {}
+        Line(core::Point &a, core::Point &b): a(a), b(b) {
+            type = ShapeType::LINE;
+        }
 
 
         friend std::ostream &operator<<(std::ostream &os, const Line &l) {

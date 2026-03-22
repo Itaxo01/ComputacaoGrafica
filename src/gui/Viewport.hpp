@@ -1,5 +1,5 @@
-#ifndef VIEWPORT_H
-#define VIEWPORT_H
+#ifndef VIEWPORT_HPP
+#define VIEWPORT_HPP
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -14,14 +14,15 @@
 
 #include "log_app.h"
 #include "EntityManager.hpp"
-#include "Window.hpp"
-#include "ShapeType.hpp"
+#include "Shape.hpp"
+
+class Window; // Forward declaration
 
 class Viewport {
 private:
     EntityManager entityManager;
-    //Window &window = nullptr;
-    ShapeType mode = ShapeType::POINT;
+    Window *window = nullptr;
+    core::ShapeType mode = core::ShapeType::POINT;
     ExampleAppLog log;
     ImVector<ImVec2> points;
 
@@ -42,12 +43,14 @@ private:
 public:
     Viewport(EntityManager &em) : entityManager(em) {};
     //void SetWindow(Window &w) {window = w;}
-    ImVec2 GetViewportSize();
-    ImDrawList* GetDrawList() {return draw_list;}
     void AddGraphicObject();
     void run();
-    std::pair<ImVec2, ImVec2> GetCanvasP() {return std::make_pair(canvas_p0, canvas_p1);}
+    void setWindow(Window *w){window = w;}
+
+    ImVec2 GetViewportSize();
     ImVec2 GetCanvasSize() {return canvas_sz;};
+    std::pair<ImVec2, ImVec2> GetCanvasP() {return std::make_pair(canvas_p0, canvas_p1);}
+    ImDrawList* GetDrawList() {return draw_list;}
 };
 
-#endif // VIEWPORT_H
+#endif // VIEWPORT_HPP

@@ -3,16 +3,21 @@
 
 #include <ostream>
 #include <cmath>
+#include "Shape.hpp"
 
 /* Points are vectors, we just assume that they start at the origin(0,0). We will have to decide where to make a separate Vector class or we just add a Point to the Point class, referencing the translation of that point (the vector origin). 
 * And yes, everything is implemented on the header. Apparently that's a good practice for this kind of class.
+
+Essa classe não precisava ser tão grande, é só pq eu já tinha a estrutura pronta (livro do time de maratona de programação).
 */
 namespace core{
-    class Point{
+    class Point: public Shape{
         public:
             static constexpr float EPS = 1e-9; // This is our threshold for something like x == y on floats, there could be a tiny error that the EPS will handle
             float x, y;
-            Point(float x = 0, float y = 0): x(x), y(y){}
+            Point(float x = 0, float y = 0): x(x), y(y){
+                type = core::ShapeType::POINT;
+            }
 
             friend Point operator+(const Point &p, const Point &q) {return Point(p.x + q.x, p.y + q.y);}
             friend Point operator-(const Point &p, const Point &q) {return Point(p.x - q.x, p.y - q.y);}

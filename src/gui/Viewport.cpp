@@ -1,4 +1,5 @@
-#include "viewport.h"
+#include "Viewport.hpp"
+#include "Window.hpp"
 
 std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
     std::vector<std::pair<float, float>> result;
@@ -10,22 +11,23 @@ std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
 }
 
 void Viewport::HandleLeftClick() {
-    const float magic_constant = 5;
     ImVec2 mouse_pos = ImGui::GetMousePos();
-    ImVec2 window_pos = ImGui::GetCursorScreenPos();
-    float x = mouse_pos.x - window_pos.x;
-    float y = window_pos.y - mouse_pos.y - magic_constant;
+    log.AddLog("Canvas was clicked. Mouse Position = (%.1f, %.1f)\n", mouse_pos.x, mouse_pos.y);
+    
+    core::Point world_p = window->ViewportToWorld(mouse_pos);
+    float x = world_p.x, y = world_p.y;
+
     log.AddLog("Canvas was clicked. Position = (%.1f, %.1f)\n", x, y);
 
     if (enable_object_creation) {
-        if (points.size() > 2 && mode == ShapeType::WIREFRAME &&
+        if (points.size() > 2 && mode == core::ShapeType::WIREFRAME &&
             x == points[points.size()-1].x && y == points[points.size()-1].y) {
             AddGraphicObject();
             return;
         }
 
         points.push_back(ImVec2(x, y));
-        if (mode == ShapeType::POINT || (mode == ShapeType::LINE && points.size() == 2)) {
+        if (mode == core::ShapeType::POINT || (mode == core::ShapeType::LINE && points.size() == 2)) {
             AddGraphicObject();
         }
     }
@@ -60,19 +62,19 @@ void Viewport::run() {
         }
         if (ImGui::RadioButton("Point", &e, 0)) {
             log.AddLog("Mode changed to POINT\n");
-            mode = ShapeType::POINT;
+            mode = core::ShapeType::POINT;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Line", &e, 1)) {
             log.AddLog("Mode changed to LINE\n");
-            mode = ShapeType::LINE;
+            mode = core::ShapeType::LINE;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Wireframe", &e, 2)) {
             log.AddLog("Mode changed to WIREFRAME\n");
-            mode = ShapeType::WIREFRAME;
+            mode = core::ShapeType::WIREFRAME;
             points.clear();
         }
         // BEGIN INPUT TEXT

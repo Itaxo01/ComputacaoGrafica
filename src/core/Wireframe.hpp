@@ -3,13 +3,16 @@
 
 #include <ostream>
 #include "Point.hpp"
+#include "Shape.hpp"
 #include <vector>
 
 namespace core{
-    class Wireframe{
+    class Wireframe: public Shape{
         public:
         std::vector<core::Point> data;
-        Wireframe(std::vector<core::Point> &data): data(data) {}
+        Wireframe(std::vector<core::Point> &data): data(data) {
+            type = ShapeType::WIREFRAME;
+        }
 
 
         friend std::ostream &operator<<(std::ostream &os, const Wireframe &l) {

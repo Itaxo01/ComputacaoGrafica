@@ -8,7 +8,7 @@
 #include "Line.hpp"
 #include "Point.hpp"
 #include "Wireframe.hpp"
-#include "ShapeType.hpp"
+#include "Shape.hpp"
 
 /* Current geometric primitives:
     Line
@@ -26,7 +26,7 @@ class EntityManager{
             currentId = 1;
         }
 
-        long long nextID(ShapeType type){
+        long long nextID(core::ShapeType type){
             long long id = this->currentId*10 + (int)type;
             this->currentId++;
             return id;
