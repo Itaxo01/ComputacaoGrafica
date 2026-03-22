@@ -8,6 +8,7 @@
 #include "Line.hpp"
 #include "Point.hpp"
 #include "Wireframe.hpp"
+#include "ShapeType.hpp"
 
 /* Current geometric primitives:
     Line
@@ -16,11 +17,6 @@
 */
 class EntityManager{
     private: 
-        enum class Types{ // I intend to abuse the fact that the enum is a int. 
-            LINE,
-            POINT,
-            WIREFRAME 
-        }; // Se esse enum em algum momento passar de 10, precisaremos mudar a lógica do nextID
         long long currentId = 1;
         DisplayFile &displayFile; // EntityManager deve ser o único
 
@@ -30,9 +26,9 @@ class EntityManager{
             currentId = 1;
         }
 
-        long long nextID(Types type){
-            long long id = currentId*10 + (int)type;
-            currentId++;
+        long long nextID(ShapeType type){
+            long long id = this->currentId*10 + (int)type;
+            this->currentId++;
             return id;
         }
 

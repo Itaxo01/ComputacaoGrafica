@@ -1,5 +1,10 @@
-### gitignore padrão do C++, não modifiquei nada
+### Ignores do projeto:
+extras/
+examples/
+imgui.ini
+*.out
 
+### gitignore padrão do C++, não modifiquei nada
 # Prerequisites
 *.d
 

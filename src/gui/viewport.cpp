@@ -18,14 +18,14 @@ void Viewport::HandleLeftClick() {
     log.AddLog("Canvas was clicked. Position = (%.1f, %.1f)\n", x, y);
 
     if (enable_object_creation) {
-        if (points.size() > 2 && mode == Mode::WIREFRAME &&
+        if (points.size() > 2 && mode == ShapeType::WIREFRAME &&
             x == points[points.size()-1].x && y == points[points.size()-1].y) {
             AddGraphicObject();
             return;
         }
 
         points.push_back(ImVec2(x, y));
-        if (mode == Mode::POINT || (mode == Mode::LINE && points.size() == 2)) {
+        if (mode == ShapeType::POINT || (mode == ShapeType::LINE && points.size() == 2)) {
             AddGraphicObject();
         }
     }
@@ -60,19 +60,19 @@ void Viewport::run() {
         }
         if (ImGui::RadioButton("Point", &e, 0)) {
             log.AddLog("Mode changed to POINT\n");
-            mode = Mode::POINT;
+            mode = ShapeType::POINT;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Line", &e, 1)) {
             log.AddLog("Mode changed to LINE\n");
-            mode = Mode::LINE;
+            mode = ShapeType::LINE;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Wireframe", &e, 2)) {
             log.AddLog("Mode changed to WIREFRAME\n");
-            mode = Mode::WIREFRAME;
+            mode = ShapeType::WIREFRAME;
             points.clear();
         }
         // BEGIN INPUT TEXT

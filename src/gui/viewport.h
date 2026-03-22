@@ -15,19 +15,13 @@
 #include "log_app.h"
 #include "EntityManager.hpp"
 #include "Window.hpp"
-
-enum class Mode {
-    POINT,
-    LINE,
-    WIREFRAME,
-    NONE
-};
+#include "ShapeType.hpp"
 
 class Viewport {
 private:
     EntityManager entityManager;
     //Window &window = nullptr;
-    Mode mode = Mode::POINT;
+    ShapeType mode = ShapeType::POINT;
     ExampleAppLog log;
     ImVector<ImVec2> points;
 
