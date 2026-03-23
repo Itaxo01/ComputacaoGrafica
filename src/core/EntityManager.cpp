@@ -13,12 +13,12 @@ void EntityManager::addLine(const std::string &name, float x1, float y1, float x
     displayFile.add(l, name, id);
 }
 
-void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> vp) {
+void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp) {
     long long id = this->nextID(core::ShapeType::WIREFRAME);
     std::vector<core::Point> core_vp;
     core_vp.reserve(vp.size()); // small optimization
-    for (std::pair<float, float> p : vp) {
-        core_vp.emplace_back(core::Point(p.first, p.second)); 
+    for (const auto &p : vp) {
+        core_vp.emplace_back(p.first, p.second); 
     }
     core::Wireframe w(core_vp);
     displayFile.add(w, name, id);

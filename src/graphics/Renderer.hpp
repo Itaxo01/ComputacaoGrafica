@@ -19,9 +19,9 @@ private:
     ExampleAppLog log; // REMOVER DEPOIS
 
     void RenderBackground();
-    void DrawObject(core::Point &point);
-    void DrawObject(core::Line &line);
-    void DrawObject(core::Wireframe &wireframe);
+    void DrawObject(const core::Point &point);
+    void DrawObject(const core::Line &line);
+    void DrawObject(const core::Wireframe &wireframe);
 public:
     //Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}

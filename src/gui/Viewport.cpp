@@ -1,7 +1,7 @@
 #include "Viewport.hpp"
 #include "Window.hpp"
 
-std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
+inline std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
     std::vector<std::pair<float, float>> result;
     result.reserve(p.Size);
     for(int i = 0; i<p.Size; i++){
@@ -12,8 +12,7 @@ std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
 
 void Viewport::HandleLeftClick() {
     ImVec2 mouse_pos = ImGui::GetMousePos();
-    log.AddLog("Canvas was clicked. Mouse Position = (%.1f, %.1f)\n", mouse_pos.x, mouse_pos.y);
-    
+
     core::Point world_p = window->ViewportToWorld(mouse_pos);
     float x = world_p.x, y = world_p.y;
 
@@ -21,7 +20,7 @@ void Viewport::HandleLeftClick() {
 
     if (enable_object_creation) {
         if (points.size() > 2 && mode == core::ShapeType::WIREFRAME &&
-            x == points[points.size()-1].x && y == points[points.size()-1].y) {
+            x == points.back().x && y == points.back().y) {
             AddGraphicObject();
             return;
         }
@@ -38,6 +37,18 @@ void Viewport::HandleRightDragging() {
     log.AddLog("Canvas is being dragged. dx = {%.1f}, dy = {%.1f}\n",
     io.MouseDelta.x, io.MouseDelta.y);
     // TO DO
+    // move the canvas on the opposite direction
+    window->moveWindow(-io.MouseDelta.x, io.MouseDelta.y);
+}
+
+void Viewport::HandleScroll(const float delta){
+    ImVec2 mouse_pos = ImGui::GetMousePos();
+    // A Anchor vai dar um fator de % para cada dimensão do zoom
+    std::string mode = delta > 0.0f ? "in" : delta < 0.0f ? "out" : "";
+    log.AddLog("Canvas zoomed {%s}. delta = {%.1f} at position ({%.1f}, {%.1f})\n", mode.c_str(), delta, mouse_pos.x, mouse_pos.y);
+    
+    float zoom_factor = delta > 0.0f ? 0.9f : delta < 0.0f ? 1.1f : 1.0f;
+    window->zoom(zoom_factor, mouse_pos);
 }
 
 void Viewport::AddGraphicObject() {
@@ -118,7 +129,13 @@ void Viewport::run() {
     const float mouse_threshold_for_pan = 0.0f;
     if (is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Right, mouse_threshold_for_pan))
         HandleRightDragging();
-
+    
+    if (is_hovered) {
+        float scroll = ImGui::GetIO().MouseWheel;
+        if(scroll != 0.0f){
+            HandleScroll(scroll);
+        }
+    }
     // Draw all lines in the canvas
     // PASSAR PARA O RENDERER
     /*draw_list->PushClipRect(canvas_p0, canvas_p1, true);

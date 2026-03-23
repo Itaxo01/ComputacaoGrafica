@@ -12,15 +12,15 @@ void Renderer::RenderBackground() {
     draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
 }
 
-void Renderer::DrawObject(core::Point &world_p) {
+void Renderer::DrawObject(const core::Point &world_p) {
     ImDrawList* draw_list = viewport.GetDrawList();
     core::Point screen_p = window.WorldToViewport(world_p);
 
-    const int rad = 5;
-    draw_list->AddCircle(ToImVec2(screen_p), rad, IM_COL32_WHITE);
+    const float rad = 2.5;
+    draw_list->AddCircle(ToImVec2(screen_p), rad, IM_COL32_WHITE, 0, 2.0f);
 }
 
-void Renderer::DrawObject(core::Line &line) {
+void Renderer::DrawObject(const core::Line &line) {
     ImDrawList* draw_list = viewport.GetDrawList();
     
     core::Point p0 = window.WorldToViewport(line.a); 
@@ -30,13 +30,15 @@ void Renderer::DrawObject(core::Line &line) {
     draw_list->AddLine(ToImVec2(p0), ToImVec2(p1), IM_COL32_WHITE, width);
     //draw_list->PopClipRect(); // ver oq faz
 }
-void Renderer::DrawObject(core::Wireframe &wireframe) {
+void Renderer::DrawObject(const core::Wireframe &wireframe) {
     ImDrawList* draw_list = viewport.GetDrawList();
     
     const float width = 2.0f;
     int size = wireframe.data.size();
     for (int i = 0; i < size-1; i++) {
-        core::Point p0 = wireframe.data[i]; core::Point p1 = wireframe.data[i%size];
+        core::Point p0 = window.WorldToViewport(wireframe.data[i]); 
+        core::Point p1 = window.WorldToViewport(wireframe.data[i+1]);
+
         draw_list->AddLine(ToImVec2(p0), ToImVec2(p1), IM_COL32_WHITE, width);
     }
 }

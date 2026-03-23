@@ -16,11 +16,18 @@ private:
 public:
     Window(Viewport &vp): viewport(vp) {}
 
-    void setWorldBounds(core::Point &bottomLeft, core::Point &topRight);
+    void setWorldBounds(const core::Point &bottomLeft, const core::Point &topRight);
 
-    void AddOffset(float x, float y) {x_offset += x; y_offset += y;}
-    core::Point WorldToViewport(core::Point wp);
-    core::Point ViewportToWorld(ImVec2 vp);
+    void AddOffset(const float x, const float y) {x_offset += x; y_offset += y;}
+    void moveWindow(const float x, const float y){
+        p0.x += x, p1.x += x;
+        p0.y += y, p1.y += y;
+    }
+    
+    core::Point WorldToViewport(const core::Point &wp);
+    core::Point ViewportToWorld(const ImVec2 &vp);
+
+    void zoom(const float zoom_factor, const ImVec2 &mouse_pos);
 };
 
 #endif

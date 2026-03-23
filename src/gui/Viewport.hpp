@@ -22,16 +22,16 @@ class Viewport {
 private:
     EntityManager entityManager;
     Window *window = nullptr;
-    core::ShapeType mode = core::ShapeType::POINT;
     ExampleAppLog log;
-    ImVector<ImVec2> points;
-
+    
     ImVec2 canvas_p0;
     ImVec2 canvas_p1;
     ImVec2 canvas_sz;
     ImDrawList* draw_list;
-
+    
+    core::ShapeType mode = core::ShapeType::POINT;
     // object creation
+    ImVector<ImVec2> points;
     bool enable_object_creation = false;
     int e = 0;
     char obj_name[16] = "DEFAULT_NAME";
@@ -39,6 +39,7 @@ private:
     std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p);
     void HandleLeftClick();
     void HandleRightDragging(); 
+    void HandleScroll(const float delta);
 
 public:
     Viewport(EntityManager &em) : entityManager(em) {};

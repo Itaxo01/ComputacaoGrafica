@@ -34,7 +34,7 @@ class EntityManager{
 
         void addPoint(const std::string &name, float x, float y);
         void addLine(const std::string &name, float x1, float y1, float x2, float y2);
-        void addWireframe(const std::string &name, std::vector<std::pair<float, float>> vp);
+        void addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp);
         void add(const std::string &name, std::vector<std::pair<float, float>> &p);
 };
 
