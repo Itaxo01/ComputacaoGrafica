@@ -36,9 +36,8 @@ void Viewport::HandleRightDragging() {
     ImGuiIO& io = ImGui::GetIO();
     log.AddLog("Canvas is being dragged. dx = {%.1f}, dy = {%.1f}\n",
     io.MouseDelta.x, io.MouseDelta.y);
-    // TO DO
     // move the canvas on the opposite direction
-    window->moveWindow(-io.MouseDelta.x, io.MouseDelta.y);
+    window->moveWindow(-io.MouseDelta.x, io.MouseDelta.y, canvas_sz);
 }
 
 void Viewport::HandleScroll(const float delta){
@@ -46,7 +45,8 @@ void Viewport::HandleScroll(const float delta){
     // A Anchor vai dar um fator de % para cada dimensão do zoom
     std::string mode = delta > 0.0f ? "in" : delta < 0.0f ? "out" : "";
     log.AddLog("Canvas zoomed {%s}. delta = {%.1f} at position ({%.1f}, {%.1f})\n", mode.c_str(), delta, mouse_pos.x, mouse_pos.y);
-    
+
+    // move em 10%
     float zoom_factor = delta > 0.0f ? 0.9f : delta < 0.0f ? 1.1f : 1.0f;
     window->zoom(zoom_factor, mouse_pos);
 }

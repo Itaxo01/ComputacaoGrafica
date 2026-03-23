@@ -19,10 +19,7 @@ public:
     void setWorldBounds(const core::Point &bottomLeft, const core::Point &topRight);
 
     void AddOffset(const float x, const float y) {x_offset += x; y_offset += y;}
-    void moveWindow(const float x, const float y){
-        p0.x += x, p1.x += x;
-        p0.y += y, p1.y += y;
-    }
+    void moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz);
     
     core::Point WorldToViewport(const core::Point &wp);
     core::Point ViewportToWorld(const ImVec2 &vp);
