@@ -2,9 +2,6 @@
 #define VIEWPORT_HPP
 
 #include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#include <stdio.h>
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -45,7 +42,14 @@ public:
     Viewport(EntityManager &em) : entityManager(em) {};
     //void SetWindow(Window &w) {window = w;}
     void AddGraphicObject();
+    
+    
+    void DrawViewportWindow();
+    void DrawCreateObjectWindow();
+    void DrawLogWindow();
+    // Para ficar melhor de manter, cada box da interface terá sua função de criação, run só chama todas elas.
     void run();
+
     void setWindow(Window *w){window = w;}
 
     ImVec2 GetViewportSize();

@@ -21,11 +21,12 @@ WINDOW_DIR = ./src/window
 GRAPHICS_DIR = ./src/graphics
 BUILD_DIR = ./build/obj
 
-SOURCES = ./src/main.cpp
-SOURCES += $(GRAPHICS_DIR)/Renderer.cpp
-SOURCES += $(WINDOW_DIR)/DisplayFile.cpp $(WINDOW_DIR)/Window.cpp
-SOURCES += $(CORE_DIR)/EntityManager.cpp
-SOURCES += $(GUI_DIR)/Viewport.cpp
+SOURCES = $(wildcard ./src/*.cpp)
+SOURCES += $(wildcard $(GRAPHICS_DIR)/*.cpp)
+SOURCES += $(wildcard $(WINDOW_DIR)/*.cpp)
+SOURCES += $(wildcard $(CORE_DIR)/*.cpp)
+SOURCES += $(wildcard $(GUI_DIR)/*.cpp)
+
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 
