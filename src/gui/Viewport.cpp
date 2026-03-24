@@ -64,9 +64,13 @@ void Viewport::AddGraphicObject() {
 }
 
 void Viewport::run() {
+    // Hardcoded window configurations
+    ImGui::SetNextWindowPos(ImVec2(38, 25), ImGuiCond_FirstUseEver); // Viewport window position
+    ImGui::SetNextWindowSize(ImVec2(805, 700), ImGuiCond_FirstUseEver); // Viewport window size
     ImGui::Begin("Viewport");
 
-    // OBJECT CREATION
+    ImGui::SetNextWindowPos(ImVec2(869, 27), ImGuiCond_FirstUseEver); // Create New Object window position
+    ImGui::SetNextWindowSize(ImVec2(366, 232), ImGuiCond_FirstUseEver); // Create New Object window size
     ImGui::Begin("Create New Object");
         if (ImGui::Checkbox("Enable Object Creation:", &enable_object_creation)) {
             points.clear();
@@ -88,14 +92,16 @@ void Viewport::run() {
             mode = core::ShapeType::WIREFRAME;
             points.clear();
         }
-        // BEGIN INPUT TEXT
         ImGui::Text("Object name:"); ImGui::SameLine();
         ImGui::InputText("##", obj_name, IM_COUNTOF(obj_name));
-        // END INPUT TEXT
         ImGui::Text("To create a point: \nclick on canvas 1 time\n");
         ImGui::Text("To create a line: \nClick on canvas 2 times\n");
         ImGui::Text("To create a wireframe: \nClick on canvas at least 3 times and\nclick on the same location again.\n");
     ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(876, 361), ImGuiCond_FirstUseEver); // Log window position
+    ImGui::SetNextWindowSize(ImVec2(365, 363), ImGuiCond_FirstUseEver); // Log window size
+    log.Draw("Log");
 
     // Typically you would use a BeginChild()/EndChild() pair to benefit from a clipping region + own scrolling.
     // Here we demonstrate that this can be replaced by simple offsetting + custom drawing + PushClipRect/PopClipRect() calls.
@@ -143,5 +149,4 @@ void Viewport::run() {
         draw_list->AddLine(ImVec2(origin.x + points[n].x, origin.y + points[n].y), ImVec2(origin.x + points[n + 1].x, origin.y + points[n + 1].y), IM_COL32(255, 255, 0, 255), 2.0f);
     draw_list->PopClipRect();*/
     ImGui::End();
-    log.Draw("Log");
 }

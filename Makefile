@@ -97,4 +97,4 @@ $(EXE): $(OBJS)
 clean:
 	rm -rf build
 	rm $(EXE)
-
+	rm imgui.ini
