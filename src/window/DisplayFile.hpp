@@ -48,9 +48,10 @@ public:
     void add(core::Shape &k, const std::string &name, const long long id);
     void remove(const long long id);
 
-    std::vector<core::Point> getPointList() {return pointList;}
-    std::vector<core::Line> getLineList() {return lineList;}
-    std::vector<core::Wireframe> getWireframeList() {return wireframeList;}
+    const std::vector<core::Point>& getPointList() const {return pointList;}
+    const std::vector<core::Line>& getLineList() const {return lineList;}
+    const std::vector<core::Wireframe>& getWireframeList() const {return wireframeList;}
+    const std::vector<ManifestEntry>& getManifest() const {return manifest;}
     DisplayFile(){}
 };
 

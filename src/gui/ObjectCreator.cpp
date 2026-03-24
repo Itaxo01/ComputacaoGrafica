@@ -1,7 +1,7 @@
 #include "ObjectCreator.hpp"
 
 void ObjectCreator::DrawWindow(){
-    ImGui::SetNextWindowPos(ImVec2(869, 27), ImGuiCond_FirstUseEver); // Create New Object window position
+    ImGui::SetNextWindowPos(ImVec2(876, 23), ImGuiCond_FirstUseEver); // Create New Object window position
     ImGui::SetNextWindowSize(ImVec2(366, 232), ImGuiCond_FirstUseEver); // Create New Object window size
     ImGui::Begin("Create New Object");
         if (ImGui::Checkbox("Enable Object Creation:", &enable_object_creation)) {

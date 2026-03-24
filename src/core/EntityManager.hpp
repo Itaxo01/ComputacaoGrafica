@@ -36,6 +36,9 @@ class EntityManager{
         void addLine(const std::string &name, float x1, float y1, float x2, float y2);
         void addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp);
         void add(const std::string &name, std::vector<std::pair<float, float>> &p);
+
+        const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
+        void remove(long long id) {displayFile.remove(id);}
 };
 
 

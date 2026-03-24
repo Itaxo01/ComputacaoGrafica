@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cassert>
+#include <iostream>
 
 namespace core {
     template <typename T>
@@ -10,7 +11,7 @@ namespace core {
         int r, c; // linhas / colunas
         std::vector<std::vector<T>> data;
 
-        Matrix(int r = 0, int c = 0, T defaultT = T()): r(r), c(c), data(r, std::vector<T>(c, defaultValue)) {}
+        Matrix(int r = 0, int c = 0, T defaultT = T()): r(r), c(c), data(r, std::vector<T>(c, defaultT)) {}
 
         // retornar por referência só é seguro quando o objeto existe fora do método
         // apenas preciso dar override do operator uma vez, se chamar Matrix[i][j], o j é resolvido pelo vetor de Matrix[i].
@@ -20,7 +21,7 @@ namespace core {
         }
         const std::vector<T>& operator[](int i) const {
             assert(i >= 0 && i < r);
-            return data[i]
+            return data[i];
         }
 
         friend Matrix operator*(const Matrix &a, const Matrix &b){
@@ -45,7 +46,7 @@ namespace core {
             for(int i = 0; i<m.r; i++){
                 os <<"(";
                 for(int j = 0; j<m.c; j++){
-                    if(j) cout<<", ";
+                    if(j) std::cout<<", ";
                     os<<m[i][j];
                 }
                 os <<")";

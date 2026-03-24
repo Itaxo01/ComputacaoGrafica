@@ -1,13 +1,18 @@
+#include "ObjectCreator.hpp"
+#include "ObjectListener.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <math.h> // fmodf
 
 // NOSSOS IMPORTS
+#include "ObjectCreator.hpp"
+#include "GuiController.hpp"
 #include "Viewport.hpp"
 #include "Renderer.hpp"
 #include "log_app.h"
 #include "Window.hpp"
+#include "EntityManager.hpp"
 
 #include "gui/ImGuiConfig.hpp" // Configs do imgui foram pra cá
 
@@ -27,14 +32,16 @@ int main(int, char**) {
 
 
     // 3. Inicializa nossas classes
-    DisplayFile displayFile;
-    EntityManager entityManager(displayFile);
-    Viewport viewport(entityManager);
+    DisplayFile displayFile; // Coleção de draws
+    EntityManager entityManager(displayFile); // "view" para o display file
+    Viewport viewport; 
     Window programWindow(viewport);
-    viewport.setWindow(&programWindow); // Cross reference, tratamos com forward declaration.
-
-
     Renderer renderer(displayFile, viewport, programWindow);
+    ExampleAppLog log;
+    
+    ObjectCreator objectCreator(log, entityManager);
+    ObjectListener objectListener(entityManager);
+    GuiController guiController(entityManager, programWindow, viewport, objectCreator, log, objectListener);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -54,8 +61,7 @@ int main(int, char**) {
         startImGuiFrame();
 
         // Nossas janelas rodam aqui!
-        ExampleAppLog log;
-        viewport.run();
+        guiController.run();
         renderer.render();
 
         // Rendering

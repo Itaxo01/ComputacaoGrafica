@@ -6,6 +6,7 @@
 #include "Window.hpp"
 #include "log_app.h"
 #include "ObjectCreator.hpp"
+#include "ObjectListener.hpp"
 
 class GuiController {
     private:
@@ -14,20 +15,19 @@ class GuiController {
         Viewport& viewport;
         ObjectCreator& creator;
         ExampleAppLog& log;
-    public:
-        GuiController(EntityManager &em, Window& w, Viewport &vp, ObjectCreator &oc, ExampleAppLog &exl): \
-            entityManager(em), window(w), viewport(vp), creator(oc), log(exl)
-        {}
-        void run(){
-            viewport.DrawWindow();
-            creator.DrawWindow();
+        ObjectListener& listener;
 
-            ImGui::SetNextWindowPos(ImVec2(876, 361), ImGuiCond_FirstUseEver); // Log window position
-            ImGui::SetNextWindowSize(ImVec2(365, 363), ImGuiCond_FirstUseEver); // Log window size
-            log.Draw("Log");
-        }
-
+        void HandleCanvasInteractions();
         
+        void HandleLeftClick();
+        void HandleRightDragging();
+        void HandleScroll();
+
+    public:
+        GuiController(EntityManager &em, Window& w, Viewport &vp, ObjectCreator &oc, ExampleAppLog &exl, ObjectListener &obl): \
+            entityManager(em), window(w), viewport(vp), creator(oc), log(exl), listener(obl)
+        {}
+        void run();
 };
 
 

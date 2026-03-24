@@ -5,9 +5,10 @@ inline ImVec2 ToImVec2(const core::Point &p) {
 
 // Draw border and background color
 void Renderer::RenderBackground() {
+    ImDrawList* draw_list = viewport.GetDrawList();
+
     std::pair<ImVec2, ImVec2> canvas_p = viewport.GetCanvasP();
     ImVec2 canvas_p0 = canvas_p.first; ImVec2 canvas_p1 = canvas_p.second;
-    ImDrawList* draw_list = viewport.GetDrawList();
     draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
     draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
 }
@@ -46,13 +47,13 @@ void Renderer::DrawObject(const core::Wireframe &wireframe) {
 void Renderer::render() {
     RenderBackground();
 
-    for (core::Point &point :displayFile.getPointList()) {
+    for (const core::Point &point :displayFile.getPointList()) {
         DrawObject(point);
     }
-    for (core::Line &line :displayFile.getLineList()) {
+    for (const core::Line &line :displayFile.getLineList()) {
         DrawObject(line);
     }
-    for (core::Wireframe &wireframe :displayFile.getWireframeList()) {
+    for (const core::Wireframe &wireframe :displayFile.getWireframeList()) {
         DrawObject(wireframe);
     }
     log.Draw("Log");
