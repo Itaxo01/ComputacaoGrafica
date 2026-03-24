@@ -17,21 +17,10 @@ class Window; // Forward declaration
 
 class Viewport {
 private:
-    EntityManager entityManager;
-    Window *window = nullptr;
-    ExampleAppLog log;
-    
     ImVec2 canvas_p0;
     ImVec2 canvas_p1;
     ImVec2 canvas_sz;
     ImDrawList* draw_list;
-    
-    core::ShapeType mode = core::ShapeType::POINT;
-    // object creation
-    ImVector<ImVec2> points;
-    bool enable_object_creation = false;
-    int e = 0;
-    char obj_name[16] = "DEFAULT_NAME";
 
     std::vector<std::pair<float, float>> ImVecToVec(ImVector<ImVec2> &p);
     void HandleLeftClick();
@@ -39,16 +28,12 @@ private:
     void HandleScroll(const float delta);
 
 public:
-    Viewport(EntityManager &em) : entityManager(em) {};
+    Viewport(){};
     //void SetWindow(Window &w) {window = w;}
     void AddGraphicObject();
     
+    void DrawWindow();
     
-    void DrawViewportWindow();
-    void DrawCreateObjectWindow();
-    void DrawLogWindow();
-    // Para ficar melhor de manter, cada box da interface terá sua função de criação, run só chama todas elas.
-    void run();
 
     void setWindow(Window *w){window = w;}
 

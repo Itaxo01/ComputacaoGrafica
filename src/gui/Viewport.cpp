@@ -1,14 +1,7 @@
 #include "Viewport.hpp"
 #include "Window.hpp"
 
-inline std::vector<std::pair<float, float>> Viewport::ImVecToVec(ImVector<ImVec2> &p){
-    std::vector<std::pair<float, float>> result;
-    result.reserve(p.Size);
-    for(int i = 0; i<p.Size; i++){
-        result.emplace_back(p[i].x, p[i].y);
-    }
-    return result;
-}
+
 
 void Viewport::HandleLeftClick() {
     ImVec2 mouse_pos = ImGui::GetMousePos();
@@ -16,8 +9,7 @@ void Viewport::HandleLeftClick() {
     core::Point world_p = window->ViewportToWorld(mouse_pos);
     float x = world_p.x, y = world_p.y;
 
-    log.AddLog("Canvas was clicked. Position = (%.1f, %.1f)\n", x, y);
-
+    
     if (enable_object_creation) {
         if (points.size() > 2 && mode == core::ShapeType::WIREFRAME &&
             x == points.back().x && y == points.back().y) {
@@ -51,19 +43,7 @@ void Viewport::HandleScroll(const float delta){
     window->zoom(zoom_factor, mouse_pos);
 }
 
-void Viewport::AddGraphicObject() {
-    std::string name(obj_name);
-    if (name == "" || name == "\1") { // Substituir por um regex depois...
-        log.AddLog("[error] Cannot create object (Invalid name): {%s}\n", obj_name);
-        return;
-    }
-    log.AddLog("Creating new object... name: {%s}\n", obj_name);
-    std::vector<std::pair<float, float>> points_vec = ImVecToVec(points);
-    entityManager.add(name, points_vec);
-    points.clear();
-}
-
-void Viewport::DrawViewportWindow() {
+void Viewport::DrawWindow() {
     // Hardcoded window configurations
     ImGui::SetNextWindowPos(ImVec2(38, 25), ImGuiCond_FirstUseEver); // Viewport window position
     ImGui::SetNextWindowSize(ImVec2(805, 700), ImGuiCond_FirstUseEver); // Viewport window size
@@ -96,48 +76,4 @@ void Viewport::DrawViewportWindow() {
             }
         }
     ImGui::End();
-}
-
-void Viewport::DrawCreateObjectWindow() {
-    ImGui::SetNextWindowPos(ImVec2(869, 27), ImGuiCond_FirstUseEver); // Create New Object window position
-    ImGui::SetNextWindowSize(ImVec2(366, 232), ImGuiCond_FirstUseEver); // Create New Object window size
-    ImGui::Begin("Create New Object");
-        if (ImGui::Checkbox("Enable Object Creation:", &enable_object_creation)) {
-            points.clear();
-        }
-        if (ImGui::RadioButton("Point", &e, 0)) {
-            log.AddLog("Mode changed to POINT\n");
-            mode = core::ShapeType::POINT;
-            points.clear();
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Line", &e, 1)) {
-            log.AddLog("Mode changed to LINE\n");
-            mode = core::ShapeType::LINE;
-            points.clear();
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Wireframe", &e, 2)) {
-            log.AddLog("Mode changed to WIREFRAME\n");
-            mode = core::ShapeType::WIREFRAME;
-            points.clear();
-        }
-        ImGui::Text("Object name:"); ImGui::SameLine();
-        ImGui::InputText("##", obj_name, IM_COUNTOF(obj_name));
-        ImGui::Text("To create a point: \nclick on canvas 1 time\n");
-        ImGui::Text("To create a line: \nClick on canvas 2 times\n");
-        ImGui::Text("To create a wireframe: \nClick on canvas at least 3 times and\nclick on the same location again.\n");
-    ImGui::End();
-}
-
-void Viewport::DrawLogWindow() {
-    ImGui::SetNextWindowPos(ImVec2(876, 361), ImGuiCond_FirstUseEver); // Log window position
-    ImGui::SetNextWindowSize(ImVec2(365, 363), ImGuiCond_FirstUseEver); // Log window size
-    log.Draw("Log");
-}
-
-void Viewport::run() {
-    DrawViewportWindow();
-    DrawCreateObjectWindow();
-    DrawLogWindow();
 }
