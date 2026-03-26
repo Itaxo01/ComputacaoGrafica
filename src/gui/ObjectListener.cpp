@@ -198,8 +198,11 @@ void ObjectListener::DrawWindow() {
     {
         ImGay::BeginGroup();
         ImGay::BeginChild("item view", ImVec2(0, -ImGay::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
-        //ImGay::Text("MyObject: %lli", *selected_ids.begin());
-        //ImGay::Separator();
+        if (selected_ids.size())
+            ImGay::Text("Selected object ID: %lld", *selected_ids.begin());
+        else
+            ImGay::Text("No object is selected");
+        ImGay::Separator();
         if (ImGay::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
         {
             if (ImGay::BeginTabItem("Description"))
@@ -224,16 +227,4 @@ void ObjectListener::DrawWindow() {
     }
 
     ImGay::End();
-
-    // Scaling
-    /*ImGay::Text("Scaling");
-    ImGay::Text("x: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##sx", &fsx, 1.0f, 0.0f, 0.0f, "%.06f"); 
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("y: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##sy", &fsy, 1.0f, 0.0f, 0.0f, "%.06f");
-    ImGay::PopItemWidth();
-    ImGay::Separator();*/
 }
