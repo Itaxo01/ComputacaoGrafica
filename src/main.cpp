@@ -37,7 +37,8 @@ int main(int, char**) {
     Viewport viewport; 
     Window programWindow(viewport);
     Renderer renderer(displayFile, viewport, programWindow);
-    ExampleAppLog log;
+    ExampleAppLog log; // o log usa singleton, vc pode criar dentro das classes
+    // ao inves de passar para o construtor.
     
     ObjectCreator objectCreator(log, entityManager);
     ObjectListener objectListener(entityManager);

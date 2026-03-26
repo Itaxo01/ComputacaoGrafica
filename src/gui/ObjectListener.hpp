@@ -5,6 +5,8 @@
 #include "EntityManager.hpp"
 #include <unordered_set>
 
+#define ImGay ImGui
+
 class ObjectListener {
 private:
     EntityManager& entityManager;
@@ -13,6 +15,8 @@ private:
 
     // Helper to get string name from ShapeType
     const char* GetTypeName(core::ShapeType type);
+
+    void DrawObjectList();
 public:
     ObjectListener(EntityManager& em) : entityManager(em) {}
 

@@ -11,77 +11,123 @@ const char* ObjectListener::GetTypeName(core::ShapeType type) {
     }
 }
 
-void ObjectListener::DrawWindow() {
-    ImGui::SetNextWindowPos(ImVec2(877, 257), ImGuiCond_FirstUseEver); 
-    ImGui::SetNextWindowSize(ImVec2(365, 330), ImGuiCond_FirstUseEver); // switch to percentage
-    ImGui::Begin("Display File Manifest");
-        const auto& manifest = entityManager.GetManifest();
+void ObjectListener::DrawObjectList() {
+    const auto& manifest = entityManager.GetManifest();
 
-        for (int i = 0; i < manifest.size(); ++i) {
-            const auto& entry = manifest[i];
+    ImGay::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+    for (int i = 0; i < manifest.size(); ++i) {
+        const auto& entry = manifest[i];
+        
+        // Check if current item is in our selected set
+        bool is_selected = selected_ids.find(entry.id) != selected_ids.end();
+        
+        // Format the display label
+        std::string label = "[" + std::to_string(entry.id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
+
+        // Draw the selectable item
+        if (ImGay::Selectable(label.c_str(), is_selected)) {
+            ImGuiIO& io = ImGay::GetIO();
             
-            // Check if current item is in our selected set
-            bool is_selected = selected_ids.find(entry.id) != selected_ids.end();
-            
-            // Format the display label
-            std::string label = "[" + std::to_string(entry.id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
-
-            // Draw the selectable item
-            if (ImGui::Selectable(label.c_str(), is_selected)) {
-                ImGuiIO& io = ImGui::GetIO();
-                
-                if (io.KeyCtrl) {
-                    // CTRL+Click: Toggle selection
-                    if (is_selected) selected_ids.erase(entry.id);
-                    else selected_ids.insert(entry.id);
-                    last_selected_index = i;
-                } 
-                else if (io.KeyShift && last_selected_index != -1) {
-                    // SHIFT+Click: Select range
-                    selected_ids.clear();
-                    int start = std::min(last_selected_index, i);
-                    int end = std::max(last_selected_index, i);
-                    for (int j = start; j <= end; ++j) {
-                        selected_ids.insert(manifest[j].id);
-                    }
-                } 
-                else {
-                    // Normal Click: Clear others, select this one
-                    selected_ids.clear();
-                    selected_ids.insert(entry.id);
-                    last_selected_index = i;
+            if (io.KeyCtrl) {
+                // CTRL+Click: Toggle selection
+                if (is_selected) selected_ids.erase(entry.id);
+                else selected_ids.insert(entry.id);
+                last_selected_index = i;
+            } 
+            else if (io.KeyShift && last_selected_index != -1) {
+                // SHIFT+Click: Select range
+                selected_ids.clear();
+                int start = std::min(last_selected_index, i);
+                int end = std::max(last_selected_index, i);
+                for (int j = start; j <= end; ++j) {
+                    selected_ids.insert(manifest[j].id);
                 }
-            }
-
-            // --- CONTEXT MENU (Right Click) ---
-            // We tie the context menu to the item. It opens if you right click a hovered item.
-            if (ImGui::BeginPopupContextItem(("context_menu_" + std::to_string(entry.id)).c_str())){
-                
-                // If the user right-clicks an unselected item, select ONLY that item
-                if (!is_selected) {
-                    selected_ids.clear();
-                    selected_ids.insert(entry.id);
-                    last_selected_index = i;
-                }
-
-                ImGui::Text("Operations (%zu selected)", selected_ids.size());
-                ImGui::Separator();
-
-                if (ImGui::MenuItem("Delete")) {
-                    for (long long id : selected_ids) {
-                        entityManager.remove(id); // Implement this on EntityManager/DisplayFile
-                    }
-                    selected_ids.clear();
-                    last_selected_index = -1;
-                }
-                
-                if (ImGui::MenuItem("Rotate (Placeholder)")) {
-                    // TODO
-                    // for (long long id : selected_ids) { entityManager.rotate(id, angle); }
-                }
-
-                ImGui::EndPopup();
+            } 
+            else {
+                // Normal Click: Clear others, select this one
+                selected_ids.clear();
+                selected_ids.insert(entry.id);
+                last_selected_index = i;
             }
         }
-    ImGui::End();
+
+        // --- CONTEXT MENU (Right Click) ---
+        // We tie the context menu to the item. It opens if you right click a hovered item.
+        if (ImGay::BeginPopupContextItem(("context_menu_" + std::to_string(entry.id)).c_str())){
+            
+            // If the user right-clicks an unselected item, select ONLY that item
+            if (!is_selected) {
+                selected_ids.clear();
+                selected_ids.insert(entry.id);
+                last_selected_index = i;
+            }
+
+            ImGay::Text("Operations (%zu selected)", selected_ids.size());
+            ImGay::Separator();
+
+            if (ImGay::MenuItem("Delete")) {
+                for (long long id : selected_ids) {
+                    entityManager.remove(id); // Implement this on EntityManager/DisplayFile
+                }
+                selected_ids.clear();
+                last_selected_index = -1;
+            }
+            
+            if (ImGay::MenuItem("Rotate (Placeholder)")) {
+                // TODO
+                // for (long long id : selected_ids) { entityManager.rotate(id, angle); }
+            }
+
+            ImGay::EndPopup();
+        }
+    }
+    ImGay::EndChild();
+}
+
+void ObjectListener::DrawWindow() {
+    ImGay::SetNextWindowPos(ImVec2(877, 257), ImGuiCond_FirstUseEver); 
+    ImGay::SetNextWindowSize(ImVec2(365, 330), ImGuiCond_FirstUseEver); // switch to percentage
+    ImGay::Begin("Display File Manifest");
+    DrawObjectList(); ImGay::SameLine();
+
+    // DEMO TEMPLATE
+    {
+        ImGay::BeginGroup();
+        ImGay::BeginChild("item view", ImVec2(0, -ImGay::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        //ImGay::Text("MyObject: %lli", *selected_ids.begin());
+        //ImGay::Separator();
+        if (ImGay::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+        {
+            if (ImGay::BeginTabItem("Description"))
+            {
+                ImGay::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ");
+                ImGay::EndTabItem();
+            }
+            if (ImGay::BeginTabItem("Details"))
+            {
+                ImGay::Text("ID: 0123456789");
+                ImGay::EndTabItem();
+            }
+            ImGay::EndTabBar();
+        }
+        ImGay::EndChild();
+        if (ImGay::Button("Revert")) {}
+        ImGay::SameLine();
+        if (ImGay::Button("Save")) {}
+        ImGay::EndGroup();
+    }
+
+    ImGay::End();
+
+    // Scaling
+    /*ImGay::Text("Scaling");
+    ImGay::Text("x: "); ImGay::SameLine();
+    ImGay::PushItemWidth(OM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##sx", &fsx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("y: "); ImGay::SameLine();
+    ImGay::PushItemWidth(OM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##sy", &fsy, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGay::PopItemWidth();
+    ImGay::Separator();*/
 }
