@@ -14,6 +14,28 @@ const char* ObjectListener::GetTypeName(core::ShapeType type) {
     }
 }
 
+void ObjectListener::HandleAddScaling(float x, float y) {
+    char* buffer = new char[128];
+    snprintf(buffer, 128, "Scaling: (%.1f, %.1f)", x, y);
+    transform_buf_names.push_back(buffer);
+    // TODO
+}
+
+void ObjectListener::HandleAddTranslation(float x, float y) {
+    char* buffer = new char[128];
+    snprintf(buffer, 128, "Translation: (%.1f, %.1f)", x, y);
+    transform_buf_names.push_back(buffer);
+    // TODO
+}
+
+void ObjectListener::HandleAddRotation(float x, float y, float angle) {
+    char* buffer = new char[128];
+    snprintf(buffer, 128, "Rotation: {(%.1f, %.1f), %.1f}", x, y, angle);
+    transform_buf_names.push_back(buffer);
+    // TODO
+    ;
+}
+
 void ObjectListener::DrawObjectList() {
     const auto& manifest = entityManager.GetManifest();
 
@@ -87,17 +109,17 @@ void ObjectListener::DrawObjectList() {
     ImGay::EndChild();
 }
 
-void DrawTransformCombination() {
+void ObjectListener::DrawTransformCombination() {
     // TRANSFORM LIST
     static int selected = 0;
-    std::vector<char*> transform_buf(100, "Transformation");
+    //std::vector<char*> transform_buf(100, "Transformation");
     {
         ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
         ImGay::Text("Transorms list"); ImGay::Separator();
-        for (int i = 0; i < transform_buf.size(); i++)
+        for (int i = 0; i < transform_buf_names.size(); i++)
         {
             char label[128];
-            sprintf(label, transform_buf[i]);
+            sprintf(label, transform_buf_names[i]);
             ImGay::PushID(i);
             if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SelectOnNav))
                 selected = i;
@@ -124,7 +146,7 @@ void DrawTransformCombination() {
     ImGay::Text("  "); ImGay::SameLine();
     ImGay::PushID("add_scaling");
     if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
-        ;//Handle transform addition;
+        HandleAddScaling(fsx, fsy);//Handle scaling addition;
     }
     ImGay::PopID();
     ImGay::Separator();
@@ -142,7 +164,7 @@ void DrawTransformCombination() {
     ImGay::Text("  "); ImGay::SameLine();
     ImGay::PushID("add_translation");
     if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
-        ;//Handle transform addition;
+        HandleAddTranslation(ftx, fty);//Handle transform addition;
     }
     ImGay::PopID();
     ImGay::Separator();
@@ -178,7 +200,7 @@ void DrawTransformCombination() {
     ImGay::Text("  "); ImGay::SameLine();
     ImGay::PushID("add_rotation");
     if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
-        ;//Handle transform addition;
+        HandleAddRotation(frx, fry, fangle);
     }
     ImGay::PopID();
     ImGay::Separator();

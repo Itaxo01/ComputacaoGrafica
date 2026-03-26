@@ -16,13 +16,17 @@ private:
     // Helper to get string name from ShapeType
     const char* GetTypeName(core::ShapeType type);
 
-    //float fsx = 0.0f, fsy = 0.0f; // get scaling input
+    std::vector<char*> transform_buf_names;
 
     void DrawObjectList();
 public:
     ObjectListener(EntityManager& em) : entityManager(em) {}
 
     void DrawWindow();
+    void DrawTransformCombination();
+    void HandleAddScaling(float x, float y);
+    void HandleAddTranslation(float x, float y);
+    void HandleAddRotation(float x, float y, float angle);
 };
 
 #endif // OBJECT_LISTENER_HPP
