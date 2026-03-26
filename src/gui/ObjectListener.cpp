@@ -2,6 +2,9 @@
 #include <string>
 #include <algorithm>
 
+#define DFM_INPUT_BOX_SIZE 100
+#define DFM_BUTTON_SIZE ImVec2(50.0f, 20.0f)
+
 const char* ObjectListener::GetTypeName(core::ShapeType type) {
     switch (type) {
         case core::ShapeType::POINT: return "Point";
@@ -84,6 +87,107 @@ void ObjectListener::DrawObjectList() {
     ImGay::EndChild();
 }
 
+void DrawTransformCombination() {
+    // TRANSFORM LIST
+    static int selected = 0;
+    std::vector<char*> transform_buf(100, "Transformation");
+    {
+        ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+        ImGay::Text("Transorms list"); ImGay::Separator();
+        for (int i = 0; i < transform_buf.size(); i++)
+        {
+            char label[128];
+            sprintf(label, transform_buf[i]);
+            ImGay::PushID(i);
+            if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SelectOnNav))
+                selected = i;
+            ImGay::PopID();
+        }
+        ImGui::EndChild();
+    }
+    ImGui::SameLine();
+
+    // NEW TRANSFORM INPUTS
+    ImGay::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
+    ImGay::Text("Add new transformation"); ImGay::Separator();
+
+    static float fsx, fsy;
+    ImGay::Text("Scaling");
+    ImGay::Text("x: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##sx", &fsx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("y: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##sy", &fsy, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("  "); ImGay::SameLine();
+    ImGay::PushID("add_scaling");
+    if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
+        ;//Handle transform addition;
+    }
+    ImGay::PopID();
+    ImGay::Separator();
+
+    static float ftx, fty;
+    ImGay::Text("Translation");
+    ImGay::Text("x: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##tx", &ftx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("y: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##ty", &fty, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("  "); ImGay::SameLine();
+    ImGay::PushID("add_translation");
+    if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
+        ;//Handle transform addition;
+    }
+    ImGay::PopID();
+    ImGay::Separator();
+    
+    static float fangle, frx, fry;
+    ImGay::Text("Rotation");
+    //ImGay::Text("Around: "); ImGay::SameLine();
+    static int radiosel;
+    if (ImGui::RadioButton("itself", &radiosel, 0)) {
+            ; // passa as coordenadas do centro do objeto para frx e fry
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("origin", &radiosel, 1)) {
+           frx = 0.0f; fry = 0.0f;// passa coordenadas da origem para frx e fry
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("an arbitrary point", &radiosel, 2)) {
+            ; // da unlock em frx e fry
+        }
+
+    ImGay::Text("x: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##rx", &frx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("y: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##ry", &fry, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGay::PopItemWidth(); //ImGay::SameLine();
+    ImGay::Text("angle: "); ImGay::SameLine();
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGay::DragFloat("##ra", &fangle, 1.0f, 0.0f, 360.0f, "%.06f", ImGuiSliderFlags_WrapAround); 
+    ImGay::PopItemWidth(); ImGay::SameLine();
+    ImGay::Text("  "); ImGay::SameLine();
+    ImGay::PushID("add_rotation");
+    if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
+        ;//Handle transform addition;
+    }
+    ImGay::PopID();
+    ImGay::Separator();
+
+    ImGay::Button("Apply all transformations");
+
+    ImGay::EndChild();
+}
+
 void ObjectListener::DrawWindow() {
     ImGay::SetNextWindowPos(ImVec2(877, 257), ImGuiCond_FirstUseEver); 
     ImGay::SetNextWindowSize(ImVec2(365, 330), ImGuiCond_FirstUseEver); // switch to percentage
@@ -108,12 +212,14 @@ void ObjectListener::DrawWindow() {
                 ImGay::Text("ID: 0123456789");
                 ImGay::EndTabItem();
             }
+            if (ImGay::BeginTabItem("Transform Combination"))
+            {
+                DrawTransformCombination();
+                ImGay::EndTabItem();
+            }
             ImGay::EndTabBar();
         }
         ImGay::EndChild();
-        if (ImGay::Button("Revert")) {}
-        ImGay::SameLine();
-        if (ImGay::Button("Save")) {}
         ImGay::EndGroup();
     }
 
@@ -122,11 +228,11 @@ void ObjectListener::DrawWindow() {
     // Scaling
     /*ImGay::Text("Scaling");
     ImGay::Text("x: "); ImGay::SameLine();
-    ImGay::PushItemWidth(OM_INPUT_BOX_SIZE);
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
     ImGay::DragFloat("##sx", &fsx, 1.0f, 0.0f, 0.0f, "%.06f"); 
     ImGay::PopItemWidth(); ImGay::SameLine();
     ImGay::Text("y: "); ImGay::SameLine();
-    ImGay::PushItemWidth(OM_INPUT_BOX_SIZE);
+    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
     ImGay::DragFloat("##sy", &fsy, 1.0f, 0.0f, 0.0f, "%.06f");
     ImGay::PopItemWidth();
     ImGay::Separator();*/

@@ -16,6 +16,8 @@ private:
     // Helper to get string name from ShapeType
     const char* GetTypeName(core::ShapeType type);
 
+    //float fsx = 0.0f, fsy = 0.0f; // get scaling input
+
     void DrawObjectList();
 public:
     ObjectListener(EntityManager& em) : entityManager(em) {}
