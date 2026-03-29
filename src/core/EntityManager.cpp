@@ -1,8 +1,18 @@
 #include "EntityManager.hpp"
+#include "Shape.hpp"
+#include <cassert>
+
+void setName(core::Shape &s, const std::string &name){
+    #ifdef DRAW_SHAPE_NAME
+        s.name = name;
+    #endif
+}
 
 void EntityManager::addPoint(const std::string &name, float x, float y){
     long long id = this->nextID(core::ShapeType::POINT);
     core::Point p(x, y);
+    setName(p, name);
+
     displayFile.add(p, name, id);
 }
 
@@ -10,6 +20,8 @@ void EntityManager::addLine(const std::string &name, float x1, float y1, float x
     long long id = this->nextID(core::ShapeType::LINE);
     core::Point p1(x1, y1); core::Point p2(x2, y2);
     core::Line l(p1, p2);
+    setName(l, name);
+    
     displayFile.add(l, name, id);
 }
 
@@ -21,6 +33,8 @@ void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<
         core_vp.emplace_back(p.first, p.second); 
     }
     core::Wireframe w(core_vp);
+    setName(w, name);
+
     displayFile.add(w, name, id);
 }
 
@@ -30,3 +44,8 @@ void EntityManager::add(const std::string &name, std::vector<std::pair<float, fl
     if(p.size() >= 3) return addWireframe(name, p);
 }
 
+void EntityManager::add(const bool generate_name, std::vector<std::pair<float, float>> &p){
+    assert(generate_name == true);
+    std::string name = nameGenerator.getName(getType(p), currentId);
+    return add(name, p);    
+}

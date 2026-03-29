@@ -18,6 +18,9 @@ namespace core{
             Point(float x = 0, float y = 0): x(x), y(y){
                 type = core::ShapeType::POINT;
             }
+            Point(std::pair<float, float> p): x(p.first), y(p.second){
+                type = core::ShapeType::POINT;
+            }
 
             friend Point operator+(const Point &p, const Point &q) {return Point(p.x + q.x, p.y + q.y);}
             friend Point operator-(const Point &p, const Point &q) {return Point(p.x - q.x, p.y - q.y);}
@@ -39,6 +42,11 @@ namespace core{
             bool operator>=(const Point &q) {return !(*this < q);}
             /**Compares x first, then y.*/
             bool operator>(const Point &q) {return !(*this < q) && !(*this == q);}
+
+            // retorna o maior y, se iguais retorna o mais a esquerda
+            friend Point max_y(const Point &p, const Point &q){
+                return p.y > q.y ? p : (q.y > p.y ? q : (p.x < q.x ? p : q));
+            }
 
             /**Dot product (Produto escalar ou interno). Quite useful. Can and will be used to measure the angle between points as vectors (by the definition A dot B = |A|*|B|*cos(theta)) and projections.*/
             friend float dot(const Point &p, const Point&q) {
@@ -76,6 +84,10 @@ namespace core{
                     return dot(p, p) < dot(q, q); // Em caso de colinear, o primeiro é o mais próximo da origem
                 }
                 return o < 0; // o < 0 significa que Q está a direita de P, ou seja, P está mais para a esquerda e vem antes no cw.
+            }
+
+            std::pair<float, float> anchorPoint() const{
+                return std::make_pair(x, y);
             }
             
             /* cout<<Point */

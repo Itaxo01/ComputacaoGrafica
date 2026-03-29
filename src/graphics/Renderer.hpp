@@ -15,6 +15,7 @@ private:
     DisplayFile &displayFile;
     Viewport &viewport;
     Window &window;
+    ImDrawList* draw_list = nullptr;
 
     ExampleAppLog log; // REMOVER DEPOIS
 
@@ -22,6 +23,7 @@ private:
     void DrawObject(const core::Point &point);
     void DrawObject(const core::Line &line);
     void DrawObject(const core::Wireframe &wireframe);
+    void renderName(const core::Shape &shape);
 public:
     //Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}

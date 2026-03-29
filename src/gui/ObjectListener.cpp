@@ -40,14 +40,14 @@ void ObjectListener::DrawObjectList() {
     const auto& manifest = entityManager.GetManifest();
 
     ImGay::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-    for (int i = 0; i < manifest.size(); ++i) {
+    for (int i = 0; i < (int)manifest.size(); ++i) {
         const auto& entry = manifest[i];
         
         // Check if current item is in our selected set
         bool is_selected = selected_ids.find(entry.id) != selected_ids.end();
         
         // Format the display label
-        std::string label = "[" + std::to_string(entry.id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
+        std::string label = "[" + std::to_string(entry.fake_id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
 
         // Draw the selectable item
         if (ImGay::Selectable(label.c_str(), is_selected)) {
@@ -221,7 +221,7 @@ void ObjectListener::DrawWindow() {
         ImGay::BeginGroup();
         ImGay::BeginChild("item view", ImVec2(0, -ImGay::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
         if (selected_ids.size())
-            ImGay::Text("Selected object ID: %lld", *selected_ids.begin());
+            ImGay::Text("Selected object ID: %lld", *selected_ids.begin()/10); // divide por 10 para mostrar o fake_id
         else
             ImGay::Text("No object is selected");
         ImGay::Separator();

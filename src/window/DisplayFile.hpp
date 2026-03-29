@@ -18,10 +18,13 @@ inline void erase_id(std::vector<T>&v, size_t i){
 }
 
 struct ManifestEntry {
-    long long id; // id do objeto (Aqui haverá um truque com o tipo do objeto para melhorar a hash table)
+    long long id;
+    long long fake_id; // fake id não contém o id de identificador do tipo do objeto
     core::ShapeType type;
     std::string name;
-    ManifestEntry(long long id, core::ShapeType type, std::string name): id(id), type(type), name(name) {}
+    ManifestEntry(long long id, core::ShapeType type, std::string name): id(id), type(type), name(name) {
+        fake_id = id/10;
+    }
 };
 
 /* Current geometric primitives:

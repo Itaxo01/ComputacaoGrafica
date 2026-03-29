@@ -14,6 +14,14 @@ namespace core{
             type = ShapeType::WIREFRAME;
         }
 
+        std::pair<float, float> anchorPoint() const {
+            core::Point p = data.front();
+            for(long unsigned int i = 1; i<data.size(); i++){
+                p = max_y(p, data[i]);
+            }
+            return std::make_pair(p.x, p.y);
+        }
+
 
         friend std::ostream &operator<<(std::ostream &os, const Wireframe &l) {
             os <<"[";

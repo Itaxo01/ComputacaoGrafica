@@ -53,8 +53,13 @@ void ObjectCreator::AddGraphicObject(){
     if (name == "" || name == "\1") { // Substituir por um regex depois...
         log.AddLog("[error] Cannot create object (Invalid name): {%s}\n", obj_name);
         return;
+    } else if (name == "DEFAULT_NAME"){
+        log.AddLog("Creating new object... auto-generated name\n");
+        entityManager.add(true, points);
+        points.clear();
+    } else {
+        log.AddLog("Creating new object... name: {%s}\n", obj_name);
+        entityManager.add(name, points);
+        points.clear();
     }
-    log.AddLog("Creating new object... name: {%s}\n", obj_name);
-    entityManager.add(name, points);
-    points.clear();
 }
