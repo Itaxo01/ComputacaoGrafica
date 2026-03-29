@@ -3,6 +3,7 @@ extras/
 examples/
 imgui.ini
 *.out
+./.cache/
 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites
