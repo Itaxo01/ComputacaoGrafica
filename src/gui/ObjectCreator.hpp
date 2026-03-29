@@ -20,7 +20,9 @@ class ObjectCreator{
         void DrawWindow();
         void RegisterLeftClick(float x, float y); // received from the viewport
         void AddGraphicObject();
-
+        
+        void ImportFromFile(const char* file_path);
+        void ExportToFile(const char* file_path);
 };
 
 #endif // OBJECT_CREATOR_HPP

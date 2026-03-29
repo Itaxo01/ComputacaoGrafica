@@ -53,7 +53,7 @@ struct ExampleAppLog
     void    Draw(const char* title, bool* p_open = NULL)
     {   
     ImGui::SetNextWindowPos(ImVec2(880, 613), ImGuiCond_FirstUseEver); // Log window position
-        ImGui::SetNextWindowSize(ImVec2(365, 163), ImGuiCond_FirstUseEver); // Log window size
+        ImGui::SetNextWindowSize(ImVec2(783, 257), ImGuiCond_FirstUseEver); // Log window size
 
         if (!ImGui::Begin(title, p_open))
         {

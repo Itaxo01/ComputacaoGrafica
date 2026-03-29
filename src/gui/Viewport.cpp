@@ -3,7 +3,7 @@
 void Viewport::DrawWindow() {
     // Hardcoded window configurations
     ImGui::SetNextWindowPos(ImVec2(38, 25), ImGuiCond_FirstUseEver); // Viewport window position
-    ImGui::SetNextWindowSize(ImVec2(805, 700), ImGuiCond_FirstUseEver); // Viewport window size
+    ImGui::SetNextWindowSize(ImVec2(832, 847), ImGuiCond_FirstUseEver); // Viewport window size
     ImGui::Begin("Viewport");
         canvas_p0 = ImGui::GetCursorScreenPos();      // ImDrawList API uses screen coordinates!
         canvas_sz = ImGui::GetContentRegionAvail();   // Resize canvas to what's available

@@ -211,8 +211,8 @@ void ObjectListener::DrawTransformCombination() {
 }
 
 void ObjectListener::DrawWindow() {
-    ImGay::SetNextWindowPos(ImVec2(877, 257), ImGuiCond_FirstUseEver); 
-    ImGay::SetNextWindowSize(ImVec2(365, 330), ImGuiCond_FirstUseEver); // switch to percentage
+    ImGay::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
+    ImGay::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
     ImGay::Begin("Display File Manifest");
     DrawObjectList(); ImGay::SameLine();
 

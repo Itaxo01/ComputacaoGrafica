@@ -95,6 +95,10 @@ class EntityManager{
         void add(const std::string &name, std::vector<std::pair<float, float>> &p);
         void add(const bool generate_name, std::vector<std::pair<float, float>> &p);
 
+        const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
+        const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}
+        const std::vector<core::Wireframe>& getWireframeList() const {return displayFile.getWireframeList();}
+
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
         void remove(long long id) {
             std::cout<<"Deletion on object "<<id<<" type "<<(id%10)<<std::endl;
