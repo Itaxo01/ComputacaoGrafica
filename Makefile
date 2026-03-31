@@ -35,7 +35,7 @@ OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -DDRAW_SHAPE_NAME -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
+CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
 CXXFLAGS += -g -Wall -Wformat
 LIBS =
 

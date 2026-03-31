@@ -58,6 +58,10 @@ public:
     /* Essas são as listas que são de fato desenhadas, pós clipping. */
     const std::vector<core::Point>& getDrawPointList() const {return drawPointList;}
     const std::vector<core::Line>& getDrawLineList() const {return drawLineList;}
+
+    const void setDrawPointList(const std::vector<core::Point> &v) {drawPointList = v;}
+    const void setDrawLineList(const std::vector<core::Line> &v) {drawLineList = v;}
+
     
     /* Não desenhamos essas, apenas armazenamos os valores */
     const std::vector<core::Point>& getPointList() const {return pointList;}

@@ -26,10 +26,12 @@ private:
     void DrawObject(const core::Line &line);
     void DrawObject(const core::Wireframe &wireframe);
     void renderName(const core::Shape &shape);
-    void ApplyClipping();
+    void ApplyClipping(const core::Point &wp0, const core::Point &wp1);
 public:
     //Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
-    Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
+    Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {
+        rendererCache = RendererCache(w.GetWorldMin(), w.GetWorldMax(), df.object_count);
+    }
     void render();
 };
 

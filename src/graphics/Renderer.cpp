@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 inline ImVec2 ToImVec2(const core::Point &p) {
     return ImVec2(p.x, p.y);
@@ -130,19 +131,33 @@ void Renderer::DrawObject(const core::Wireframe &wireframe) {
     }
 }
 
-void Renderer::ApplyClipping(){
+/* Seleção simples verificando os limites da window */
+inline std::vector<core::Point> ClipPoints(const std::vector<core::Point> &v, const core::Point &wp0, const core::Point &wp1){
+    std::vector<core::Point> ret;
+    ret.reserve(v.size());
+    for(const auto &p: v){
+        if(p.x >= wp0.x && p.x <= wp1.x && p.y >= wp0.y && p.y <= wp1.y)
+            ret.emplace_back(p);
+    }
+    ret.shrink_to_fit();
+    return ret;
+}
+
+void Renderer::ApplyClipping(const core::Point &wp0, const core::Point &wp1){
     // TODO
     // Vai ter que ter um método para Ponto, um para Linha e um para Polígono (filled)
+    displayFile.setDrawPointList(ClipPoints(displayFile.getPointList(), wp0, wp1));
+
 }
 
 void Renderer::render() {
     this->draw_list = viewport.GetDrawList();
-    core::Point w_p0 = window.GetWorldMin(), w_p1 = window.GetWorldMax();
+    core::Point wp0 = window.GetWorldMin(), wp1 = window.GetWorldMax();
     unsigned long obj_count = displayFile.object_count;
     
-    if(rendererCache.cache_changed(w_p0, w_p1, obj_count)){
-        rendererCache.store_cache(w_p0, w_p1, obj_count);
-        ApplyClipping();
+    if(rendererCache.cache_changed(wp0, wp1, obj_count)){
+        rendererCache.store_cache(wp0, wp1, obj_count);
+        ApplyClipping(wp0, wp1);
     }
     
     RenderBackground();
