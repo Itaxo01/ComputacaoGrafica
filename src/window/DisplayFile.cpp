@@ -30,6 +30,7 @@ void DisplayFile::add(core::Shape &k, const std::string &name, const long long i
     }
     hash_id[id] = std::make_pair(listId, manifest.size());
     manifest.push_back(ManifestEntry(id, k.type, name));
+    object_count++;
 }
 
 void DisplayFile::remove(const long long id){
@@ -51,6 +52,7 @@ void DisplayFile::remove(const long long id){
             break;
         }
         default:
-            break;
+            throw std::runtime_error("Invalid object at display file remove");
     }
+    object_count--;
 }

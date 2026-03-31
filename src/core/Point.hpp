@@ -32,6 +32,7 @@ namespace core{
             Point operator/=(const float k) {return Point(this->x/k, this->y/k);}
             /**Compares x first, then y.*/
             bool operator==(const Point &q) {return (std::abs(this->x-q.x) < EPS && std::abs(this->y - q.y) < EPS);}
+            bool operator!=(const Point &q) {return !(*this == q);}
             /**Compares x first, then y.*/
             bool operator<(const Point &q) {return (std::abs(q.x - this->x) > EPS || (std::abs(this->x - q.x) < EPS && std::abs(q.y - this->y) > EPS));}
             /*Just the two above need to be implemented, the others will be derivated. This is as fast as anything, everything that is declared on the header is interpreted as a inline.*/

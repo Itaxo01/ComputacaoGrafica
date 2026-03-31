@@ -9,6 +9,7 @@
 #include "Wireframe.hpp"
 #include "log_app.h"
 #include "Window.hpp"
+#include "RendererCache.hpp"
 
 class Renderer {
 private:
@@ -16,6 +17,7 @@ private:
     Viewport &viewport;
     Window &window;
     ImDrawList* draw_list = nullptr;
+    RendererCache rendererCache;
 
     ExampleAppLog log; // REMOVER DEPOIS
 
@@ -24,6 +26,7 @@ private:
     void DrawObject(const core::Line &line);
     void DrawObject(const core::Wireframe &wireframe);
     void renderName(const core::Shape &shape);
+    void ApplyClipping();
 public:
     //Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}

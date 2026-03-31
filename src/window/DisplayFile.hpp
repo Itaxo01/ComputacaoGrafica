@@ -35,6 +35,9 @@ struct ManifestEntry {
 
 class DisplayFile{
 private:
+    std::vector<core::Point> drawPointList;
+    std::vector<core::Line> drawLineList;
+
     std::vector<core::Point> pointList;
     std::vector<core::Line> lineList;
     std::vector<core::Wireframe> wireframeList;
@@ -48,9 +51,15 @@ private:
     std::unordered_map<long long, std::pair<int, int>> hash_id; 
 
 public:
+    unsigned long object_count = 0;
     void add(core::Shape &k, const std::string &name, const long long id);
     void remove(const long long id);
 
+    /* Essas são as listas que são de fato desenhadas, pós clipping. */
+    const std::vector<core::Point>& getDrawPointList() const {return drawPointList;}
+    const std::vector<core::Line>& getDrawLineList() const {return drawLineList;}
+    
+    /* Não desenhamos essas, apenas armazenamos os valores */
     const std::vector<core::Point>& getPointList() const {return pointList;}
     const std::vector<core::Line>& getLineList() const {return lineList;}
     const std::vector<core::Wireframe>& getWireframeList() const {return wireframeList;}

@@ -130,21 +130,31 @@ void Renderer::DrawObject(const core::Wireframe &wireframe) {
     }
 }
 
+void Renderer::ApplyClipping(){
+    // TODO
+    // Vai ter que ter um método para Ponto, um para Linha e um para Polígono (filled)
+}
+
 void Renderer::render() {
     this->draw_list = viewport.GetDrawList();
-
+    core::Point w_p0 = window.GetWorldMin(), w_p1 = window.GetWorldMax();
+    unsigned long obj_count = displayFile.object_count;
+    
+    if(rendererCache.cache_changed(w_p0, w_p1, obj_count)){
+        rendererCache.store_cache(w_p0, w_p1, obj_count);
+        ApplyClipping();
+    }
+    
     RenderBackground();
-    for (const core::Point &point: displayFile.getPointList()) {
+
+    for (const core::Point &point: displayFile.getDrawPointList()) {
         DrawObject(point);
         renderName(point);
     }
-    for (const core::Line &line: displayFile.getLineList()) {
+    for (const core::Line &line: displayFile.getDrawLineList()) {
         DrawObject(line);
         renderName(line);
     }
-    for (const core::Wireframe &wireframe: displayFile.getWireframeList()) {
-        DrawObject(wireframe);
-        renderName(wireframe);
-    }
+    
     log.Draw("Log");
 }
