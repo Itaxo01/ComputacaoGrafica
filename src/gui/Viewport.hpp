@@ -20,8 +20,12 @@ private:
     bool is_active = false;
 public:
     Viewport() = default;
+    
+    bool show_axes = true;
+    bool show_grid = true;
+    bool show_axis_coordinates = true;
+    
     void DrawWindow();
-
     bool IsHovered() const {return is_hovered;}
     bool IsActive() const {return is_active;}
 

@@ -22,6 +22,13 @@ namespace core{
             os <<"["<< l.a << " -- " << l.b<<"]";
             return os;
         }
+        std::string to_string(long long id) const {
+            std::string result = "Line | " + std::to_string(id) + " | [";
+            result += "(" + format(a.x, 2) + ", " + format(b.y, 2) + ")\n";
+            result += "(" + format(b.x, 2) + ", " + format(b.y, 2) + ")";
+            result += "]";
+            return result;
+        }
     };
     
 }

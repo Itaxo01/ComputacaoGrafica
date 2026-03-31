@@ -91,6 +91,11 @@ $(BUILD_DIR)/%.o: %.cpp
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
+fast: CXXFLAGS := -std=c++20 -O3 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -g -Wall -Wformat
+
+fast: $(EXE)
+	@echo Fast build complete for $(ECHO_MESSAGE)
+
 $(EXE): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
@@ -98,4 +103,3 @@ $(EXE): $(OBJS)
 clean:
 	rm -rf build
 	rm $(EXE)
-	rm imgui.ini

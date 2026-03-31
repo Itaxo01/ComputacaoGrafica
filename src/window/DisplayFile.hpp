@@ -55,6 +55,13 @@ public:
     const std::vector<core::Line>& getLineList() const {return lineList;}
     const std::vector<core::Wireframe>& getWireframeList() const {return wireframeList;}
     const std::vector<ManifestEntry>& getManifest() const {return manifest;}
+
+    const core::Point &getPoint(long long id) const {return pointList[id];}
+    const core::Line &getLine(long long id) const {return lineList[id];}
+    const core::Wireframe &getWireframe(long long id) const {return wireframeList[id];}
+
+    const std::unordered_map<long long, std::pair<int, int>>& getHashID() const {return hash_id;}
+
     DisplayFile(){}
 };
 

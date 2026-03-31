@@ -11,6 +11,8 @@
 #include "Shape.hpp"
 #include <set>
 #include <iostream>
+#include <string>
+#include <unordered_map>
 
 // Essa classe aqui está bem confusa e não pretendo melhorar ela, cumpre seu papel
 class NameGenerator{
@@ -98,10 +100,27 @@ class EntityManager{
         const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}
         const std::vector<core::Wireframe>& getWireframeList() const {return displayFile.getWireframeList();}
-
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
+        const std::unordered_map<long long, std::pair<int, int>>&  getHashID() const {return displayFile.getHashID();}
+        
+        std::string GetObjectDetails(long long real_id) const {
+            auto hash_id = getHashID();
+            auto p_it = hash_id.find(real_id);
+            if(p_it == hash_id.end()) return "Object not found";
+
+            core::ShapeType type = (core::ShapeType)(real_id%10);
+            auto &[hash_key, idpair] = *p_it;
+            int list_id = idpair.first;
+            long long fake_id = real_id/10;
+            switch(type){
+                case core::ShapeType::POINT: return displayFile.getPoint(list_id).to_string(fake_id);
+                case core::ShapeType::LINE: return displayFile.getLine(list_id).to_string(fake_id);
+                case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).to_string(fake_id);
+                default: return "Type not defined";
+            }
+        }
+
         void remove(long long id) {
-            std::cout<<"Deletion on object "<<id<<" type "<<(id%10)<<std::endl;
             displayFile.remove(id);
             nameGenerator.releaseID(id);
         }

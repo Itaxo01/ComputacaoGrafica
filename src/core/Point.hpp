@@ -95,6 +95,13 @@ namespace core{
                 os <<"("<< p.x << ", " << p.y<<")";
                 return os;
             }
+
+            std::string to_string(long long id) const {
+                std::string result = "Point | " + std::to_string(id) + " | [";
+                result += "(" + format(x, 2) + ", " + format(y, 2) + ")";
+                result += "]";
+                return result;
+            }
     };
     
 }

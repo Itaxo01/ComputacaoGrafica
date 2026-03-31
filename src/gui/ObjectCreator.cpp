@@ -107,12 +107,11 @@ void ObjectCreator::ExportToFile(const char* file_path){
     }
     for (const auto& wireframe : entityManager.getWireframeList()) {
         file << "WIREFRAME";
-        for (const auto& vertex : wireframe.data) {
+        for (const auto& vertex : wireframe.points) {
             file << " " << vertex.x << " " << vertex.y;
         }
         file << "\n";
     }
-
 }
 
 

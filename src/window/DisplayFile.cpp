@@ -1,7 +1,8 @@
 #include "DisplayFile.hpp"
+#include <stdexcept>
 
 void DisplayFile::add(core::Shape &k, const std::string &name, const long long id) {
-    int listId;
+    int listId = -1;
     switch(k.type){
         case core::ShapeType::POINT: {
             auto &point = static_cast<core::Point&>(k);
@@ -22,7 +23,10 @@ void DisplayFile::add(core::Shape &k, const std::string &name, const long long i
             break;
         }
         default:
-            break;
+            throw std::runtime_error("Invalid ShapeType in DisplayFile::add");
+    }
+    if(listId == -1){
+        throw std::logic_error("ListId not initialized in DisplayFile::add");
     }
     hash_id[id] = std::make_pair(listId, manifest.size());
     manifest.push_back(ManifestEntry(id, k.type, name));

@@ -4,6 +4,7 @@
 
 #define DFM_INPUT_BOX_SIZE 100
 #define DFM_BUTTON_SIZE ImVec2(50.0f, 20.0f)
+#define DEFAULT_SPLIT_CHAR '|'
 
 const char* ObjectListener::GetTypeName(core::ShapeType type) {
     switch (type) {
@@ -210,6 +211,35 @@ void ObjectListener::DrawTransformCombination() {
     ImGay::EndChild();
 }
 
+inline std::string get_selected_ids(const std::unordered_set<long long> &ids){
+    std::string selected_objects;
+    if(ids.size() > 1){
+        selected_objects = "Selected objects IDs: ";
+        selected_objects += '(';
+        bool sep = false;
+        for(const auto &i: ids){
+            if(sep) selected_objects += ", ";
+            sep = true;
+            selected_objects += std::to_string(i/10); // divide por 10 para mostrar o fake_id
+        }
+        selected_objects += ')';
+    } else selected_objects = "Selected object ID: "+std::to_string(*ids.begin()/10);
+    return selected_objects;
+}
+
+std::vector<std::string> split_string(const std::string &s, char split_char){
+    std::vector<std::string> res;
+    std::string current_string = "";
+    for(char e: s){
+        if(e == split_char){
+            res.push_back(current_string);
+            current_string = "";
+        } else current_string.push_back(e);
+    }
+    res.push_back(current_string);
+    return res;
+}
+
 void ObjectListener::DrawWindow() {
     ImGay::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
     ImGay::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
@@ -220,25 +250,38 @@ void ObjectListener::DrawWindow() {
     {
         ImGay::BeginGroup();
         ImGay::BeginChild("item view", ImVec2(0, -ImGay::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
-        if (selected_ids.size())
-            ImGay::Text("Selected object ID: %lld", *selected_ids.begin()/10); // divide por 10 para mostrar o fake_id
-        else
+        if (!selected_ids.empty()){
+            ImGay::Text("%s", get_selected_ids(selected_ids).c_str()); 
+        } else
             ImGay::Text("No object is selected");
         ImGay::Separator();
-        if (ImGay::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
-        {
-            if (ImGay::BeginTabItem("Description"))
-            {
-                ImGay::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ");
+        if (ImGay::BeginTabBar("##Tabs", ImGuiTabBarFlags_None)) {
+            if (ImGay::BeginTabItem("Details")) {
+                if (ImGay::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
+                    ImGay::TableSetupColumn("Type");
+                    ImGay::TableSetupColumn("ID");
+                    ImGay::TableSetupColumn("Points");
+                    ImGay::TableHeadersRow();
+
+                    for (const auto& id : selected_ids) {
+                        // Retrieve the object details from the EntityManager
+                        std::string object_details = entityManager.GetObjectDetails(id);
+                        // Split the string into columns
+                        auto columns = split_string(object_details, DEFAULT_SPLIT_CHAR);
+
+                        // Populate the table row
+                        ImGay::TableNextRow();
+                        for (size_t i = 0; i < columns.size(); ++i) {
+                            ImGay::TableSetColumnIndex(i);
+                            ImGay::Text("%s", columns[i].c_str());
+                        }
+                    }
+
+                    ImGay::EndTable();
+                }
                 ImGay::EndTabItem();
             }
-            if (ImGay::BeginTabItem("Details"))
-            {
-                ImGay::Text("ID: 0123456789");
-                ImGay::EndTabItem();
-            }
-            if (ImGay::BeginTabItem("Transform Combination"))
-            {
+            if (ImGay::BeginTabItem("Transform Combination")) {
                 DrawTransformCombination();
                 ImGay::EndTabItem();
             }

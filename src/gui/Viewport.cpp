@@ -17,5 +17,16 @@ void Viewport::DrawWindow() {
         ImGui::InvisibleButton("canvas", canvas_sz, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
         this->is_hovered = ImGui::IsItemHovered(); // Hovered
         this->is_active = ImGui::IsItemActive();   // Held
+        
+        ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 190, canvas_p0.y + 5));
+        ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
+       
+        ImGui::BeginChild("Viewport Options", ImVec2(190, 85), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+            ImGui::Checkbox("Show Axes", &show_axes);
+            ImGui::Checkbox("Show Grid", &show_grid);
+            ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
+        ImGui::EndChild();
+ 
     ImGui::End();
+
 }

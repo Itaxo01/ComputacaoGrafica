@@ -48,6 +48,8 @@ void Window::zoom(const float zoom_factor, const ImVec2 &mouse_pos){
 
     p0.y = world_anchor.y - (new_height * ny);
     p1.y = p0.y + new_height;
+
+    zoom_factor_acc *= zoom_factor;
 }
 
 void Window::moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz){

@@ -7,6 +7,7 @@
 
 #define ImGay ImGui
 
+// A lógica de transform está também nessa box, talvez não devesse.
 class ObjectListener {
 private:
     EntityManager& entityManager;
@@ -23,6 +24,7 @@ public:
     ObjectListener(EntityManager& em) : entityManager(em) {}
 
     void DrawWindow();
+
     void DrawTransformCombination();
     void HandleAddScaling(float x, float y);
     void HandleAddTranslation(float x, float y);

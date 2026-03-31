@@ -4,7 +4,9 @@ examples/
 imgui.ini
 *.out
 ./.cache/
-
+.cache
+.cache/* 
+# EUVO FICA MALUCO COM ESSE CACHE 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites
 *.d
