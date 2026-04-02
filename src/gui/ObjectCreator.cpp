@@ -2,7 +2,6 @@
 #include "imgui.h"
 #include <fstream>
 #include <sstream>
-#include <execution>
 
 void ObjectCreator::DrawWindow(){
     ImGui::SetNextWindowPos(ImVec2(876, 26), ImGuiCond_FirstUseEver); // Create New Object window position

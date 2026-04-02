@@ -14,6 +14,10 @@ Controller (src/gui): Interface com a qual iremos interagir e visualizaremos o v
 
 tudo que está aqui pode e provavelmente vai ser mudado conforme aprimorarmos nosso intelecto, mas acho que ta uma boa divisão inicial
 
+# COMPILAÇÃO PARA WINDOWS
+O make tem uma rotina para compilar o .exe do windows no linux. Para isso, ele utiliza a pasta libs/, que possui os binários pré compilados para windows.
+Como estamos utilizando o TBB, o .exe precisa ter o arquivo libtbb12.dll junto dele no mesmo diretório para funcionar (Ainda não testado).
+
 
 ### EDIT ENTREGA 1:
 No momento o projeto inclui algumas funcionalidades a mais. O código referente a entrega um se encontra em:

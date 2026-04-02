@@ -1,14 +1,56 @@
 #include "RendererUtils.hpp"
 #include "Window.hpp"
-#include <execution>
 #include <atomic>
+
+// Seleciona o método de paralelismo. O TBB precisa ser instalado no windows e linux, para evitar isso, caso o usuário não o tenha instalado, utilizamos uma implementação nativa (Que pode ser um pouco pior por não fazer a mesma gestão otimizada do workload).
+#ifdef USE_TBB_EXECUTION
+    #include <execution>
+    #include <algorithm>
+    #define PARALLEL_FOR_EACH(begin, end, lambda) \
+        std::for_each(std::execution::par_unseq, begin, end, lambda)
+#else
+    #include <future>
+    #include <thread>
+    #include <vector>
+
+    template <typename Iterator, typename Function>
+    void NativeForEach(Iterator begin, Iterator end, Function func){
+        auto total_elements = std::distance(begin, end);
+        if(total_elements == 0) return;
+        unsigned int num_threads = std::thread::hardware_concurrency(); // Esse valor pode não ser exato/definido em casos específicos.
+        if(num_threads == 0) num_threads = 2; // Default fallback
+        if(total_elements < 1000) num_threads = 1; // Entrada pequena, fazemos sequencialmente
+
+        auto chunk_size = total_elements / num_threads;
+        std::vector<std::future<void>> futures; // futures é um conjunto assincrono para esperar pelas threads terminarem o work. Como o retorno das nossas funções é void, future<void>.
+        auto chunk_start = begin;
+        for(unsigned int i = 0; i < num_threads - 1; i++){ // não roda para a main thread
+            auto chunk_end = chunk_start;
+            std::advance(chunk_end, chunk_size);
+            futures.push_back(std::async(std::launch::async, [chunk_start, chunk_end, &func](){
+                for(auto it = chunk_start; it != chunk_end; ++it){
+                    func(*it);
+                }
+            }));
+        }
+        // roda para a thread principal
+        for(auto it = chunk_start; it != end; ++it){
+            func(*it);
+        }
+        for(auto &f: futures){
+            f.wait();
+        }
+}
+    #define PARALLEL_FOR_EACH(begin, end, lambda) \
+        NativeForEach(begin, end, lambda)
+#endif 
 
 /* Seleção simples verificando os limites da window */
 std::vector<core::Point> ClipPoints(const std::vector<core::Point> &v, const core::Point &wp0, const core::Point &wp1){
     std::vector<core::Point> ret(v.size());
     std::atomic<size_t> count{0}; // Utilizado para se livrar do mutex ao inserir no vetor
     
-    std::for_each(v.begin(), v.end(), [&](const core::Point &p){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](const core::Point &p){
         if(p.x >= wp0.x && p.x <= wp1.x && p.y >= wp0.y && p.y <= wp1.y){
             size_t insert_index = count.fetch_add(1, std::memory_order_relaxed);
             ret[insert_index] = p;
@@ -38,8 +80,9 @@ std::vector<core::Line> ClipLines(const std::vector<core::Line> &v, const core::
     std::vector<core::Line> ret(v.size());
 
     std::atomic<size_t> count{0}; // Utilizado para se livrar do mutex ao inserir no vetor
-    std::for_each(std::execution::par_unseq, v.begin(), v.end(), [&](const core::Line &line) {
-        float u1 = 0.0f, u2 = 1.0f;
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](const core::Line &line) {
+        float u1 = 0.0f;
+        float u2 = 1.0f;
         float dx = line.b.x - line.a.x;
         float dy = line.b.y - line.a.y;
         if(LineClipTest(-dx, line.a.x - wp0.x, u1, u2) && // left
@@ -78,7 +121,7 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
     std::vector<core::Line> ret(max_lines);
     std::atomic<size_t> count{0};
 
-    std::for_each(std::execution::par_unseq, v.begin(), v.end(), [&](const core::Wireframe &w) {
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](const core::Wireframe &w) {
         size_t p_count = w.points.size();
         if (p_count < 2) return; 
 
@@ -89,7 +132,8 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
             line.b = w.points[i+1];
             
             // Reutilizamos o Liang-Barsky aqui. Poderia ser chamado ClipLines de novo, porém fazendo aqui permite popularmos o vetor diretamente.
-            float u1 = 0.0f, u2 = 1.0f;
+            float u1 = 0.0f;
+            float u2 = 1.0f;
             float dx = line.b.x - line.a.x;
             float dy = line.b.y - line.a.y;
             
@@ -122,13 +166,13 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
 
 
 void ViewportTransform(std::vector<core::Point> &v, const Window &window){
-    std::for_each(std::execution::par_unseq, v.begin(), v.end(), [&](core::Point &point){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &point){
         point = window.WorldToViewport(point);
     });
 }
 
 void ViewportTransform(std::vector<core::Line> &v, const Window &window){
-    std::for_each(std::execution::par_unseq, v.begin(), v.end(), [&](core::Line &line){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Line &line){
         line.a = window.WorldToViewport(line.a);
         line.b = window.WorldToViewport(line.b);
     });

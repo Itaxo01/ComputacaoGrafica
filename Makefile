@@ -10,9 +10,9 @@
 # MSYS2:
 #   pacman -S --noconfirm --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-glfw
 
-#CXX = g++
 #CXX = clang++
 
+CXX = g++
 EXE = ./programa_foda.out
 IMGUI_DIR = ./imgui
 GUI_DIR = ./src/gui
@@ -37,7 +37,8 @@ LINUX_GL_LIBS = -lGL
 
 CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
 CXXFLAGS += -g -Wall -Wformat
-LIBS = -ltbb
+LIBS =
+
 
 ##---------------------------------------------------------------------
 ## OPENGL ES
@@ -78,6 +79,17 @@ ifeq ($(OS), Windows_NT)
 	CFLAGS = $(CXXFLAGS)
 endif
 
+# Testa se o projeto compila com o #include <execution>
+TBB_CHECK := $(shell printf '#include <execution>\nint main(){}\n' | $(CXX) -std=c++17 -xc++ - -o /dev/null 2>/dev/null -ltbb && echo "YES" || echo "NO")
+
+ifeq ($(TBB_CHECK), YES)
+	ECHO_MESSAGE += "(with TBB parallel execution)"
+	CXXFLAGS += -DUSE_TBB_EXECUTION
+	LIBS += -ltbb
+else
+	ECHO_MESSAGE += "(with Native fallback execution)"
+endif
+
 ##---------------------------------------------------------------------
 ## BUILD RULES
 ##---------------------------------------------------------------------
@@ -99,6 +111,23 @@ fast: $(EXE)
 $(EXE): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
+
+# --- CROSS-COMPILATION FOR WINDOWS FROM LINUX ---
+windows: CXX = x86_64-w64-mingw32-g++
+windows: EXE = ./programa_foda.exe
+windows: ECHO_MESSAGE = "Windows (Cross-Compiled)"
+windows: CXXFLAGS += -D_WIN32 -DUSE_TBB_EXECUTION -I./libs/windows/include
+windows: LIBS = ./libs/windows/libtbb12.dll.a -L./libs/windows -lglfw3 -lgdi32 -lopengl32 -limm32
+# O make não conseguia de jeito ^ nenhum solucionar o -ltbb então tive que incluir o path. 
+
+# These flags embed the C++ standard library directly into the .exe
+# so the user doesn't get "libstdc++-6.dll was not found" errors.
+windows: LDFLAGS = -static -static-libgcc -static-libstdc++ 
+
+windows: $(OBJS)
+	@mkdir -p $(dir $(EXE))
+	$(CXX) -o $(EXE) $^ $(CXXFLAGS) $(LDFLAGS) $(LIBS)
+	@echo Build complete for $(ECHO_MESSAGE)
 
 clean:
 	rm -rf build
