@@ -35,9 +35,9 @@ OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
+CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
 CXXFLAGS += -g -Wall -Wformat
-LIBS =
+LIBS = -ltbb
 
 ##---------------------------------------------------------------------
 ## OPENGL ES
@@ -75,7 +75,7 @@ ifeq ($(OS), Windows_NT)
 	LIBS += -lglfw3 -lgdi32 -lopengl32 -limm32
 
 	CXXFLAGS += `pkg-config --cflags glfw3`
-	CFLAGS = $(CXXFLAGS)n nu
+	CFLAGS = $(CXXFLAGS)
 endif
 
 ##---------------------------------------------------------------------
@@ -91,7 +91,7 @@ $(BUILD_DIR)/%.o: %.cpp
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
-fast: CXXFLAGS := -std=c++20 -O3 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -g -Wall -Wformat
+fast: CXXFLAGS += -O3 -DDONT_DRAW_SHAPE_NAME 
 
 fast: $(EXE)
 	@echo Fast build complete for $(ECHO_MESSAGE)

@@ -39,9 +39,33 @@ void ObjectListener::HandleAddRotation(float x, float y, float angle) {
 
 void ObjectListener::DrawObjectList() {
     const auto& manifest = entityManager.GetManifest();
+    int total_items = manifest.size();
+    int total_pages = (total_items + items_per_page - 1) / items_per_page; // arendonda para cima.
+
+    // Diminui automaticamente no caso de deleção de algum elemento.
+    if (current_page >= total_pages && total_pages > 0){
+        current_page = total_pages - 1;
+    }
 
     ImGay::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-    for (int i = 0; i < (int)manifest.size(); ++i) {
+
+    // Controles da paginação
+    ImGay::PushItemWidth(100);
+    if (ImGay::Button("<") && current_page > 0) {
+        current_page--;
+    }
+    ImGay::SameLine();
+    ImGay::Text("%d / %d", current_page + 1, std::max(1, total_pages));
+    ImGay::SameLine();
+    if (ImGay::Button(">") && current_page < total_pages - 1) {
+        current_page++;
+    }
+    ImGay::Separator();
+
+    int start_idx = current_page * items_per_page;
+    int end_idx = std::min(start_idx + items_per_page, total_items);
+
+    for (int i = start_idx; i < end_idx; ++i) {
         const auto& entry = manifest[i];
         
         // Check if current item is in our selected set

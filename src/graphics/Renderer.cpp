@@ -2,7 +2,7 @@
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include "RendererUtils.hpp"
 
 inline ImVec2 ToImVec2(const core::Point &p) {
     return ImVec2(p.x, p.y);
@@ -10,10 +10,9 @@ inline ImVec2 ToImVec2(const core::Point &p) {
 
 void Renderer::renderName(const core::Shape &shape){
     
-    #ifdef DRAW_SHAPE_NAME
-        core::Point anchor = core::Point(shape.anchorPoint());
-        DrawObject(anchor);
-        core::Point p = window.WorldToViewport(anchor);
+    #ifndef DONT_DRAW_SHAPE_NAME
+        core::Point p = core::Point(shape.anchorPoint());
+        DrawObject(p);
         const int magic_number = 15;
         ImVec2 pos(p.x, p.y - magic_number);
 
@@ -23,7 +22,7 @@ void Renderer::renderName(const core::Shape &shape){
 }
 
 // Isso aqui calcula o espaçamento entre as linhas da grid de forma similar ao geogebra
-float calculate_step(float world_width){
+inline float calculate_step(float world_width){
     float raw_step = world_width/10.0f;
     float exp = std::floor(std::log10(raw_step));
     float mag = std::pow(10.0f, exp);
@@ -105,21 +104,17 @@ void Renderer::RenderBackground() {
     }
 }
 
-void Renderer::DrawObject(const core::Point &world_p) {
-    core::Point screen_p = window.WorldToViewport(world_p);
-
+void Renderer::DrawObject(const core::Point &p) {
     const float rad = 2.5;
-    draw_list->AddCircle(ToImVec2(screen_p), rad, IM_COL32_WHITE, 0, 2.0f);
+    draw_list->AddCircle(ToImVec2(p), rad, IM_COL32_WHITE, 0, 2.0f);
 }
 
 void Renderer::DrawObject(const core::Line &line) {
-    core::Point p0 = window.WorldToViewport(line.a); 
-    core::Point p1 = window.WorldToViewport(line.b);
-
     const float width = 2.0f;
-    draw_list->AddLine(ToImVec2(p0), ToImVec2(p1), IM_COL32_WHITE, width);
+    draw_list->AddLine(ToImVec2(line.a), ToImVec2(line.b), IM_COL32_WHITE, width);
     //draw_list->PopClipRect(); // ver oq faz
 }
+
 void Renderer::DrawObject(const core::Wireframe &wireframe) {
     const float width = 2.0f;
     int size = wireframe.points.size();
@@ -131,45 +126,68 @@ void Renderer::DrawObject(const core::Wireframe &wireframe) {
     }
 }
 
-/* Seleção simples verificando os limites da window */
-inline std::vector<core::Point> ClipPoints(const std::vector<core::Point> &v, const core::Point &wp0, const core::Point &wp1){
-    std::vector<core::Point> ret;
-    ret.reserve(v.size());
-    for(const auto &p: v){
-        if(p.x >= wp0.x && p.x <= wp1.x && p.y >= wp0.y && p.y <= wp1.y)
-            ret.emplace_back(p);
-    }
-    ret.shrink_to_fit();
-    return ret;
-}
 
 void Renderer::ApplyClipping(const core::Point &wp0, const core::Point &wp1){
-    // TODO
-    // Vai ter que ter um método para Ponto, um para Linha e um para Polígono (filled)
-    displayFile.setDrawPointList(ClipPoints(displayFile.getPointList(), wp0, wp1));
-
+    // ainda falta um para Polígono (filled)
+    this->drawPointList = ClipPoints(displayFile.getPointList(), wp0, wp1);
+    this->drawLineList = ClipLines(displayFile.getLineList(), wp0, wp1);
+    this->drawWireframeList = ClipWireframes(displayFile.getWireframeList(), wp0, wp1);
 }
 
-void Renderer::render() {
-    this->draw_list = viewport.GetDrawList();
+/* Aplicamos a transformação no próprio vetor para máximo paralelismo */
+void Renderer::ApplyViewportTransform(){
+    ViewportTransform(drawPointList, window);
+    ViewportTransform(drawLineList, window);
+    ViewportTransform(drawWireframeList, window);
+}
+
+/* Esse método pega os objetos do DisplayFile e aplica os cálculos necessários:
+    - Clipping
+    - Viewport Transform
+@ Após isso, a lista de pontos interna do Renderer já deverá estar formatada para a exibição (Resta apenas colocar no draw_list).
+*/
+void Renderer::GenerateDrawList(){
     core::Point wp0 = window.GetWorldMin(), wp1 = window.GetWorldMax();
     unsigned long obj_count = displayFile.object_count;
     
     if(rendererCache.cache_changed(wp0, wp1, obj_count)){
         rendererCache.store_cache(wp0, wp1, obj_count);
         ApplyClipping(wp0, wp1);
+        ApplyViewportTransform();
     }
-    
+}
+
+void Renderer::render() {
+    this->draw_list = viewport.GetDrawList();
+    GenerateDrawList();    
     RenderBackground();
 
-    for (const core::Point &point: displayFile.getDrawPointList()) {
-        DrawObject(point);
-        renderName(point);
-    }
-    for (const core::Line &line: displayFile.getDrawLineList()) {
-        DrawObject(line);
-        renderName(line);
-    }
+    for (const core::Point &point: drawPointList) DrawObject(point);
+    for (const core::Line &line: drawLineList) DrawObject(line);
+    for(const core::Line &w_line: drawWireframeList) DrawObject(w_line);
+    
+
+    #ifndef DONT_DRAW_SHAPE_NAME // Lidamos com os nomes separadamente
+        core::Point wp0 = window.GetWorldMin();
+        core::Point wp1 = window.GetWorldMax();
+        
+        auto draw_name_if_visible = [&](const core::Shape& shape){
+            core::Point anchor = shape.anchorPoint();
+            
+            if (anchor.x >= wp0.x && anchor.x <= wp1.x && 
+                anchor.y >= wp0.y && anchor.y <= wp1.y) {
+                
+                core::Point p = window.WorldToViewport(anchor);
+                const int magic_number = 15;
+                ImVec2 pos(p.x, p.y - magic_number);
+
+                draw_list->AddText(pos, IM_COL32_WHITE, shape.name.c_str());
+            }
+        };
+        for(const auto &p: displayFile.getPointList()) draw_name_if_visible(p);
+        for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
+        for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
+    #endif
     
     log.Draw("Log");
 }

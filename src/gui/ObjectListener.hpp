@@ -13,6 +13,8 @@ private:
     EntityManager& entityManager;
     std::unordered_set<long long> selected_ids;
     int last_selected_index = -1; // Used to calculate ranges for Shift+Click
+    int current_page = 0;
+    const int items_per_page = 20;
 
     // Helper to get string name from ShapeType
     const char* GetTypeName(core::ShapeType type);

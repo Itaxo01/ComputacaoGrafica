@@ -20,7 +20,7 @@ namespace core{
             virtual ~Shape() = default;
             virtual std::pair<float, float> anchorPoint() const = 0;
 
-            #ifdef DRAW_SHAPE_NAME // Use to load the shape name on the interface Viewport
+            #ifndef DONT_DRAW_SHAPE_NAME // Use to load the shape name on the interface Viewport
                 std::string name;
             #endif
     };

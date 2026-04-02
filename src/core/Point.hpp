@@ -15,7 +15,10 @@ namespace core{
         public:
             static constexpr float EPS = 1e-9; // This is our threshold for something like x == y on floats, there could be a tiny error that the EPS will handle
             float x, y;
-            Point(float x = 0, float y = 0): x(x), y(y){
+            Point(){
+                type = core::ShapeType::POINT;
+            }
+            Point(float x, float y): x(x), y(y){
                 type = core::ShapeType::POINT;
             }
             Point(std::pair<float, float> p): x(p.first), y(p.second){

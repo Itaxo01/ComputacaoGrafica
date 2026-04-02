@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include <fstream>
 #include <sstream>
+#include <execution>
 
 void ObjectCreator::DrawWindow(){
     ImGui::SetNextWindowPos(ImVec2(876, 26), ImGuiCond_FirstUseEver); // Create New Object window position
@@ -62,34 +63,56 @@ void ObjectCreator::ImportFromFile(const char* file_path){
         return;
     }
     std::string line;
+    
+    unsigned int count = 0;
     while(std::getline(file, line)){
-        std::istringstream iss(line);
-        std::string type;
-        iss>>type;
-        if(type == "POINT"){
-            float x, y;
-            iss>>x>>y;
+        if(line.empty()) continue;
+
+        const char*ptr = line.c_str();
+        char *next_ptr = nullptr; 
+
+        if(line.compare(0, 5, "POINT") == 0) {
+            ptr += 5;
+            float x = std::strtof(ptr, &next_ptr); ptr = next_ptr;
+            float y = std::strtof(ptr, &next_ptr);
+
             points.clear();
             points.emplace_back(x, y);
-            AddGraphicObject();
-        }else if (type == "LINE") {
-            float x1, y1, x2, y2;
-            iss >> x1 >> y1 >> x2 >> y2;
+            entityManager.add(true, points);
+            count++;
+        } else if(line.compare(0, 4, "LINE") == 0){
+            ptr += 4;
+            float x1 = std::strtof(ptr, &next_ptr); ptr = next_ptr;
+            float y1 = std::strtof(ptr, &next_ptr); ptr = next_ptr;
+            float x2 = std::strtof(ptr, &next_ptr); ptr = next_ptr;
+            float y2 = std::strtof(ptr, &next_ptr);
             points.clear();
             points.emplace_back(x1, y1);
             points.emplace_back(x2, y2);
-            AddGraphicObject();
-        } else if (type == "WIREFRAME") {
+            entityManager.add(true, points);
+            count++;
+        } else if(line.compare(0, 9, "WIREFRAME") == 0){
+            ptr += 9;
             points.clear();
-            float x, y;
-            while (iss >> x >> y) {
+            // strtof sets next_ptr to ptr if it finds no more numbers
+            while (true) {
+                float x = std::strtof(ptr, &next_ptr);
+                if (ptr == next_ptr) break; // No more numbers on this line
+                ptr = next_ptr;
+                
+                float y = std::strtof(ptr, &next_ptr);
+                ptr = next_ptr;
+                
                 points.emplace_back(x, y);
             }
-            AddGraphicObject();
-        } else {
-            log.AddLog("[error] Unknown object type in file: %s\n", type.c_str());
+            if (!points.empty()) {
+                entityManager.add(true, points);
+                count++;
+            }
         }
+        points.clear();
     }
+    log.AddLog("Imported %d objects from %s\n", count, file_path);
 }
 
 

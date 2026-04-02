@@ -3,7 +3,7 @@
 #include <cassert>
 
 void setName(core::Shape &s, const std::string &name){
-    #ifdef DRAW_SHAPE_NAME
+    #ifndef DONT_DRAW_SHAPE_NAME
         s.name = name;
     #endif
 }
@@ -46,6 +46,6 @@ void EntityManager::add(const std::string &name, std::vector<std::pair<float, fl
 
 void EntityManager::add(const bool generate_name, std::vector<std::pair<float, float>> &p){
     assert(generate_name == true);
-    std::string name = nameGenerator.getName(getType(p), currentId);
+    std::string name = getName(getType(p), currentId);
     return add(name, p);    
 }

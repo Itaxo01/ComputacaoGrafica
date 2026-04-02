@@ -24,10 +24,10 @@ public:
     void moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz);
     
     float GetZoomFactor(){return zoom_factor_acc;}
-    core::Point GetWorldMin(){return p0;}
-    core::Point GetWorldMax(){return p1;}
-    core::Point WorldToViewport(const core::Point &wp);
-    core::Point ViewportToWorld(const ImVec2 &vp);
+    core::Point GetWorldMin() const {return p0;}
+    core::Point GetWorldMax() const {return p1;}
+    core::Point WorldToViewport(const core::Point &wp) const;
+    core::Point ViewportToWorld(const ImVec2 &vp) const;
 
     void zoom(const float zoom_factor, const ImVec2 &mouse_pos);
 };

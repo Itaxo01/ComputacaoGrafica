@@ -9,6 +9,9 @@ namespace core{
     class Line: public Shape{
         public:
         core::Point a, b;
+        Line(){
+            type = ShapeType::LINE;
+        }
         Line(core::Point &a, core::Point &b): a(a), b(b) {
             type = ShapeType::LINE;
         }

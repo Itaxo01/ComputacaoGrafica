@@ -40,6 +40,7 @@ struct ExampleAppLog
 
     void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
     {
+    #ifndef DISABLE_LOGS
         int old_size = Buf.size();
         va_list args;
         va_start(args, fmt);
@@ -48,10 +49,13 @@ struct ExampleAppLog
         for (int new_size = Buf.size(); old_size < new_size; old_size++)
             if (Buf[old_size] == '\n')
                 LineOffsets.push_back(old_size + 1);
+    #endif
     }
 
     void    Draw(const char* title, bool* p_open = NULL)
     {   
+    #ifndef DISABLE_LOGS
+
     ImGui::SetNextWindowPos(ImVec2(881, 611), ImGuiCond_FirstUseEver); // Log window position
         ImGui::SetNextWindowSize(ImVec2(783, 257), ImGuiCond_FirstUseEver); // Log window size
 
@@ -141,6 +145,7 @@ struct ExampleAppLog
         }
         ImGui::EndChild();
         ImGui::End();
+    #endif
     }
 };
 

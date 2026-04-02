@@ -5,7 +5,7 @@ void Window::setWorldBounds(const core::Point &bottomLeft, const core::Point &to
     p0 = bottomLeft, p1 = topRight;
 }
 
-core::Point Window::WorldToViewport(const core::Point &wp) {
+core::Point Window::WorldToViewport(const core::Point &wp) const {
     std::pair<ImVec2, ImVec2> cp = viewport.GetCanvasP();
     ImVec2 canvas_sz = viewport.GetCanvasSize();
     // First, we normalize the coordinates like normal_x = (wp.x - p0.x) / (p1.x - p0.x) (between [-1, 1]), and same but inverted for y.
@@ -17,7 +17,7 @@ core::Point Window::WorldToViewport(const core::Point &wp) {
     );
 }
 
-core::Point Window::ViewportToWorld(const ImVec2 &vp) {
+core::Point Window::ViewportToWorld(const ImVec2 &vp) const {
     std::pair<ImVec2, ImVec2> cp = viewport.GetCanvasP(); // subtrai o offset do canvas aqui.
     ImVec2 canvas_sz = viewport.GetCanvasSize();
     // Do the same steps as WorldToViewport, but inverted.
