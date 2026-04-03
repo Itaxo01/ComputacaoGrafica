@@ -1,0 +1,182 @@
+@startuml Class Diagram
+
+package "src/core" {
+    class Shape {
+        + ShapeType type
+        + std::string name
+        + {abstract} std::pair<float, float> anchorPoint()
+    }
+
+    class Point {
+        + float x, y
+        + Point()
+        + Point(float x, float y)
+        + operators: +, -, *, /, ==, !=, <, etc.
+    }
+
+    class Line {
+        + Point a, b
+        + Line()
+        + Line(Point &a, Point &b)
+        + std::pair<float, float> anchorPoint()
+    }
+
+    class Wireframe {
+        + std::vector<Point> points
+        + Wireframe(std::vector<Point> &data)
+        + std::pair<float, float> anchorPoint()
+    }
+
+    class Matrix<T> {
+        + int r, c
+        + std::vector<std::vector<T>> data
+        + operators: *, *=
+    }
+
+    class EntityManager {
+        - long long currentId
+        - DisplayFile &displayFile
+        + EntityManager(DisplayFile &df)
+        + addPoint(), addLine(), addWireframe(), add()
+        + getPointList(), getLineList(), getWireframeList()
+        + GetManifest(), getHashID()
+        + GetObjectDetails(), GetManifestObjectNames(), GetManifestObjectIDs()
+    }
+}
+
+package "src/graphics" {
+    class Renderer {
+        - DisplayFile &displayFile
+        - Viewport &viewport
+        - Window &window
+        - RendererCache rendererCache
+        - std::vector<Point> drawPointList
+        - std::vector<Line> drawLineList
+        - std::vector<Line> drawWireframeList
+        + Renderer(DisplayFile &df, Viewport &v, Window &w)
+        + render()
+        - RenderBackground(), DrawObject(), ApplyClipping(), etc.
+    }
+
+    class RendererCache {
+        - Point l_p0, l_p1
+        - unsigned long l_obj_count
+        + RendererCache()
+        + cache_changed(), store_cache()
+    }
+}
+
+package "src/gui" {
+    class GuiController {
+        - EntityManager &entityManager
+        - Window &window
+        - Viewport &viewport
+        - ObjectCreator &creator
+        - ObjectListener &listener
+        + GuiController(...)
+        + run()
+        - HandleCanvasInteractions(), etc.
+    }
+
+    class ObjectCreator {
+        - ShapeType mode
+        - std::vector<std::pair<float, float>> points
+        - bool enable_object_creation
+        - char obj_name[16]
+        - EntityManager &entityManager
+        + ObjectCreator(...)
+        + DrawWindow(), RegisterLeftClick(), AddGraphicObject()
+        + ImportFromFile(), ExportToFile()
+    }
+
+    class ObjectListener {
+        - EntityManager &entityManager
+        - std::unordered_set<long long> selected_ids
+        - int last_selected_index
+        - int current_page
+        + ObjectListener(EntityManager &em)
+        + DrawWindow(), DrawTransformCombination()
+        + HandleAddScaling(), HandleAddTranslation(), HandleAddRotation()
+    }
+
+    class MultipleSelectionList {
+        - int size
+        - std::unordered_set<int> selected_indexes
+        - std::vector<const char*>* names_ptr
+        - std::vector<const char*> context_item_names
+        + MultipleSelectionList()
+        + SetNames(), Draw(), GetSelectedIndexes()
+        + AddContextItem(), GetSelectedContextItem(), clear()
+    }
+
+    class Viewport {
+        - ImVec2 canvas_p0, canvas_p1, canvas_sz
+        - ImDrawList* draw_list
+        - bool is_hovered, is_active
+        + bool show_axes, show_grid, show_axis_coordinates
+        + DrawWindow(), IsHovered(), IsActive()
+        + GetCanvasSize(), GetCanvasP(), GetDrawList()
+    }
+}
+
+package "src/window" {
+    class DisplayFile {
+        - std::vector<Point> pointList
+        - std::vector<Line> lineList
+        - std::vector<Wireframe> wireframeList
+        - std::vector<ManifestEntry> manifest
+        - std::unordered_map<long long, std::pair<int, int>> hash_id
+        + getPointList(), getLineList(), getWireframeList()
+        + getManifest(), getHashID()
+        + add(), remove(), etc.
+    }
+
+    class ManifestEntry {
+        + long long id
+        + long long fake_id
+        + ShapeType type
+        + std::string name
+    }
+
+    class Window {
+        - Viewport &viewport
+        - Point p0, p1
+        - float x_offset, y_offset
+        - float zoom_factor_acc
+        + Window(Viewport &vp)
+        + setWorldBounds(), AddOffset(), moveWindow()
+        + GetZoomFactor(), GetWorldMin(), GetWorldMax()
+        + WorldToViewport(), ViewportToWorld(), zoom()
+    }
+}
+
+Shape <|-- Point
+Shape <|-- Line
+Shape <|-- Wireframe
+
+EntityManager --> DisplayFile : uses
+EntityManager --> Shape : creates
+
+DisplayFile --> Point : contains
+DisplayFile --> Line : contains
+DisplayFile --> Wireframe : contains
+DisplayFile --> ManifestEntry : contains
+
+Renderer --> DisplayFile : renders
+Renderer --> Viewport : draws to
+Renderer --> Window : uses bounds
+Renderer --> RendererCache : caches
+
+GuiController --> EntityManager : manages
+GuiController --> Window : controls
+GuiController --> Viewport : interacts
+GuiController --> ObjectCreator : uses
+GuiController --> ObjectListener : uses
+
+ObjectCreator --> EntityManager : adds objects
+ObjectListener --> EntityManager : listens to
+ObjectListener --> MultipleSelectionList : uses
+
+Window --> Viewport : depends on
+
+@enduml

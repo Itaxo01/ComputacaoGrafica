@@ -38,6 +38,9 @@ void ObjectListener::HandleAddRotation(float x, float y, float angle) {
 }
 
 void ObjectListener::DrawObjectList() {
+    // Todo display abaixo será substituído pelo MultipleSelectionList.
+    // A lógica será transferida para o Controller
+    // BEGIN
     const auto& manifest = entityManager.GetManifest();
     int total_items = manifest.size();
     int total_pages = (total_items + items_per_page - 1) / items_per_page; // arendonda para cima.
@@ -47,20 +50,20 @@ void ObjectListener::DrawObjectList() {
         current_page = total_pages - 1;
     }
 
-    ImGay::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+    ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
 
     // Controles da paginação
-    ImGay::PushItemWidth(100);
-    if (ImGay::Button("<") && current_page > 0) {
+    ImGui::PushItemWidth(100);
+    if (ImGui::Button("<") && current_page > 0) {
         current_page--;
     }
-    ImGay::SameLine();
-    ImGay::Text("%d / %d", current_page + 1, std::max(1, total_pages));
-    ImGay::SameLine();
-    if (ImGay::Button(">") && current_page < total_pages - 1) {
+    ImGui::SameLine();
+    ImGui::Text("%d / %d", current_page + 1, std::max(1, total_pages));
+    ImGui::SameLine();
+    if (ImGui::Button(">") && current_page < total_pages - 1) {
         current_page++;
     }
-    ImGay::Separator();
+    ImGui::Separator();
 
     int start_idx = current_page * items_per_page;
     int end_idx = std::min(start_idx + items_per_page, total_items);
@@ -75,8 +78,8 @@ void ObjectListener::DrawObjectList() {
         std::string label = "[" + std::to_string(entry.fake_id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
 
         // Draw the selectable item
-        if (ImGay::Selectable(label.c_str(), is_selected)) {
-            ImGuiIO& io = ImGay::GetIO();
+        if (ImGui::Selectable(label.c_str(), is_selected)) {
+            ImGuiIO& io = ImGui::GetIO();
             
             if (io.KeyCtrl) {
                 // CTRL+Click: Toggle selection
@@ -103,7 +106,7 @@ void ObjectListener::DrawObjectList() {
 
         // --- CONTEXT MENU (Right Click) ---
         // We tie the context menu to the item. It opens if you right click a hovered item.
-        if (ImGay::BeginPopupContextItem(("context_menu_" + std::to_string(entry.id)).c_str())){
+        if (ImGui::BeginPopupContextItem(("context_menu_" + std::to_string(entry.id)).c_str())){
             
             // If the user right-clicks an unselected item, select ONLY that item
             if (!is_selected) {
@@ -112,10 +115,10 @@ void ObjectListener::DrawObjectList() {
                 last_selected_index = i;
             }
 
-            ImGay::Text("Operations (%zu selected)", selected_ids.size());
-            ImGay::Separator();
+            ImGui::Text("Operations (%zu selected)", selected_ids.size());
+            ImGui::Separator();
 
-            if (ImGay::MenuItem("Delete")) {
+            if (ImGui::MenuItem("Delete")) {
                 for (long long id : selected_ids) {
                     entityManager.remove(id); // Implement this on EntityManager/DisplayFile
                 }
@@ -123,15 +126,16 @@ void ObjectListener::DrawObjectList() {
                 last_selected_index = -1;
             }
             
-            if (ImGay::MenuItem("Rotate (Placeholder)")) {
+            if (ImGui::MenuItem("Rotate (Placeholder)")) {
                 // TODO
                 // for (long long id : selected_ids) { entityManager.rotate(id, angle); }
             }
 
-            ImGay::EndPopup();
+            ImGui::EndPopup();
         }
     }
-    ImGay::EndChild();
+    ImGui::EndChild();
+    // END
 }
 
 void ObjectListener::DrawTransformCombination() {
@@ -140,63 +144,63 @@ void ObjectListener::DrawTransformCombination() {
     //std::vector<char*> transform_buf(100, "Transformation");
     {
         ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-        ImGay::Text("Transorms list"); ImGay::Separator();
+        ImGui::Text("Transorms list"); ImGui::Separator();
         for (int i = 0; i < transform_buf_names.size(); i++)
         {
             char label[128];
             sprintf(label, transform_buf_names[i]);
-            ImGay::PushID(i);
+            ImGui::PushID(i);
             if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SelectOnNav))
                 selected = i;
-            ImGay::PopID();
+            ImGui::PopID();
         }
         ImGui::EndChild();
     }
     ImGui::SameLine();
 
     // NEW TRANSFORM INPUTS
-    ImGay::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
-    ImGay::Text("Add new transformation"); ImGay::Separator();
+    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
+    ImGui::Text("Add new transformation"); ImGui::Separator();
 
     static float fsx, fsy;
-    ImGay::Text("Scaling");
-    ImGay::Text("x: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##sx", &fsx, 1.0f, 0.0f, 0.0f, "%.06f"); 
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("y: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##sy", &fsy, 1.0f, 0.0f, 0.0f, "%.06f");
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("  "); ImGay::SameLine();
-    ImGay::PushID("add_scaling");
-    if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
+    ImGui::Text("Scaling");
+    ImGui::Text("x: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##sx", &fsx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGui::PopItemWidth(); ImGui::SameLine();
+    ImGui::Text("y: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##sy", &fsy, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGui::PopItemWidth(); ImGui::SameLine();
+    ImGui::Text("  "); ImGui::SameLine();
+    ImGui::PushID("add_scaling");
+    if (ImGui::Button("Add", DFM_BUTTON_SIZE)) {
         HandleAddScaling(fsx, fsy);//Handle scaling addition;
     }
-    ImGay::PopID();
-    ImGay::Separator();
+    ImGui::PopID();
+    ImGui::Separator();
 
     static float ftx, fty;
-    ImGay::Text("Translation");
-    ImGay::Text("x: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##tx", &ftx, 1.0f, 0.0f, 0.0f, "%.06f"); 
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("y: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##ty", &fty, 1.0f, 0.0f, 0.0f, "%.06f");
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("  "); ImGay::SameLine();
-    ImGay::PushID("add_translation");
-    if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
+    ImGui::Text("Translation");
+    ImGui::Text("x: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##tx", &ftx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGui::PopItemWidth(); ImGui::SameLine();
+    ImGui::Text("y: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##ty", &fty, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGui::PopItemWidth(); ImGui::SameLine();
+    ImGui::Text("  "); ImGui::SameLine();
+    ImGui::PushID("add_translation");
+    if (ImGui::Button("Add", DFM_BUTTON_SIZE)) {
         HandleAddTranslation(ftx, fty);//Handle transform addition;
     }
-    ImGay::PopID();
-    ImGay::Separator();
+    ImGui::PopID();
+    ImGui::Separator();
     
     static float fangle, frx, fry;
-    ImGay::Text("Rotation");
-    //ImGay::Text("Around: "); ImGay::SameLine();
+    ImGui::Text("Rotation");
+    //ImGui::Text("Around: "); ImGui::SameLine();
     static int radiosel;
     if (ImGui::RadioButton("itself", &radiosel, 0)) {
             ; // passa as coordenadas do centro do objeto para frx e fry
@@ -210,29 +214,29 @@ void ObjectListener::DrawTransformCombination() {
             ; // da unlock em frx e fry
         }
 
-    ImGay::Text("x: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##rx", &frx, 1.0f, 0.0f, 0.0f, "%.06f"); 
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("y: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##ry", &fry, 1.0f, 0.0f, 0.0f, "%.06f");
-    ImGay::PopItemWidth(); //ImGay::SameLine();
-    ImGay::Text("angle: "); ImGay::SameLine();
-    ImGay::PushItemWidth(DFM_INPUT_BOX_SIZE);
-    ImGay::DragFloat("##ra", &fangle, 1.0f, 0.0f, 360.0f, "%.06f", ImGuiSliderFlags_WrapAround); 
-    ImGay::PopItemWidth(); ImGay::SameLine();
-    ImGay::Text("  "); ImGay::SameLine();
-    ImGay::PushID("add_rotation");
-    if (ImGay::Button("Add", DFM_BUTTON_SIZE)) {
+    ImGui::Text("x: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##rx", &frx, 1.0f, 0.0f, 0.0f, "%.06f"); 
+    ImGui::PopItemWidth(); ImGui::SameLine();
+    ImGui::Text("y: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##ry", &fry, 1.0f, 0.0f, 0.0f, "%.06f");
+    ImGui::PopItemWidth(); //ImGui::SameLine();
+    ImGui::Text("angle: "); ImGui::SameLine();
+    ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
+    ImGui::DragFloat("##ra", &fangle, 1.0f, 0.0f, 360.0f, "%.06f", ImGuiSliderFlags_WrapAround); 
+    ImGui::PopItemWidth(); ImGui::SameLine();
+    ImGui::Text("  "); ImGui::SameLine();
+    ImGui::PushID("add_rotation");
+    if (ImGui::Button("Add", DFM_BUTTON_SIZE)) {
         HandleAddRotation(frx, fry, fangle);
     }
-    ImGay::PopID();
-    ImGay::Separator();
+    ImGui::PopID();
+    ImGui::Separator();
 
-    ImGay::Button("Apply all transformations");
+    ImGui::Button("Apply all transformations");
 
-    ImGay::EndChild();
+    ImGui::EndChild();
 }
 
 inline std::string get_selected_ids(const std::unordered_set<long long> &ids){
@@ -265,27 +269,27 @@ std::vector<std::string> split_string(const std::string &s, char split_char){
 }
 
 void ObjectListener::DrawWindow() {
-    ImGay::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
-    ImGay::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
-    ImGay::Begin("Display File Manifest");
-    DrawObjectList(); ImGay::SameLine();
+    ImGui::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
+    ImGui::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
+    ImGui::Begin("Display File Manifest");
+    DrawObjectList(); ImGui::SameLine();
 
     // DEMO TEMPLATE
     {
-        ImGay::BeginGroup();
-        ImGay::BeginChild("item view", ImVec2(0, -ImGay::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::BeginGroup();
+        ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
         if (!selected_ids.empty()){
-            ImGay::Text("%s", get_selected_ids(selected_ids).c_str()); 
+            ImGui::Text("%s", get_selected_ids(selected_ids).c_str()); 
         } else
-            ImGay::Text("No object is selected");
-        ImGay::Separator();
-        if (ImGay::BeginTabBar("##Tabs", ImGuiTabBarFlags_None)) {
-            if (ImGay::BeginTabItem("Details")) {
-                if (ImGay::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
-                    ImGay::TableSetupColumn("Type");
-                    ImGay::TableSetupColumn("ID");
-                    ImGay::TableSetupColumn("Points");
-                    ImGay::TableHeadersRow();
+            ImGui::Text("No object is selected");
+        ImGui::Separator();
+        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None)) {
+            if (ImGui::BeginTabItem("Details")) {
+                if (ImGui::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
+                    ImGui::TableSetupColumn("Type");
+                    ImGui::TableSetupColumn("ID");
+                    ImGui::TableSetupColumn("Points");
+                    ImGui::TableHeadersRow();
 
                     for (const auto& id : selected_ids) {
                         // Retrieve the object details from the EntityManager
@@ -294,26 +298,26 @@ void ObjectListener::DrawWindow() {
                         auto columns = split_string(object_details, DEFAULT_SPLIT_CHAR);
 
                         // Populate the table row
-                        ImGay::TableNextRow();
+                        ImGui::TableNextRow();
                         for (size_t i = 0; i < columns.size(); ++i) {
-                            ImGay::TableSetColumnIndex(i);
-                            ImGay::Text("%s", columns[i].c_str());
+                            ImGui::TableSetColumnIndex(i);
+                            ImGui::Text("%s", columns[i].c_str());
                         }
                     }
 
-                    ImGay::EndTable();
+                    ImGui::EndTable();
                 }
-                ImGay::EndTabItem();
+                ImGui::EndTabItem();
             }
-            if (ImGay::BeginTabItem("Transform Combination")) {
+            if (ImGui::BeginTabItem("Transform Combination")) {
                 DrawTransformCombination();
-                ImGay::EndTabItem();
+                ImGui::EndTabItem();
             }
-            ImGay::EndTabBar();
+            ImGui::EndTabBar();
         }
-        ImGay::EndChild();
-        ImGay::EndGroup();
+        ImGui::EndChild();
+        ImGui::EndGroup();
     }
 
-    ImGay::End();
+    ImGui::End();
 }

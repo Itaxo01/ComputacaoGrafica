@@ -2,15 +2,15 @@
 #define OBJECT_LISTENER_HPP
 
 #include "imgui.h"
+//#include "DisplayFile.hpp"
 #include "EntityManager.hpp"
 #include <unordered_set>
-
-#define ImGay ImGui
 
 // A lógica de transform está também nessa box, talvez não devesse.
 class ObjectListener {
 private:
     EntityManager& entityManager;
+    //vector<ManifestEntry> manifest; // INICIALIZAR NO CONSTRUTOR
     std::unordered_set<long long> selected_ids;
     int last_selected_index = -1; // Used to calculate ranges for Shift+Click
     int current_page = 0;

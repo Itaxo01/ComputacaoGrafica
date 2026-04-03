@@ -84,6 +84,26 @@ class EntityManager{
             }
         }
 
+        std::vector<std::string> GetManifestObjectNames() const {
+            std::vector<std::string> names;
+            for(const auto &entry: GetManifest()){
+                names.push_back(entry.name);
+            }
+            return names;
+        }
+
+        std::vector<long long> GetManifestObjectIDs() const {
+            std::vector<long long> ids;
+            for(const auto &entry: GetManifest()){
+                ids.push_back(entry.id);
+            }
+            return ids;
+        }
+
+        size_t GetObjectCount() const {
+            return GetManifest().size();
+        }
+
         void remove(long long id) {
             displayFile.remove(id);
         }
