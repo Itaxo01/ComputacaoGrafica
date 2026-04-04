@@ -16,6 +16,7 @@ CXX = g++
 EXE = ./programa_foda.out
 IMGUI_DIR = ./imgui
 GUI_DIR = ./src/gui
+CONTROLLER_DIR = ./src/controller
 CORE_DIR = ./src/core
 WINDOW_DIR = ./src/window
 GRAPHICS_DIR = ./src/graphics
@@ -26,6 +27,7 @@ SOURCES += $(wildcard $(GRAPHICS_DIR)/*.cpp)
 SOURCES += $(wildcard $(WINDOW_DIR)/*.cpp)
 SOURCES += $(wildcard $(CORE_DIR)/*.cpp)
 SOURCES += $(wildcard $(GUI_DIR)/*.cpp)
+SOURCES += $(wildcard $(CONTROLLER_DIR)/*.cpp)
 
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
@@ -35,7 +37,7 @@ OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
+CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
 CXXFLAGS += -g -Wall -Wformat
 LIBS =
 
@@ -94,7 +96,7 @@ endif
 ## BUILD RULES
 ##---------------------------------------------------------------------
 
-vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(GUI_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
+vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)

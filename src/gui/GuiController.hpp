@@ -6,7 +6,8 @@
 #include "Window.hpp"
 #include "log_app.h"
 #include "ObjectCreator.hpp"
-#include "ObjectListener.hpp"
+//#include "ObjectListener.hpp"
+#include "ObjectGUI.hpp"
 
 class GuiController {
     private:
@@ -15,7 +16,8 @@ class GuiController {
         Viewport& viewport;
         ObjectCreator& creator;
         ExampleAppLog& log;
-        ObjectListener& listener;
+        //ObjectListener& listener;
+        ObjectGUI& objGUI;
 
         void HandleCanvasInteractions();
         
@@ -24,8 +26,8 @@ class GuiController {
         void HandleScroll();
 
     public:
-        GuiController(EntityManager &em, Window& w, Viewport &vp, ObjectCreator &oc, ExampleAppLog &exl, ObjectListener &obl): \
-            entityManager(em), window(w), viewport(vp), creator(oc), log(exl), listener(obl)
+        GuiController(EntityManager &em, Window& w, Viewport &vp, ObjectCreator &oc, ExampleAppLog &exl, ObjectGUI &og): \
+            entityManager(em), window(w), viewport(vp), creator(oc), log(exl), objGUI(og)
         {}
         void run();
 };

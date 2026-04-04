@@ -4,7 +4,8 @@
 void GuiController::run(){
     viewport.DrawWindow();
     creator.DrawWindow();
-    listener.DrawWindow();
+    //listener.DrawWindow();
+    objGUI.DrawWindow();
     log.Draw("Log");
 
     HandleCanvasInteractions();

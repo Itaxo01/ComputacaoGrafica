@@ -72,7 +72,7 @@ package "src/gui" {
         - Window &window
         - Viewport &viewport
         - ObjectCreator &creator
-        - ObjectListener &listener
+        - ObjectGUI &listener
         + GuiController(...)
         + run()
         - HandleCanvasInteractions(), etc.
@@ -89,14 +89,14 @@ package "src/gui" {
         + ImportFromFile(), ExportToFile()
     }
 
-    class ObjectListener {
+    class ObjectGUI {
         - EntityManager &entityManager
+        - ObjectController &objectController
+        - MultipleSelectionList multipleSelectionList
         - std::unordered_set<long long> selected_ids
-        - int last_selected_index
-        - int current_page
-        + ObjectListener(EntityManager &em)
+        + ObjectGUI(EntityManager &em, ObjectController &oc)
         + DrawWindow(), DrawTransformCombination()
-        + HandleAddScaling(), HandleAddTranslation(), HandleAddRotation()
+        - DrawObjectList(), GetTypeName()
     }
 
     class MultipleSelectionList {
@@ -171,11 +171,12 @@ GuiController --> EntityManager : manages
 GuiController --> Window : controls
 GuiController --> Viewport : interacts
 GuiController --> ObjectCreator : uses
-GuiController --> ObjectListener : uses
+GuiController --> ObjectGUI : uses
 
 ObjectCreator --> EntityManager : adds objects
-ObjectListener --> EntityManager : listens to
-ObjectListener --> MultipleSelectionList : uses
+ObjectGUI --> EntityManager : manages
+ObjectGUI --> ObjectController : uses
+ObjectGUI --> MultipleSelectionList : uses
 
 Window --> Viewport : depends on
 

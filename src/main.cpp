@@ -1,5 +1,6 @@
 #include "ObjectCreator.hpp"
 #include "ObjectListener.hpp"
+#include "gui/ObjectGUI.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
@@ -41,8 +42,15 @@ int main(int, char**) {
     // ao inves de passar para o construtor.
     
     ObjectCreator objectCreator(log, entityManager);
+
+    /*
     ObjectListener objectListener(entityManager);
     GuiController guiController(entityManager, programWindow, viewport, objectCreator, log, objectListener);
+    */
+
+    ObjectController objectController(entityManager);
+    ObjectGUI objectGUI(entityManager, objectController);
+    GuiController guiController(entityManager, programWindow, viewport, objectCreator, log, objectGUI);
 
     // Main loop
 #ifdef __EMSCRIPTEN__

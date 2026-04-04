@@ -11,20 +11,22 @@ class MultipleSelectionList {
 private:
     int size = 0;
     std::unordered_set<int> selected_indexes;
-    std::vector<const char*>* names_ptr;
-    std::vector<const char*> context_item_names;
+    std::vector<std::string> names;
+    std::vector<std::string> context_item_names;
     int last_selected_index = -1;
     int selected_context_item = -1;
 public:
-    MultipleSelectionList() : size(0), selected_indexes(), names_ptr(nullptr), context_item_names() {}
-    void SetNames(std::vector<const char*>& names) { names_ptr = &names; }
+    MultipleSelectionList() : size(0), selected_indexes(), names(), context_item_names() {}
+    void SetNames(std::vector<std::string>& names) { this->names = names; }
     void Draw();
-    const std::unordered_set<int>& GetSelectedIndexes();
-    void AddContextItem(const char* name);
-    int GetSelectedContextItem(const std::vector<const char*>& context_items) {
-        return selected_context_item;
+    std::unordered_set<int> GetSelectedIndexes();
+    //void AddContextItem(std::string name);
+    int GetSelectedContextItem() {
+        int temp = selected_context_item;
+        selected_context_item = -1; // Reset after reading
+        return temp;
     }
-    void SetContextItems(const std::vector<const char*>& items) {
+    void SetContextItems(const std::vector<std::string>& items) {
         context_item_names = items;
     }
     void clear() {
