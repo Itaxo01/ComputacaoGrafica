@@ -23,18 +23,17 @@ void ObjectGUI::DrawObjectList() {
 
     ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);  
     
+    // Monta label para display na lista usando o nome, tipo e fake_id do objeto
     std::vector<std::string> labels;
     for (auto& entry : manifest) {
         std::string label = "[" + std::to_string(entry.fake_id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
         labels.push_back(label);
     }
 
-    // --- CONTEXT MENU (Right Click) ---
+    // Inicializa a lista de seleção múltipla com os nomes dos objetos e operações de right click
     std::vector<std::string> context_item_names = {"Delete", "Rotate (Placeholder)"};
     multipleSelectionList.SetNames(labels);
     multipleSelectionList.SetContextItems(context_item_names);
-    
-    //selected_ids.clear();
     multipleSelectionList.Draw();
 
     // Captura IDs do itens selecionados
@@ -43,11 +42,11 @@ void ObjectGUI::DrawObjectList() {
         selected_ids.insert(ids[i]);
     }
 
+    // Captura operação selecionada com o botão direito e direciona tratamento para o controller
     int selected_context_item = multipleSelectionList.GetSelectedContextItem();
     switch (selected_context_item) {
         case 0: // Delete
             for (const auto& id : selected_ids) {
-                log.AddLog("Deleting object with ID: %lld\n", id);
                 entityManager.remove(id);
             }
             selected_ids.clear();
@@ -60,36 +59,12 @@ void ObjectGUI::DrawObjectList() {
             break;
     }
 
-    log.Draw("Log");
-
     ImGui::EndChild();
 }
 
-void ObjectGUI::DrawTransformCombination() {
-    // TRANSFORM LIST
-    //static int selected = 0;
-    //std::vector<char*> transform_buf(100, "Transformation");
-    {
-        ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-        ImGui::Text("Transorms list"); ImGui::Separator();
-        /*for (int i = 0; i < transform_buf_names.size(); i++)
-        {
-            char label[128];
-            sprintf(label, transform_buf_names[i]);
-            ImGui::PushID(i);
-            if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SelectOnNav))
-                selected = i;
-            ImGui::PopID();
-        }*/
-        ImGui::EndChild();
-    }
-    ImGui::SameLine();
-
-    // NEW TRANSFORM INPUTS
-    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
-    ImGui::Text("Add new transformation"); ImGui::Separator();
-
+inline void ObjectGUI::DrawAddScaling() {
     static float fsx, fsy;
+
     ImGui::Text("Scaling");
     ImGui::Text("x: "); ImGui::SameLine();
     ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
@@ -102,13 +77,14 @@ void ObjectGUI::DrawTransformCombination() {
     ImGui::Text("  "); ImGui::SameLine();
     ImGui::PushID("add_scaling");
     if (ImGui::Button("Add", DFM_BUTTON_SIZE)) {
-        ;//CHAMAR HANDLER NO CONTROLLER
         objectController.HandleAddScaling(fsx, fsy);//Handle scaling addition;
     }
     ImGui::PopID();
-    ImGui::Separator();
+}
 
+inline void ObjectGUI::DrawAddTranslation() {
     static float ftx, fty;
+
     ImGui::Text("Translation");
     ImGui::Text("x: "); ImGui::SameLine();
     ImGui::PushItemWidth(DFM_INPUT_BOX_SIZE);
@@ -121,16 +97,16 @@ void ObjectGUI::DrawTransformCombination() {
     ImGui::Text("  "); ImGui::SameLine();
     ImGui::PushID("add_translation");
     if (ImGui::Button("Add", DFM_BUTTON_SIZE)) {
-        ;//CHAMAR HANDLER NO CONTROLLER
         objectController.HandleAddTranslation(ftx, fty);//Handle transform addition;
     }
     ImGui::PopID();
-    ImGui::Separator();
-    
+}
+
+inline void ObjectGUI::DrawAddRotation() {
     static float fangle, frx, fry;
-    ImGui::Text("Rotation");
-    //ImGui::Text("Around: "); ImGui::SameLine();
     static int radiosel;
+
+    ImGui::Text("Rotation");
     if (ImGui::RadioButton("itself", &radiosel, 0)) {
             ; // passa as coordenadas do centro do objeto para frx e fry
         }
@@ -158,13 +134,45 @@ void ObjectGUI::DrawTransformCombination() {
     ImGui::Text("  "); ImGui::SameLine();
     ImGui::PushID("add_rotation");
     if (ImGui::Button("Add", DFM_BUTTON_SIZE)) {
-        ;//CHAMAR HANDLER NO CONTROLLER
         objectController.HandleAddRotation(frx, fry, fangle);
     }
     ImGui::PopID();
+}
+
+void ObjectGUI::DrawTransformCombination() {
+    // TRANSFORM LIST
+    //static int selected = 0;
+    //std::vector<char*> transform_buf(100, "Transformation");
+    {
+        ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+        ImGui::Text("Transorms list"); ImGui::Separator();
+        /*for (int i = 0; i < transform_buf_names.size(); i++)
+        {
+            char label[128];
+            sprintf(label, transform_buf_names[i]);
+            ImGui::PushID(i);
+            if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SelectOnNav))
+                selected = i;
+            ImGui::PopID();
+        }*/
+        ImGui::EndChild();
+    }
+    ImGui::SameLine();
+
+    // Desenha todos os inputs para adição de transformações
+    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
+    ImGui::Text("Add new transformation"); ImGui::Separator();
+
+    DrawAddScaling();
+    ImGui::Separator();
+    DrawAddTranslation();
+    ImGui::Separator();
+    DrawAddRotation();
     ImGui::Separator();
 
-    ImGui::Button("Apply all transformations");
+    if (ImGui::Button("Apply all transformations")) {
+        objectController.ApplyTransformations();
+    }
 
     ImGui::EndChild();
 }
@@ -198,60 +206,63 @@ std::vector<std::string> siplit_stringTEMP(const std::string &s, char split_char
     return res;
 }
 
+void ObjectGUI::DrawObjectDetails() {
+    if (ImGui::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
+        ImGui::TableSetupColumn("Type");
+        ImGui::TableSetupColumn("ID");
+        ImGui::TableSetupColumn("Points");
+        ImGui::TableHeadersRow();
+
+        for (const auto& id : selected_ids) {
+            // Retrieve the object details from the EntityManager
+            std::string object_details = entityManager.GetObjectDetails(id);
+            // Split the string into columns
+            auto columns = siplit_stringTEMP(object_details, DEFAULT_SPLIT_CHAR);
+
+            // Populate the table row
+            ImGui::TableNextRow();
+            for (size_t i = 0; i < columns.size(); ++i) {
+                ImGui::TableSetColumnIndex(i);
+                ImGui::Text("%s", columns[i].c_str());
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
 void ObjectGUI::DrawWindow() {
     ImGui::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
     ImGui::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
     ImGui::Begin("Display File Manifest");
     DrawObjectList(); ImGui::SameLine();
 
-    // DEMO TEMPLATE
-    {
-        ImGui::BeginGroup();
-        ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
-        if (!selected_ids.empty()){
-            ImGui::Text("%s", get_selected_idsTEMP(selected_ids).c_str()); 
-        } else
-            ImGui::Text("No object is selected");
-        ImGui::Separator();
-        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None)) {
-            if (ImGui::BeginTabItem("Details")) {
-                if (ImGui::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
-                    ImGui::TableSetupColumn("Type");
-                    ImGui::TableSetupColumn("ID");
-                    ImGui::TableSetupColumn("Points");
-                    ImGui::TableHeadersRow();
+    ImGui::BeginGroup();
+    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
 
-                    for (const auto& id : selected_ids) {
-                        // Retrieve the object details from the EntityManager
-                        std::string object_details = entityManager.GetObjectDetails(id);
-                        // Split the string into columns
-                        auto columns = siplit_stringTEMP(object_details, DEFAULT_SPLIT_CHAR);
+    // Display selected object IDs
+    if (!selected_ids.empty()){
+        ImGui::Text("%s", get_selected_idsTEMP(selected_ids).c_str()); 
+    } else
+        ImGui::Text("No object is selected");
+    ImGui::Separator();
 
-                        // Populate the table row
-                        ImGui::TableNextRow();
-                        for (size_t i = 0; i < columns.size(); ++i) {
-                            ImGui::TableSetColumnIndex(i);
-                            ImGui::Text("%s", columns[i].c_str());
-                        }
-                    }
-
-                    ImGui::EndTable();
-                }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Transform Combination")) {
-                ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-                DrawTransformCombination();
-                ImGui::EndChild();
-                ImGui::EndTabItem();
-            }
-
-            ImGui::EndTabBar();
+    // Tabs for Details and Transform Combination
+    if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None)) {
+        if (ImGui::BeginTabItem("Details")) {
+            DrawObjectDetails();
+            ImGui::EndTabItem();
         }
-        ImGui::EndChild();
-        ImGui::EndGroup();
+        if (ImGui::BeginTabItem("Transform Combination")) {
+            ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+            DrawTransformCombination();
+            ImGui::EndChild();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
 
+    ImGui::EndChild();
+    ImGui::EndGroup();
     ImGui::End();
 }
 

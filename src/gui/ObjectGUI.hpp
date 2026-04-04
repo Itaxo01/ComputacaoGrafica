@@ -7,8 +7,6 @@
 #include "ObjectController.hpp"
 #include <unordered_set>
 
-#include "log_app.h"
-
 // A lógica de transform está também nessa box, talvez não devesse.
 class ObjectGUI {
 private:
@@ -17,14 +15,18 @@ private:
     MultipleSelectionList multipleSelectionList;
     std::unordered_set<long long> selected_ids;
 
-    ExampleAppLog log;
-
     // Helper to get string name from ShapeType
     const char* GetTypeName(core::ShapeType type);
 
     void DrawObjectList();
+    void DrawObjectDetails();
+    inline void DrawAddScaling();
+    inline void DrawAddTranslation();
+    inline void DrawAddRotation();
 public:
-    ObjectGUI(EntityManager& em, ObjectController& oc) : entityManager(em), objectController(oc) {}
+    ObjectGUI(EntityManager& em, ObjectController& oc) : entityManager(em), objectController(oc) {
+        oc.SetSelectedIDs(selected_ids);
+    }
     void DrawWindow();
     void DrawTransformCombination();
 };
