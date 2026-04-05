@@ -18,7 +18,7 @@ namespace core{
         public:
             ShapeType type;
             virtual ~Shape() = default;
-            virtual std::pair<float, float> anchorPoint() const = 0;
+            virtual std::tuple<float, float, float> anchorPoint() const = 0;
 
             #ifndef DONT_DRAW_SHAPE_NAME // Use to load the shape name on the interface Viewport
                 std::string name;

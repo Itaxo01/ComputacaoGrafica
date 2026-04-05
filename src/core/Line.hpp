@@ -16,19 +16,19 @@ namespace core{
             type = ShapeType::LINE;
         }
 
-        std::pair<float, float> anchorPoint() const{
+        std::tuple<float, float, float> anchorPoint() const{
             auto p = max_y(a, b);
-            return std::make_pair(p.x, p.y);
+            return p.expand();
         }
 
         friend std::ostream &operator<<(std::ostream &os, const Line &l) {
             os <<"["<< l.a << " -- " << l.b<<"]";
             return os;
         }
-        std::string to_string(long long id) const {
+        std::string to_string(long long id, bool p3d = false) const {
             std::string result = "Line | " + std::to_string(id) + " | [";
-            result += "(" + format(a.x, 2) + ", " + format(b.y, 2) + ")\n";
-            result += "(" + format(b.x, 2) + ", " + format(b.y, 2) + ")";
+            result += a.coords(p3d) + '\n';
+            result += b.coords(p3d);
             result += "]";
             return result;
         }

@@ -24,6 +24,7 @@ class GuiController {
         void HandleLeftClick();
         void HandleRightDragging();
         void HandleScroll();
+        void HandleKeyboard();
 
     public:
         GuiController(EntityManager &em, Window& w, Viewport &vp, ObjectCreator &oc, ExampleAppLog &exl, ObjectGUI &og): \

@@ -6,3 +6,4 @@ inline std::string format(float x, int precision){
     stream << std::fixed << std::setprecision(precision) << x;
     return stream.str();
 }
+

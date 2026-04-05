@@ -49,3 +49,20 @@ void EntityManager::add(const bool generate_name, std::vector<std::pair<float, f
     std::string name = getName(getType(p), currentId);
     return add(name, p);    
 }
+
+std::string EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
+    auto hash_id = getHashID();
+    auto p_it = hash_id.find(real_id);
+    if(p_it == hash_id.end()) return "Object not found";
+
+    core::ShapeType type = (core::ShapeType)(real_id%10);
+    auto &[hash_key, idpair] = *p_it;
+    int list_id = idpair.first;
+    long long fake_id = real_id/10;
+    switch(type){
+        case core::ShapeType::POINT: return displayFile.getPoint(list_id).to_string(fake_id, p3d);
+        case core::ShapeType::LINE: return displayFile.getLine(list_id).to_string(fake_id, p3d);
+        case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).to_string(fake_id, p3d);
+        default: return "Type not defined";
+    }
+}

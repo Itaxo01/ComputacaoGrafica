@@ -24,6 +24,7 @@ public:
     bool show_axes = true;
     bool show_grid = true;
     bool show_axis_coordinates = true;
+    bool is3d = false;
     
     void DrawWindow();
     bool IsHovered() const {return is_hovered;}

@@ -145,7 +145,7 @@ void ObjectListener::DrawTransformCombination() {
     {
         ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
         ImGui::Text("Transorms list"); ImGui::Separator();
-        for (int i = 0; i < transform_buf_names.size(); i++)
+        for (int i = 0; i < (int)transform_buf_names.size(); i++)
         {
             char label[128];
             sprintf(label, transform_buf_names[i]);
@@ -293,7 +293,8 @@ void ObjectListener::DrawWindow() {
 
                     for (const auto& id : selected_ids) {
                         // Retrieve the object details from the EntityManager
-                        std::string object_details = entityManager.GetObjectDetails(id);
+
+                        std::string object_details = entityManager.GetObjectDetails(id, viewport.is3d);
                         // Split the string into columns
                         auto columns = split_string(object_details, DEFAULT_SPLIT_CHAR);
 

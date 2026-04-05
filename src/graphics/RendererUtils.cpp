@@ -1,6 +1,7 @@
 #include "RendererUtils.hpp"
 #include "Window.hpp"
 #include <atomic>
+#include <utility>
 
 // Seleciona o método de paralelismo. O TBB precisa ser instalado no windows e linux, para evitar isso, caso o usuário não o tenha instalado, utilizamos uma implementação nativa (Que pode ser um pouco pior por não fazer a mesma gestão otimizada do workload).
 #ifdef USE_TBB_EXECUTION
@@ -74,6 +75,30 @@ inline bool LineClipTest(float p, float q, float &u1, float &u2){
         }
     }
     return true;
+}
+
+std::pair<core::Line, bool> ClipLine(const core::Line &line, const core::Point &wp0, const core::Point&wp1) {
+    float u1 = 0.0f;
+    float u2 = 1.0f;
+    float dx = line.b.x - line.a.x;
+    float dy = line.b.y - line.a.y;
+    if(LineClipTest(-dx, line.a.x - wp0.x, u1, u2) && // left
+        LineClipTest(dx, wp1.x - line.a.x, u1, u2)  && // right
+        LineClipTest(-dy, line.a.y - wp0.y, u1, u2)  && // bottom
+        LineClipTest(dy, wp1.y - line.a.y, u1, u2)     // top
+    ){
+        core::Line cLine = line;
+        if(u1 > 0.0f){
+            cLine.a.x = line.a.x + u1 * dx;
+            cLine.a.y = line.a.y + u1 * dy;
+        }
+        if(u2 < 1.0f){
+            cLine.b.x = line.a.x + u2 * dx;
+            cLine.b.y = line.a.y + u2 * dy;
+        }
+        return std::make_pair(cLine, true);
+    }
+    return std::make_pair(line, false);
 }
 
 std::vector<core::Line> ClipLines(const std::vector<core::Line> &v, const core::Point &wp0, const core::Point &wp1){
@@ -163,17 +188,34 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
     return ret;
 }
 
+void TransformToNCS(std::vector<core::Point> &v, const core::Matrix<float> &mat){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &p){ p = mat * p; });
+}
 
+void TransformToNCS(std::vector<core::Line> &v, const core::Matrix<float> &mat){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Line &l){ l.a = mat * l.a; l.b = mat * l.b; });
+}
 
-void ViewportTransform(std::vector<core::Point> &v, const Window &window){
-    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &point){
-        point = window.WorldToViewport(point);
+void TransformToNCS(std::vector<core::Wireframe> &v, const core::Matrix<float> &mat){
+    // Em wireframes iteramos pelas linhas internas do mesmo objeto também
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Wireframe &w){ 
+        for(auto &p: w.points) p = mat * p; 
     });
 }
 
-void ViewportTransform(std::vector<core::Line> &v, const Window &window){
-    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Line &line){
-        line.a = window.WorldToViewport(line.a);
-        line.b = window.WorldToViewport(line.b);
+void TransformToViewport(std::vector<core::Point> &v, const Window &window, const ImVec2 &offset){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &p){
+        p = window.NCSToViewport(p);
+        p.x += offset.x; 
+        p.y += offset.y;
+    });
+}
+
+void TransformToViewport(std::vector<core::Line> &v, const Window &window, const ImVec2 &offset){
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Line &l){
+        l.a = window.NCSToViewport(l.a); 
+        l.a.x += offset.x; l.a.y += offset.y;
+        l.b = window.NCSToViewport(l.b); 
+        l.b.x += offset.x; l.b.y += offset.y;
     });
 }

@@ -2,23 +2,22 @@
 #ifndef RENDERER_CACHE
 #define RENDERER_CACHE
 #include "Point.hpp"
+#include "Window.hpp"
 
 class RendererCache{
-    core::Point l_p0; // window last xmin, ymin (bottom-left)
-    core::Point l_p1; // window last xmax, ymax (top-right)
+    WindowAttributes l_w;
     unsigned long l_obj_count; // last display file object count
     
     public:
-        RendererCache(core::Point l_p0, core::Point l_p1, unsigned long l_obj_count): l_p0(l_p0), l_p1(l_p1), l_obj_count(l_obj_count){};
+        RendererCache(const WindowAttributes &l_w, unsigned long l_obj_count): l_w(l_w), l_obj_count(l_obj_count){};
         RendererCache(){};
         
-        inline bool cache_changed(core::Point &p0, core::Point &p1, unsigned long obj_count) {
-            return (obj_count != l_obj_count || p0 != l_p0 || p1 != l_p1);
+        inline bool cache_changed(const WindowAttributes &w, unsigned long obj_count) {
+            return (obj_count != l_obj_count || l_w != w);
         }
-        inline void store_cache(core::Point &p0, core::Point &p1, unsigned long obj_count) {
+        inline void store_cache(const WindowAttributes &w, unsigned long obj_count) {
             l_obj_count = obj_count;
-            l_p0 = p0;
-            l_p1 = p1;
+            l_w = w;
         }
 };
 

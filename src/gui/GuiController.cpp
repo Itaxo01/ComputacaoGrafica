@@ -15,7 +15,7 @@ void GuiController::HandleLeftClick(){
     ImVec2 mouse_pos = ImGui::GetMousePos();
     log.AddLog("Canvas clicked at. x = {%.1f}, y = {%.1f}\n", mouse_pos.x, mouse_pos.y);
 
-    core::Point world_p = window.ViewportToWorld(mouse_pos);
+    core::Point world_p = window.ViewportToWindow(mouse_pos);
     creator.RegisterLeftClick(world_p.x, world_p.y);
 }
 
@@ -24,7 +24,7 @@ void GuiController::HandleRightDragging(){
     log.AddLog("Canvas is being dragged. dx = {%.1f}, dy = {%.1f}\n",
     io.MouseDelta.x, io.MouseDelta.y);
     // move the canvas on the opposite direction
-    window.moveWindow(-io.MouseDelta.x, io.MouseDelta.y, viewport.GetCanvasSize());
+    window.moveWindow(io.MouseDelta.x, io.MouseDelta.y, viewport.GetCanvasSize());
 }
 
 void GuiController::HandleScroll(){
@@ -41,6 +41,25 @@ void GuiController::HandleScroll(){
     }
 }
 
+void GuiController::HandleKeyboard(){
+
+    // Rotate window -> shift+leftArrow or shift+rightArrow
+    if (ImGui::GetIO().KeyShift) {
+        // Shift + Left Arrow (Counter-clockwise)
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, true)) {
+            log.AddLog("Rotated window 1 degree counter-clockwise\n");
+            window.rotate(-1.0f); 
+        }
+        
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, true)) {
+            // Shift + Right Arrow (Clockwise)
+            log.AddLog("Rotated window 1 degree clockwise\n");
+            window.rotate(1.0f);
+        }
+    }
+}
+
+
 void GuiController::HandleCanvasInteractions(){
     bool is_active = viewport.IsActive();
     bool is_hovered = viewport.IsHovered();
@@ -55,6 +74,7 @@ void GuiController::HandleCanvasInteractions(){
         if(scroll != 0.0f){
             HandleScroll();
         }
+        HandleKeyboard();
     }
     if(is_active){
         if(ImGui::IsMouseDragging(ImGuiMouseButton_Right, mouse_threshold_for_pan)){

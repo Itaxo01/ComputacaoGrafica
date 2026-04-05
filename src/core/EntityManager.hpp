@@ -67,22 +67,7 @@ class EntityManager{
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
         const std::unordered_map<long long, std::pair<int, int>>&  getHashID() const {return displayFile.getHashID();}
         
-        std::string GetObjectDetails(long long real_id) const {
-            auto hash_id = getHashID();
-            auto p_it = hash_id.find(real_id);
-            if(p_it == hash_id.end()) return "Object not found";
-
-            core::ShapeType type = (core::ShapeType)(real_id%10);
-            auto &[hash_key, idpair] = *p_it;
-            int list_id = idpair.first;
-            long long fake_id = real_id/10;
-            switch(type){
-                case core::ShapeType::POINT: return displayFile.getPoint(list_id).to_string(fake_id);
-                case core::ShapeType::LINE: return displayFile.getLine(list_id).to_string(fake_id);
-                case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).to_string(fake_id);
-                default: return "Type not defined";
-            }
-        }
+        std::string GetObjectDetails(long long real_id, bool p3d = false) const;
 
         std::vector<std::string> GetObjectNames() const {
             std::vector<std::string> names;

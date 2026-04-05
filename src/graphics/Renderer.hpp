@@ -23,7 +23,8 @@ private:
 
     std::vector<core::Point> drawPointList; // O Renderer guarda os objetos que de fato serão desenhados (Pós clipping).
     std::vector<core::Line> drawLineList;
-    std::vector<core::Line> drawWireframeList; // Aqui estamos quebrando o wireframe em linhas no pré processamento.
+    std::vector<core::Wireframe> wireframeMiddleware;
+    std::vector<core::Line> drawWireframeList;
 
 
     void RenderBackground();
@@ -31,13 +32,14 @@ private:
     void DrawObject(const core::Line &line);
     void DrawObject(const core::Wireframe &wireframe);
     void renderName(const core::Shape &shape);
-    void ApplyClipping(const core::Point &wp0, const core::Point &wp1);
+    void ApplyClipping();
     void ApplyViewportTransform();
+    void ApplyNCSTransform();
     void GenerateDrawList();
 public:
     //Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {
-        rendererCache = RendererCache(w.GetWorldMin(), w.GetWorldMax(), df.object_count);
+        rendererCache = RendererCache(w.getWindowAttributes(), df.object_count);
     }
     void render();
 };

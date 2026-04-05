@@ -14,12 +14,12 @@ namespace core{
             type = ShapeType::WIREFRAME;
         }
 
-        std::pair<float, float> anchorPoint() const {
+        std::tuple<float, float, float> anchorPoint() const {
             core::Point p = points.front();
             for(long unsigned int i = 1; i<points.size(); i++){
                 p = max_y(p, points[i]);
             }
-            return std::make_pair(p.x, p.y);
+            return p.expand();
         }
 
 
@@ -33,10 +33,10 @@ namespace core{
             return os;
         }
 
-        std::string to_string(long long id) const {
+        std::string to_string(long long id, bool p3d = false) const {
             std::string result = "Wireframe | " + std::to_string(id) + " | [";
             for (size_t i = 0; i < points.size(); ++i) {
-                result += "(" + format(points[i].x, 2) + ", " + format(points[i].y, 2) + ")";
+                result += points[i].coords(p3d);
                 if (i < points.size() - 1) result += "\n";
             }
             result += "]";

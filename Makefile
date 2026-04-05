@@ -133,4 +133,5 @@ windows: $(OBJS)
 
 clean:
 	rm -rf build
+	rm programa_foda.exe
 	rm $(EXE)

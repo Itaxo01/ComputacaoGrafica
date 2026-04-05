@@ -25,6 +25,7 @@ void Viewport::DrawWindow() {
             ImGui::Checkbox("Show Axes", &show_axes);
             ImGui::Checkbox("Show Grid", &show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
+            ImGui::Checkbox("Enable 3D visualization", &is3d);
         ImGui::EndChild();
  
     ImGui::End();
