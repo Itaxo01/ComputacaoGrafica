@@ -167,15 +167,35 @@ void ObjectGUI::DrawTransformCombination() {
     std::vector<char*> transform_buf_names = objectController.GetTransformationBufferNames();
     // Atualmente convertendo char* para string. Talvez seja bom no futuro redefinir names para char* no MultipleSelectionList
     std::vector<std::string> names(transform_buf_names.begin(), transform_buf_names.end());
+    std::vector<std::string> context_item_names = {"Delete", "View Matrix"};
     transformationsList.SetNames(names);
+    transformationsList.SetContextItems(context_item_names);
     transformationsList.Draw();
 
     std::unordered_set<int> selected_transformations = transformationsList.GetSelectedIndexes();
     objectController.SetSelectedTransfomations(selected_transformations);
 
-    if (!selected_transformations.empty()) {
-        core::Matrix<float> matrix = objectController.GetSelectedTransformationMatrix();
-        DrawMatrix(matrix);
+    if (view_matrix_popup_open) {
+        DrawMatrix(matrix_to_view);
+    }
+
+    int selected_context_item = transformationsList.GetSelectedContextItem();
+    switch (selected_context_item) {
+        case 0: // Delete
+            // Implement deletion of selected transformations from the buffer
+            {
+
+            }
+            break;
+        case 1: // View Matrix
+            // Implement logic to display the matrix of the selected transformation, possibly in a popup or a new window
+            {
+                matrix_to_view = objectController.GetSelectedTransformationMatrix();
+                view_matrix_popup_open = true; // Set flag to open popup
+            }
+            break;
+        default:
+            break;
     }
 
     ImGui::EndChild();
