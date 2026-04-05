@@ -37,6 +37,7 @@ void ObjectGUI::DrawObjectList() {
     multipleSelectionList.Draw();
 
     // Captura IDs do itens selecionados
+    selected_ids.clear();
     std::unordered_set<int> selected_indexes = multipleSelectionList.GetSelectedIndexes();
     for (int i : selected_indexes) {
         selected_ids.insert(ids[i]);
@@ -49,7 +50,7 @@ void ObjectGUI::DrawObjectList() {
             for (const auto& id : selected_ids) {
                 entityManager.remove(id);
             }
-            selected_ids.clear();
+            selected_ids.clear(); // Ver se é realmente necessário, já que o clear acontecerá denovo na próxima captura de IDs.
             multipleSelectionList.clear();
             break;
         case 1: // Rotate (Placeholder)
