@@ -38,6 +38,9 @@ public:
             selected_transformations.push_back(tranformation_intersection[i]);
         }
     }
+    core::Matrix<float> GetSelectedTransformationMatrix() {
+        return selected_transformations.empty() ? core::Matrix<float>(4, 4, 0.0f, true) : selected_transformations[0].matrix;
+    }
     const std::vector<char*> GetTransformationBufferNames();
     void HandleAddScaling(float x, float y);
     void HandleAddTranslation(float x, float y);

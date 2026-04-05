@@ -141,6 +141,25 @@ inline void ObjectGUI::DrawAddRotation() {
     ImGui::PopID();
 }
 
+inline void DrawMatrix(core::Matrix<float> &matrix) {
+    if (ImGui::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
+        ImGui::TableSetupColumn("0");
+        ImGui::TableSetupColumn("1");
+        ImGui::TableSetupColumn("2");
+        ImGui::TableHeadersRow();
+
+        for (int i = 0; i < 3; ++i) {
+            // Populate the table row
+            ImGui::TableNextRow();
+            for (size_t j = 0; j < 3; ++j) {
+                ImGui::TableSetColumnIndex(j);
+                ImGui::Text("%.2f", matrix[i][j]);
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
 void ObjectGUI::DrawTransformCombination() {
     ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
     ImGui::Text("Transorms list"); ImGui::Separator();
@@ -151,8 +170,13 @@ void ObjectGUI::DrawTransformCombination() {
     transformationsList.SetNames(names);
     transformationsList.Draw();
 
-    std::unordered_set<int> selected = transformationsList.GetSelectedIndexes();
-    objectController.SetSelectedTransfomations(selected);
+    std::unordered_set<int> selected_transformations = transformationsList.GetSelectedIndexes();
+    objectController.SetSelectedTransfomations(selected_transformations);
+
+    if (!selected_transformations.empty()) {
+        core::Matrix<float> matrix = objectController.GetSelectedTransformationMatrix();
+        DrawMatrix(matrix);
+    }
 
     ImGui::EndChild();
     ImGui::SameLine();
