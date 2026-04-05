@@ -132,7 +132,7 @@ namespace d1 {
         r1::call_itt_notify(static_cast<int>(t), ptr);
     }
 
-#if (_WIN32||_WIN64)
+#if (_WIN32||_WIN64) && !__MINGW32__
     inline void itt_set_sync_name(void* obj, const wchar_t* name) {
         r1::itt_set_sync_name(obj, name);
     }

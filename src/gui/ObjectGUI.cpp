@@ -231,8 +231,12 @@ void ObjectGUI::DrawObjectDetails() {
 }
 
 void ObjectGUI::DrawWindow() {
-    ImGui::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
-    ImGui::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 work_pos = viewport->WorkPos;
+    ImVec2 work_size = viewport->WorkSize;
+
+    ImGui::SetNextWindowPos(ImVec2(work_pos.x + work_size.x * (877.0f / 1920.0f), work_pos.y + work_size.y * (267.0f / 1080.0f)), ImGuiCond_FirstUseEver); 
+    ImGui::SetNextWindowSize(ImVec2(work_size.x * (786.0f / 1920.0f), work_size.y * (336.0f / 1080.0f)), ImGuiCond_FirstUseEver); // switch to percentage
     ImGui::Begin("Display File Manifest");
     DrawObjectList(); ImGui::SameLine();
 

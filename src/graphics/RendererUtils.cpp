@@ -41,7 +41,7 @@
         for(auto &f: futures){
             f.wait();
         }
-}
+    }
     #define PARALLEL_FOR_EACH(begin, end, lambda) \
         NativeForEach(begin, end, lambda)
 #endif 

@@ -49,8 +49,15 @@ GLFWwindow* InitializeGLFW(const char*& out_glsl_version)
 #endif
 
     // Create window with graphics context
-    float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
-    GLFWwindow* window = glfwCreateWindow((int)(1700 * main_scale), (int)(940 * main_scale), "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+    GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
+    float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(primary_monitor); // Valid on GLFW 3.3+ only
+    const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+    
+    // Proportional window size relative to 1920x1080 screen
+    int window_width = (int)(mode->width * (1700.0f / 1920.0f));
+    int window_height = (int)(mode->height * (940.0f / 1080.0f));
+    
+    GLFWwindow* window = glfwCreateWindow(window_width, window_height, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
     if (window == nullptr)
         return nullptr;
         

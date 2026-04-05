@@ -56,8 +56,12 @@ struct ExampleAppLog
     {   
     #ifndef DISABLE_LOGS
 
-    ImGui::SetNextWindowPos(ImVec2(881, 611), ImGuiCond_FirstUseEver); // Log window position
-        ImGui::SetNextWindowSize(ImVec2(783, 257), ImGuiCond_FirstUseEver); // Log window size
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImVec2 work_pos = viewport->WorkPos;
+        ImVec2 work_size = viewport->WorkSize;
+
+        ImGui::SetNextWindowPos(ImVec2(work_pos.x + work_size.x * (881.0f / 1920.0f), work_pos.y + work_size.y * (611.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Log window position
+        ImGui::SetNextWindowSize(ImVec2(work_size.x * (783.0f / 1920.0f), work_size.y * (257.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Log window size
 
         if (!ImGui::Begin(title, p_open))
         {

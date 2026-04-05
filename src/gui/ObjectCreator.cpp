@@ -4,8 +4,12 @@
 #include <sstream>
 
 void ObjectCreator::DrawWindow(){
-    ImGui::SetNextWindowPos(ImVec2(876, 26), ImGuiCond_FirstUseEver); // Create New Object window position
-    ImGui::SetNextWindowSize(ImVec2(784, 235), ImGuiCond_FirstUseEver); // Create New Object window size
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 work_pos = viewport->WorkPos;
+    ImVec2 work_size = viewport->WorkSize;
+
+    ImGui::SetNextWindowPos(ImVec2(work_pos.x + work_size.x * (876.0f / 1920.0f), work_pos.y + work_size.y * (26.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Create New Object window position
+    ImGui::SetNextWindowSize(ImVec2(work_size.x * (784.0f / 1920.0f), work_size.y * (235.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Create New Object window size
     ImGui::Begin("Create New Object");
         ImGui::Columns(2, "ObjectCreatorColumns", true);
 

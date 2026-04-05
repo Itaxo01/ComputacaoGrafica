@@ -114,24 +114,66 @@ $(EXE): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 
-# --- CROSS-COMPILATION FOR WINDOWS FROM LINUX ---
+# --- CROSS-COMPILATION FOR WINDOWS FROM LINUX (STANDALONE - NO TBB) ---
 windows: CXX = x86_64-w64-mingw32-g++
-windows: EXE = ./programa_foda.exe
-windows: ECHO_MESSAGE = "Windows (Cross-Compiled)"
-windows: CXXFLAGS += -D_WIN32 -DUSE_TBB_EXECUTION -I./libs/windows/include
-windows: LIBS = ./libs/windows/libtbb12.dll.a -L./libs/windows -lglfw3 -lgdi32 -lopengl32 -limm32
-# O make não conseguia de jeito ^ nenhum solucionar o -ltbb então tive que incluir o path. 
-
-# These flags embed the C++ standard library directly into the .exe
-# so the user doesn't get "libstdc++-6.dll was not found" errors.
-windows: LDFLAGS = -static -static-libgcc -static-libstdc++ 
+windows: EXE = ./build/windows/programa_foda.exe
+windows: ECHO_MESSAGE = "Windows Safe (Standalone, no TBB)"
+windows: CXXFLAGS += -D_WIN32 -UUSE_TBB_EXECUTION -I./libs/windows/include
+windows: LIBS = -L./libs/windows -lglfw3 -lgdi32 -lopengl32 -limm32
+windows: LDFLAGS = -static
 
 windows: $(OBJS)
 	@mkdir -p $(dir $(EXE))
 	$(CXX) -o $(EXE) $^ $(CXXFLAGS) $(LDFLAGS) $(LIBS)
+	@cd $(dir $(EXE)) && zip programa_foda_safe.zip programa_foda.exe
 	@echo Build complete for $(ECHO_MESSAGE)
+	@echo The standalone Windows build was saved to $(dir $(EXE))
+
+# --- CROSS-COMPILATION FOR WINDOWS FROM LINUX (FAST + TBB) ---
+windows_fast: CXX = x86_64-w64-mingw32-g++
+windows_fast: EXE = ./build/windows/programa_foda.exe
+windows_fast: ECHO_MESSAGE = "Windows Fast (with TBB, requires DLLs)"
+windows_fast: CXXFLAGS += -D_WIN32 -DUSE_TBB_EXECUTION -I./libs/windows/include -O3 -DDONT_DRAW_SHAPE_NAME
+windows_fast: LIBS = ./libs/windows/libtbb12.dll.a -L./libs/windows -lglfw3 -lgdi32 -lopengl32 -limm32
+windows_fast: LDFLAGS = -static
+
+# Aqui as dll's estão sendo puxadas direto do mingw32. Isso é necessário para a aplicação ser standalone e não depender das biblitecas instaladas no computador do usuário.
+windows_fast: $(OBJS)
+	@mkdir -p $(dir $(EXE))
+	$(CXX) -o $(EXE) $^ $(CXXFLAGS) $(LDFLAGS) $(LIBS)
+	@if [ -f "./libs/windows/libtbb12.dll" ]; then \
+		cp ./libs/windows/libtbb12.dll $(dir $(EXE)); \
+	else  \
+		echo "Error: libtbb12.dll not found! Cleaning up and aborting."; \
+		$(MAKE) clean; \
+		exit 1; \
+	fi
+	@if [ -f "/usr/lib/gcc/x86_64-w64-mingw32/13-posix/libgcc_s_seh-1.dll" ]; then \
+		cp /usr/lib/gcc/x86_64-w64-mingw32/13-posix/libgcc_s_seh-1.dll $(dir $(EXE)); \
+	else  \
+		echo "Error: libgcc_s_seh-1.dll not found! Cleaning up and aborting."; \
+		$(MAKE) clean; \
+		exit 1; \
+	fi
+	@if [ -f "/usr/lib/gcc/x86_64-w64-mingw32/13-posix/libstdc++-6.dll" ]; then \
+		cp /usr/lib/gcc/x86_64-w64-mingw32/13-posix/libstdc++-6.dll $(dir $(EXE)); \
+	else  \
+		echo "Error: libstdc++-6.dll not found! Cleaning up and aborting."; \
+		$(MAKE) clean; \
+		exit 1; \
+	fi
+	@if [ -f "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll" ]; then \
+		cp /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll $(dir $(EXE)); \
+	else  \
+		echo "Error: libwinpthread-1.dll not found! Cleaning up and aborting."; \
+		$(MAKE) clean; \
+		exit 1; \
+	fi
+	@cd $(dir $(EXE)) && zip programa_foda_fast.zip programa_foda.exe libtbb12.dll libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll
+	@echo Build complete for $(ECHO_MESSAGE)
+	@echo The fast Windows build was saved to $(dir $(EXE))
+	@echo "** IMPORTANT: Keep libtbb12.dll in the same folder as your .exe! **"
 
 clean:
 	rm -rf build
-	rm programa_foda.exe
-	rm $(EXE)
+	rm -f $(EXE)

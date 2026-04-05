@@ -55,9 +55,6 @@ void Renderer::RenderBackground() {
     if (viewport.show_grid) { 
         float step = calculate_step(w_attr.width);
         
-        float text_y = std::clamp(origin_on_screen.y, canvas_p0.y, canvas_p1.y - 15.0f);
-        float text_x = std::clamp(origin_on_screen.x, canvas_p0.x, canvas_p1.x - 30.0f);
-
         char label[32];
         
         // Helper para prender o texto na linha da grid visível e o mais próximo possível do eixo correspondente.
