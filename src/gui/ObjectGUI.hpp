@@ -13,6 +13,7 @@ private:
     EntityManager& entityManager;
     ObjectController &objectController;
     MultipleSelectionList multipleSelectionList;
+    MultipleSelectionList transformationsList;
     std::unordered_set<long long> selected_ids;
 
     // Helper to get string name from ShapeType

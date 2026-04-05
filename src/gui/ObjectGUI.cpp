@@ -42,6 +42,7 @@ void ObjectGUI::DrawObjectList() {
     for (int i : selected_indexes) {
         selected_ids.insert(ids[i]);
     }
+    objectController.SetSelectedIDs(selected_ids); // Redundante?
 
     // Captura operação selecionada com o botão direito e direciona tratamento para o controller
     int selected_context_item = multipleSelectionList.GetSelectedContextItem();
@@ -141,23 +142,19 @@ inline void ObjectGUI::DrawAddRotation() {
 }
 
 void ObjectGUI::DrawTransformCombination() {
-    // TRANSFORM LIST
-    //static int selected = 0;
-    //std::vector<char*> transform_buf(100, "Transformation");
-    {
-        ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-        ImGui::Text("Transorms list"); ImGui::Separator();
-        /*for (int i = 0; i < transform_buf_names.size(); i++)
-        {
-            char label[128];
-            sprintf(label, transform_buf_names[i]);
-            ImGui::PushID(i);
-            if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SelectOnNav))
-                selected = i;
-            ImGui::PopID();
-        }*/
-        ImGui::EndChild();
-    }
+    ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+    ImGui::Text("Transorms list"); ImGui::Separator();
+
+    std::vector<char*> transform_buf_names = objectController.GetTransformationBufferNames();
+    // Atualmente convertendo char* para string. Talvez seja bom no futuro redefinir names para char* no MultipleSelectionList
+    std::vector<std::string> names(transform_buf_names.begin(), transform_buf_names.end());
+    transformationsList.SetNames(names);
+    transformationsList.Draw();
+
+    std::unordered_set<int> selected = transformationsList.GetSelectedIndexes();
+    objectController.SetSelectedTransfomations(selected);
+
+    ImGui::EndChild();
     ImGui::SameLine();
 
     // Desenha todos os inputs para adição de transformações

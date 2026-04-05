@@ -92,6 +92,10 @@ class EntityManager{
         void remove(long long id) {
             displayFile.remove(id);
         }
+
+        void ApplyTransformation(long long id, const core::Matrix<float>& matrix) {
+            // IMPLEMENTAR APLICAÇÃO DE TRANSFORMAÇÃO AQUI
+        }
 };
 
 
