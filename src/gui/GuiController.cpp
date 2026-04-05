@@ -42,21 +42,60 @@ void GuiController::HandleScroll(){
 }
 
 void GuiController::HandleKeyboard(){
-
-    // Rotate window -> shift+leftArrow or shift+rightArrow
-    if (ImGui::GetIO().KeyShift) {
-        // Shift + Left Arrow (Counter-clockwise)
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, true)) {
-            log.AddLog("Rotated window 1 degree counter-clockwise\n");
-            window.rotate(-1.0f); 
-        }
-        
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, true)) {
-            // Shift + Right Arrow (Clockwise)
-            log.AddLog("Rotated window 1 degree clockwise\n");
-            window.rotate(1.0f);
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && io.KeyShift) {
+        { // Girar window -> Ctrl + Shift + Left Arrow (Counter-clockwise)
+            //               Ctrl + Shift + Right Arrow (Clockwise)
+            if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, true)) {
+                log.AddLog("Rotated window 1 degree counter-clockwise\n");
+                window.rotate(-1.0f); 
+            }
+            
+            if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, true)) {
+                log.AddLog("Rotated window 1 degree clockwise\n");
+                window.rotate(1.0f);
+            }
         }
     }
+    else if(io.KeyShift){
+        { // Move window -> Shift + Arrow Key
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow, true)) {
+                log.AddLog("Moving window up\n");
+                window.moveWindow(0.0f, 5.0f, viewport.GetCanvasSize());
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)) {
+                log.AddLog("Moving window down\n");
+                window.moveWindow(0.0f, -5.0f, viewport.GetCanvasSize());
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, true)) {
+                log.AddLog("Moving window left\n");
+                window.moveWindow(5.0f, 0.0f, viewport.GetCanvasSize());
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, true)) {
+                log.AddLog("Moving window right\n");
+                window.moveWindow(-5.0f, 0.0f, viewport.GetCanvasSize());
+            }
+        }
+    }
+    else if(io.KeyCtrl) {
+        { // Zoom window -> Ctrl + UpArrow (zoom in)
+            //           Ctrl + DownArrow (zoom out)
+            auto cp = viewport.GetCanvasP();
+            ImVec2 center_pos(
+                cp.first.x + viewport.GetCanvasSize().x / 2.0f,
+                cp.first.y + viewport.GetCanvasSize().y / 2.0f
+            );
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow, true)) {
+                log.AddLog("Zooming window in\n");
+                window.zoom(1.1f, center_pos);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)) {
+                log.AddLog("Zooming window out\n");
+                window.zoom(0.9f, center_pos);
+            }
+        }
+    }
+
 }
 
 
