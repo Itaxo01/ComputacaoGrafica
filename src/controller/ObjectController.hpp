@@ -42,6 +42,15 @@ public:
         return selected_transformations.empty() ? core::Matrix<float>(4, 4, 0.0f, true) : selected_transformations[0].matrix;
     }
     const std::vector<char*> GetTransformationBufferNames();
+
+    std::tuple<float, float> GetSelectedObjectsCenter() {
+        for (long long id : selected_ids) {
+            auto obj = entityManager.getObject(id);
+            return obj->centerPoint(); // Por enquanto retorna o centro de apenas um objeto...
+            }
+        return std::make_tuple(0.0f, 0.0f); // Default return if no objects are selected
+    }
+    
     void HandleAddScaling(float x, float y);
     void HandleAddTranslation(float x, float y);
     void HandleAddRotation(float x, float y, float angle);

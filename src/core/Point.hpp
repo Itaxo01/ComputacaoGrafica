@@ -129,6 +129,10 @@ namespace core{
                 result += "]";
                 return result;
             }
+
+            std::tuple<float, float> centerPoint() const override {
+                return std::make_tuple(x, y);
+            }
     };
  
 }

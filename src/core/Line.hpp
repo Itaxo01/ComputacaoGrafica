@@ -32,6 +32,9 @@ namespace core{
             result += "]";
             return result;
         }
+        std::tuple<float, float> centerPoint() const override {
+            return std::make_tuple((a.x + b.x) / 2.0f, (a.y + b.y) / 2.0f);
+        }
     };
     
 }
