@@ -76,7 +76,13 @@ void EntityManager::ApplyTransformation(long long real_id, const core::Matrix<fl
     switch(shape.type){
         case core::ShapeType::POINT: {
             core::Point &p = static_cast<core::Point&>(shape);
+            #ifndef DONT_DRAW_SHAPE_NAME
+            std::string save_name = p.name; 
+            #endif
             p = matrix*p;
+            #ifndef DONT_DRAW_SHAPE_NAME
+            p.name = save_name;
+            #endif
             break;
         }
         case core::ShapeType::LINE: {

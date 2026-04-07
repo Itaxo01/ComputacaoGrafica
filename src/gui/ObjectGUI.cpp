@@ -175,6 +175,7 @@ inline void DrawMatrix(core::Matrix<float> &matrix) {
 }
 
 void ObjectGUI::DrawTransformCombination() {
+    
     ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
     ImGui::Text("Transorms list"); ImGui::Separator();
 

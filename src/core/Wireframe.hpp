@@ -44,12 +44,13 @@ namespace core{
         }
 
         std::tuple<float, float, float> centerPoint() const override {
-            float sum_x = 0, sum_y = 0;
+            float sum_x = 0, sum_y = 0, sum_z = 0;
             for (const auto &point : points) {
                 sum_x += point.x;
                 sum_y += point.y;
+                sum_z += point.z;
             }
-            return std::make_tuple(sum_x / points.size(), sum_y / points.size());
+            return std::make_tuple(sum_x / points.size(), sum_y / points.size(), sum_z / points.size());
         }
     };
     

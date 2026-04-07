@@ -16,7 +16,7 @@ namespace core{
             type = ShapeType::LINE;
         }
 
-        std::tuple<float, float, float> anchorPoint() const{
+        std::tuple<float, float, float> anchorPoint() const override{
             auto p = max_y(a, b);
             return p.expand();
         }

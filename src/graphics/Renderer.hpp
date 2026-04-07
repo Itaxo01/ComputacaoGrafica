@@ -32,7 +32,12 @@ private:
     void DrawObject(const core::Point &point);
     void DrawObject(const core::Line &line);
     void DrawObject(const core::Wireframe &wireframe);
-    void renderName(const core::Shape &shape);
+
+    #ifndef DONT_DRAW_SHAPE_NAME
+        void draw_name_if_visible(const core::Shape &shape);
+    #endif
+
+    
     void ApplyClipping();
     void ApplyViewportTransform();
     void ApplyNCSTransform();

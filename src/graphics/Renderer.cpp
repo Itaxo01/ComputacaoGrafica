@@ -9,18 +9,27 @@ inline ImVec2 ToImVec2(const core::Point &p) {
     return ImVec2(p.x, p.y);
 }
 
-void Renderer::renderName(const core::Shape &shape){
-    
-    #ifndef DONT_DRAW_SHAPE_NAME
-        core::Point p(shape.anchorPoint());
-        DrawObject(p);
-        const int magic_number = 15;
-        ImVec2 pos(p.x, p.y - magic_number);
+#ifndef DONT_DRAW_SHAPE_NAME
+    void Renderer::draw_name_if_visible(const core::Shape &shape){
+        core::Point anchor(shape.anchorPoint());
+            
+        // Map anchor to NCS to see if it is visible on screen
+        core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
+        
+        if (ncs_anchor.x >= -1.0f && ncs_anchor.x <= 1.0f && 
+            ncs_anchor.y >= -1.0f && ncs_anchor.y <= 1.0f) {
+            
+            core::Point p = window.NCSToViewport(ncs_anchor);
+            auto cp = viewport.GetCanvasP();
+            p.x += cp.first.x;
+            p.y += cp.first.y;
 
-        draw_list->AddText(pos, IM_COL32_WHITE, shape.name.c_str());
-
-    #endif
-}
+            const int magic_number = 15;
+            ImVec2 pos(p.x, p.y - magic_number);
+            draw_list->AddText(pos, IM_COL32_WHITE, shape.name.c_str());
+        }
+    }
+#endif
 
 // Isso aqui calcula o espaçamento entre as linhas da grid de forma similar ao geogebra
 inline float calculate_step(float width){
@@ -247,7 +256,7 @@ void Renderer::GenerateDrawList(){
     if(this->refresh_cache || rendererCache.cache_changed(w, obj_count)){
         rendererCache.store_cache(w, obj_count);
         refresh_cache = false;
-        
+
         ApplyNCSTransform(); 
         ApplyClipping();
         ApplyViewportTransform();
@@ -265,26 +274,6 @@ void Renderer::render() {
     
 
     #ifndef DONT_DRAW_SHAPE_NAME 
-        auto draw_name_if_visible = [&](const core::Shape& shape){
-            core::Point anchor(shape.anchorPoint());
-            
-            // Map anchor to NCS to see if it is visible on screen
-            core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
-            
-            if (ncs_anchor.x >= -1.0f && ncs_anchor.x <= 1.0f && 
-                ncs_anchor.y >= -1.0f && ncs_anchor.y <= 1.0f) {
-                
-                core::Point p = window.NCSToViewport(ncs_anchor);
-                auto cp = viewport.GetCanvasP();
-                p.x += cp.first.x;
-                p.y += cp.first.y;
-
-                const int magic_number = 15;
-                ImVec2 pos(p.x, p.y - magic_number);
-
-                draw_list->AddText(pos, IM_COL32_WHITE, shape.name.c_str());
-            }
-        };
         for(const auto &p: displayFile.getPointList()) draw_name_if_visible(p);
         for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
         for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
