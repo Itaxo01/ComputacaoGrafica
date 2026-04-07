@@ -12,7 +12,7 @@ class ObjectListener {
 private:
     EntityManager& entityManager;
     //vector<ManifestEntry> manifest; // INICIALIZAR NO CONSTRUTOR
-    Viewport& viewport;
+    Viewport& vp;
     std::unordered_set<long long> selected_ids;
     int last_selected_index = -1; // Used to calculate ranges for Shift+Click
     int current_page = 0;
@@ -25,7 +25,7 @@ private:
 
     void DrawObjectList();
 public:
-    ObjectListener(EntityManager& em, Viewport &v) : entityManager(em), viewport(v) {}
+    ObjectListener(EntityManager& em, Viewport &v) : entityManager(em), vp(v) {}
 
     void DrawWindow();
 

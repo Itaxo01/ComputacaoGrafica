@@ -144,7 +144,7 @@ void ObjectListener::DrawTransformCombination() {
     //std::vector<char*> transform_buf(100, "Transformation");
     {
         ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-        ImGui::Text("Transorms list"); ImGui::Separator();
+        ImGui::Text("transforms list"); ImGui::Separator();
         for (int i = 0; i < (int)transform_buf_names.size(); i++)
         {
             char label[128];
@@ -269,9 +269,14 @@ std::vector<std::string> split_string(const std::string &s, char split_char){
 }
 
 void ObjectListener::DrawWindow() {
-    ImGui::SetNextWindowPos(ImVec2(877, 267), ImGuiCond_FirstUseEver); 
-    ImGui::SetNextWindowSize(ImVec2(786, 336), ImGuiCond_FirstUseEver); // switch to percentage
-    ImGui::Begin("Display File Manifest");
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 monitor_pos = viewport->Pos;
+    ImVec2 monitor_size = viewport->Size;
+
+    // Proportional window configurations based on the app window/monitor size
+    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (899.0f / 1700.0f), monitor_pos.y + monitor_size.y * (231.0f / 940.0f)), ImGuiCond_FirstUseEver); 
+    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (731.0f / 1700.0f), monitor_size.y * (374.0f / 940.0f)), ImGuiCond_FirstUseEver); 
+    ImGui::Begin("Object Manager");
     DrawObjectList(); ImGui::SameLine();
 
     // DEMO TEMPLATE
@@ -294,7 +299,7 @@ void ObjectListener::DrawWindow() {
                     for (const auto& id : selected_ids) {
                         // Retrieve the object details from the EntityManager
 
-                        std::string object_details = entityManager.GetObjectDetails(id, viewport.is3d);
+                        std::string object_details = entityManager.GetObjectDetails(id, vp.is3d);
                         // Split the string into columns
                         auto columns = split_string(object_details, DEFAULT_SPLIT_CHAR);
 

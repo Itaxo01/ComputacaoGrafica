@@ -5,11 +5,12 @@
 
 void ObjectCreator::DrawWindow(){
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 work_pos = viewport->WorkPos;
-    ImVec2 work_size = viewport->WorkSize;
+    ImVec2 monitor_pos = viewport->Pos;
+    ImVec2 monitor_size = viewport->Size;
 
-    ImGui::SetNextWindowPos(ImVec2(work_pos.x + work_size.x * (876.0f / 1920.0f), work_pos.y + work_size.y * (26.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Create New Object window position
-    ImGui::SetNextWindowSize(ImVec2(work_size.x * (784.0f / 1920.0f), work_size.y * (235.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Create New Object window size
+    // Proportional window configurations based on the app window/monitor size
+    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (899.0f / 1700.0f), monitor_pos.y + monitor_size.y * (22.0f / 940.0f)), ImGuiCond_FirstUseEver); // Create New Object window position
+    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (730.0f / 1700.0f), monitor_size.y * (204.0f / 940.0f)), ImGuiCond_FirstUseEver); // Create New Object window size
     ImGui::Begin("Create New Object");
         ImGui::Columns(2, "ObjectCreatorColumns", true);
 

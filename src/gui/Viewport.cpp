@@ -2,12 +2,12 @@
 
 void Viewport::DrawWindow() {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 work_pos = viewport->WorkPos;
-    ImVec2 work_size = viewport->WorkSize;
+    ImVec2 monitor_pos = viewport->Pos;
+    ImVec2 monitor_size = viewport->Size;
     
-    // Hardcoded window configurations
-    ImGui::SetNextWindowPos(ImVec2(work_pos.x + work_size.x * (38.0f / 1920.0f), work_pos.y + work_size.y * (25.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Viewport window position
-    ImGui::SetNextWindowSize(ImVec2(work_size.x * (832.0f / 1920.0f), work_size.y * (847.0f / 1080.0f)), ImGuiCond_FirstUseEver); // Viewport window size
+    // Proportional window configurations based on the app window/monitor size
+    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (29.0f / 1700.0f), monitor_pos.y + monitor_size.y * (18.0f / 940.0f)), ImGuiCond_FirstUseEver); 
+    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (893.0f / 1700.0f), monitor_size.y * (857.0f / 940.0f)), ImGuiCond_FirstUseEver); 
     ImGui::Begin("Viewport");
         canvas_p0 = ImGui::GetCursorScreenPos();      // ImDrawList API uses screen coordinates!
         canvas_sz = ImGui::GetContentRegionAvail();   // Resize canvas to what's available

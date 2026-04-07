@@ -1,26 +1,49 @@
 # ComputacaoGrafica
 Codigos desenvolvidos para computação gráfica, primariamente em C++
 
-# REGISTRO DE IDEIAS
-Esse texto não cumpre bem o papel de explicar o projeto, é apenas uma coleção de apontamentos. Detalhes de cada entrega estão no final do arquivo.
+# INSTRUÇÕES DE USO DA INTERFACE
+A interface contém atualmente 4 componentes:
+Viewport: 
+    Canvas onde os objetos são desenhados e visualizados.
 
-### Ideia inicial
-Vamos implementar um modelo MVC (Model View Controller) para tentar deixar o projeto 
-Model (src/core): Responsável pela descrição dos objetos, aqui definiremos o que é um ponto, reta, vetores, matrizes e afins, e suas operações. O model não sabe nada sobre o view ou o controller. 
+    Podemos interagir com o viewport de diversas formas:
+        Zoom -> Scroll do mouse ou ctrl + Up/Down arrow.
+        Translação -> Clicar com o botão direito do mouse e arrastar ou shift + arrow key
+        Rotação da Window -> Ctrl+Shift+Right/Left arrow key.
 
-View (src/graphics + src/window): Responsável pela renderização dos objetos (funções de desenho), pela lista de objetos a serem desenhados e pela conversão da window para o viewport. Terá conhecimento sobre os objetos do Model, mas não sobre o controller.
+        Criação de objetos:
+            Habilitar a criação no menu de Criação de objetos
+            Selecionar o tipo do objeto
+            Dar um nome (opcional)
+            Cada objeto tem sua forma de criar clicando no viewport:
+                ponto é apenas um click;
+                linha são dois clicks;
+                wireframe são n clicks, clicar duas vezes no mesmo lugar efetua a criação.
 
-Controller (src/gui): Interface com a qual iremos interagir e visualizaremos o viewport, responsável pelos botões de interação e eventualmente atalhos. Ela precisará ter conhecimento do model e do view, para poder solicitar a criação dos objetos, sua renderização e manipulações da window.
+    Também é possível habilitar e desabilitar a renderização da grid do viewport.
 
-tudo que está aqui pode e provavelmente vai ser mudado conforme aprimorarmos nosso intelecto, mas acho que ta uma boa divisão inicial
+Menu de Criação de Objetos:
+    Menu básico para criação de objetos. Desabilitar a criação faz com que ao clicar no viewport não se crie objetos.
+    Importação de arquivos:
+        No momento, a importação e exportação de arquivos não segue o .obj, e é feita de forma customizada (Será modificado em futuras entregas)
+
+Object Manager:
+    Mostra a lista de objetos atuais.
+    Selecionar um objeto permite ver seus detalhes e efetuar as operações de transformação (Detalhes e transformações são duas abas dessa janela).
+    É possível selecionar múltiplos objetos e realizar operações com multiplos objetos simultaneamente.
+    As transformações são guardadas em um buffer a medida que são adicionadas (Cumprindo o requisito da entrega de acumular a matriz de transformação), e para aplicá-las é necessário selecionar "Apply all transformations" no final da janela da aba de transformações. 
+    Clicar com o direito em um objeto abre um menu de operações (No momento as transformações não estão no menu, apenas a deleção. As transformações estão, entretanto, implementadas na aba de transformações).
+
+Log:
+    apenas um log de registro de algumas ações na interface. Útil para o desenvolvimento.
+
+As janelas podem ser reposicionadas e remodeladas a vontade (A depender da resolução do monitor, é possível que alguma janela não inicialize corretamente).
+
+# COMPILAÇÃO
+Utilizar o makefile.
+Recomendo ter a biblioteca TBB da intel instalada, mas não é necessário, apenas deixa o programa mais rápido.
 
 # COMPILAÇÃO PARA WINDOWS
 O make tem uma rotina para compilar o .exe do windows no linux. Para isso, ele utiliza a pasta libs/, que possui os binários pré compilados para windows.
-Como estamos utilizando o TBB, o .exe precisa ter o arquivo libtbb12.dll junto dele no mesmo diretório para funcionar (Ainda não testado).
-
-
-### EDIT ENTREGA 1:
-No momento o projeto inclui algumas funcionalidades a mais. O código referente a entrega um se encontra em:
-Panning/zooming: está localizado em `src/window/Window.hpp` e em `src/gui/Viewport.hpp`;
-Display File: `src/window/DisplayFile.hpp`, os objetos estão definidos em `src/core`, optamos por uma mistura de OOP com Data Oriented Programming (Visando ter um código que seja eficiente em detrimento da praticidade da orientação a objetos).
-Transformada de Viewport: Contém os métodos auxiliares em `src/window/Window.hpp`, que são utilizados pelo `src/graphics/Renderer.hpp` nos métodos de draw.
+Como estamos utilizando o TBB, o .exe precisa ter o arquivo libtbb12.dll junto dele no mesmo diretório para funcionar.
+Não recomendo utilizar isso, pois involve outras dll's que precisam estar compiladas sob o mesmo compilador.

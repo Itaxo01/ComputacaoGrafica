@@ -177,14 +177,14 @@ inline void DrawMatrix(core::Matrix<float> &matrix) {
 void ObjectGUI::DrawTransformCombination() {
     
     ImGui::BeginChild("transform list", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
-    ImGui::Text("Transorms list"); ImGui::Separator();
+    ImGui::Text("transforms list"); ImGui::Separator();
 
     std::vector<char*> transform_buf_names = objectController.GetTransformationBufferNames();
     // Atualmente convertendo char* para string. Talvez seja bom no futuro redefinir names para char* no MultipleSelectionList
     std::vector<std::string> names(transform_buf_names.begin(), transform_buf_names.end());
-    std::vector<std::string> context_item_names = {"Delete", "View Matrix"};
+    // std::vector<std::string> context_item_names = {"Delete", "View Matrix"};
     transformationsList.SetNames(names);
-    transformationsList.SetContextItems(context_item_names);
+    // transformationsList.SetContextItems(context_item_names);
     transformationsList.Draw();
 
     std::unordered_set<int> selected_transformations = transformationsList.GetSelectedIndexes();
@@ -217,7 +217,7 @@ void ObjectGUI::DrawTransformCombination() {
     ImGui::SameLine();
 
     // Desenha todos os inputs para adição de transformações
-    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
+    ImGui::BeginChild("item view", ImVec2(400, -ImGui::GetFrameHeightWithSpacing()));
     ImGui::Text("Add new transformation"); ImGui::Separator();
 
     DrawAddScaling();
@@ -289,12 +289,13 @@ void ObjectGUI::DrawObjectDetails() {
 
 void ObjectGUI::DrawWindow() {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 work_pos = viewport->WorkPos;
-    ImVec2 work_size = viewport->WorkSize;
+    ImVec2 monitor_pos = viewport->Pos;
+    ImVec2 monitor_size = viewport->Size;
 
-    ImGui::SetNextWindowPos(ImVec2(work_pos.x + work_size.x * (877.0f / 1920.0f), work_pos.y + work_size.y * (267.0f / 1080.0f)), ImGuiCond_FirstUseEver); 
-    ImGui::SetNextWindowSize(ImVec2(work_size.x * (786.0f / 1920.0f), work_size.y * (336.0f / 1080.0f)), ImGuiCond_FirstUseEver); // switch to percentage
-    ImGui::Begin("Display File Manifest");
+    // Proportional window configurations based on the app window/monitor size
+    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (899.0f / 1700.0f), monitor_pos.y + monitor_size.y * (231.0f / 940.0f)), ImGuiCond_FirstUseEver); 
+    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (731.0f / 1700.0f), monitor_size.y * (374.0f / 940.0f)), ImGuiCond_FirstUseEver); 
+    ImGui::Begin("Object Manager");
     DrawObjectList(); ImGui::SameLine();
 
     ImGui::BeginGroup();
@@ -314,7 +315,7 @@ void ObjectGUI::DrawWindow() {
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Transform Combination")) {
-            ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+            ImGui::BeginChild("left pane", ImVec2(550, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
             DrawTransformCombination();
             ImGui::EndChild();
             ImGui::EndTabItem();
