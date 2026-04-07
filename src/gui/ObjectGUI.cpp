@@ -110,16 +110,29 @@ inline void ObjectGUI::DrawAddRotation() {
 
     ImGui::Text("Rotation");
     if (ImGui::RadioButton("itself", &radiosel, 0)) {
-            auto [center_x, center_y, center_z] = objectController.GetSelectedObjectsCenter();
-            frx = center_x; fry = center_y;
+            ;
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("origin", &radiosel, 1)) {
-           frx = 0.0f; fry = 0.0f;// passa coordenadas da origem para frx e fry
+            ;
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("an arbitrary point", &radiosel, 2)) {
-            ; // da unlock em frx e fry
+            ;
+        }
+    
+        switch(radiosel) {
+            case 0: { // ITSELF
+                auto [center_x, center_y, center_z] = objectController.GetSelectedObjectsCenter();
+                frx = center_x; fry = center_y;
+                break;
+            }
+            case 1: { // ORIGIN
+                frx = 0.0f; fry = 0.0f;
+                break;
+            }
+            case 2: // ARBITRARY POINT
+                break;
         }
 
     ImGui::Text("x: "); ImGui::SameLine();
