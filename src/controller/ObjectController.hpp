@@ -43,12 +43,12 @@ public:
     }
     const std::vector<char*> GetTransformationBufferNames();
 
-    std::tuple<float, float> GetSelectedObjectsCenter() {
+    std::tuple<float, float, float> GetSelectedObjectsCenter() {
         for (long long id : selected_ids) {
             auto &obj = entityManager.getObject(id);
             return obj.centerPoint(); // Por enquanto retorna o centro de apenas um objeto...
         }
-        return std::make_tuple(0.0f, 0.0f); // Default return if no objects are selected
+        return std::make_tuple(0.0f, 0.0f, 0.0f); // Default return if no objects are selected
     }
     
     void HandleAddScaling(float x, float y);

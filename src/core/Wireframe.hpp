@@ -43,7 +43,7 @@ namespace core{
             return result;
         }
 
-        std::tuple<float, float> centerPoint() const override {
+        std::tuple<float, float, float> centerPoint() const override {
             float sum_x = 0, sum_y = 0;
             for (const auto &point : points) {
                 sum_x += point.x;

@@ -131,8 +131,8 @@ namespace core{
                 return result;
             }
 
-            std::tuple<float, float> centerPoint() const override {
-                return std::make_tuple(x, y);
+            std::tuple<float, float, float> centerPoint() const override {
+                return std::make_tuple(x, y, z);
             }
     };
  

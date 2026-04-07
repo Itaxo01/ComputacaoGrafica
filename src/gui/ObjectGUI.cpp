@@ -110,7 +110,7 @@ inline void ObjectGUI::DrawAddRotation() {
 
     ImGui::Text("Rotation");
     if (ImGui::RadioButton("itself", &radiosel, 0)) {
-            auto [center_x, center_y] = objectController.GetSelectedObjectsCenter();
+            auto [center_x, center_y, center_z] = objectController.GetSelectedObjectsCenter();
             frx = center_x; fry = center_y;
         }
         ImGui::SameLine();
