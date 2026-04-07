@@ -137,6 +137,8 @@ windows_fast: CXXFLAGS += -D_WIN32 -DUSE_TBB_EXECUTION -I./libs/windows/include 
 windows_fast: LIBS = ./libs/windows/libtbb12.dll.a -L./libs/windows -lglfw3 -lgdi32 -lopengl32 -limm32
 windows_fast: LDFLAGS = -static
 
+# A dll do libtbb12 teve que ser recompilada a partir de https://github.com/oneapi-src/oneTBB.git. Retirei o repositório do git após recompilar a dll. 
+
 # Aqui as dll's estão sendo puxadas direto do mingw32. Isso é necessário para a aplicação ser standalone e não depender das biblitecas instaladas no computador do usuário.
 windows_fast: $(OBJS)
 	@mkdir -p $(dir $(EXE))

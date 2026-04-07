@@ -1,4 +1,5 @@
 #include "DisplayFile.hpp"
+#include "Shape.hpp"
 #include <stdexcept>
 
 void DisplayFile::add(core::Shape &k, const std::string &name, const long long id) {
@@ -55,4 +56,16 @@ void DisplayFile::remove(const long long id){
             throw std::runtime_error("Invalid object at display file remove");
     }
     object_count--;
+}
+
+
+core::Shape& DisplayFile::getShape(long long real_id){   
+    auto &[list_id, manifest_id] = hash_id[real_id];
+    core::ShapeType type = manifest[manifest_id].type;
+    switch(type){
+        case core::ShapeType::POINT: return pointList[list_id];
+        case core::ShapeType::LINE: return lineList[list_id];
+        case core::ShapeType::WIREFRAME: return wireframeList[list_id];
+        default: throw std::runtime_error("Invalid object at display file getShape");
+    }
 }

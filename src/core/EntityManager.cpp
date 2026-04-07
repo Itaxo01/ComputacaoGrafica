@@ -66,3 +66,8 @@ std::string EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
         default: return "Type not defined";
     }
 }
+
+void EntityManager::ApplyTransformation(long long real_id, const core::Matrix<float>& matrix){
+    core::Shape &shape = displayFile.getShape(real_id);
+    shape *= matrix; // Aqui a operação é invertida no operador do shape, pois a matriz precisa estar a esquerda do ponto.
+}

@@ -57,7 +57,7 @@ public:
     const std::vector<core::Line>& getLineList() const {return lineList;}
     const std::vector<core::Wireframe>& getWireframeList() const {return wireframeList;}
     const std::vector<ManifestEntry>& getManifest() const {return manifest;}
-    
+    core::Shape &getShape(long long real_id);
 
     const core::Point &getPoint(long long id) const {return pointList[id];}
     const core::Line &getLine(long long id) const {return lineList[id];}

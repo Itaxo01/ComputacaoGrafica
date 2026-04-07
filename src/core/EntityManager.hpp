@@ -93,13 +93,11 @@ class EntityManager{
             displayFile.remove(id);
         }
 
-        core::Shape* getObject(long long id) {
+        core::Shape& getObject(long long id) {
             return displayFile.getShape(id);
         }
 
-        void ApplyTransformation(long long id, const core::Matrix<float>& matrix) {
-            // IMPLEMENTAR APLICAÇÃO DE TRANSFORMAÇÃO AQUI
-        }
+        void ApplyTransformation(long long real_id, const core::Matrix<float>& matrix);
 };
 
 

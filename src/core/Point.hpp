@@ -38,6 +38,7 @@ namespace core{
             friend Point operator+(const Point &p, const Point &q) {return Point(p.x + q.x, p.y + q.y, p.z + q.z);}
             friend Point operator-(const Point &p, const Point &q) {return Point(p.x - q.x, p.y - q.y, p.z - q.z);}
             friend Point operator*(const Point &p, const float k) {return Point(p.x * k, p.y * k, p.z * k);}
+            
             friend Point operator/(const Point &p, const float k) {return Point(p.x / k, p.y / k, p.z / k);}
             Point operator+=(const Point &q) {this->x+=q.x; this->y+=q.y; this->z+=q.z; return *this;}
             Point operator-=(const Point &q) {this->x-=q.x; this->y-=q.y; this->z-=q.z; return *this;}
