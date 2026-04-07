@@ -244,8 +244,9 @@ void Renderer::ApplyViewportTransform(){
 void Renderer::GenerateDrawList(){
     unsigned long obj_count = displayFile.object_count;
     WindowAttributes w = window.getWindowAttributes();
-    if(rendererCache.cache_changed(w, obj_count)){
+    if(this->refresh_cache || rendererCache.cache_changed(w, obj_count)){
         rendererCache.store_cache(w, obj_count);
+        refresh_cache = false;
         
         ApplyNCSTransform(); 
         ApplyClipping();
@@ -290,4 +291,8 @@ void Renderer::render() {
     #endif
     
     log.Draw("Log");
+}
+
+void Renderer::notifyTransformation(){
+    this->refresh_cache = true;
 }

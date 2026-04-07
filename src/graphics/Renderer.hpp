@@ -18,6 +18,7 @@ private:
     Window &window;
     ImDrawList* draw_list = nullptr;
     RendererCache rendererCache;
+    bool refresh_cache = false;
 
     ExampleAppLog log; // REMOVER DEPOIS
 
@@ -41,6 +42,7 @@ public:
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {
         rendererCache = RendererCache(w.getWindowAttributes(), df.object_count);
     }
+    void notifyTransformation();
     void render();
 };
 

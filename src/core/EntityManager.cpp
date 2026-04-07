@@ -94,4 +94,5 @@ void EntityManager::ApplyTransformation(long long real_id, const core::Matrix<fl
         }
         default: throw std::runtime_error("Invalid object at Entity Manager ApplyTransformation\n");
     }
+    renderer.notifyTransformation();
 }

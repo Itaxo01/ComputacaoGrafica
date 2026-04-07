@@ -34,10 +34,10 @@ int main(int, char**) {
 
     // 3. Inicializa nossas classes
     DisplayFile displayFile; // Coleção de draws
-    EntityManager entityManager(displayFile); // "view" para o display file
     Viewport viewport; 
     Window programWindow(viewport);
     Renderer renderer(displayFile, viewport, programWindow);
+    EntityManager entityManager(displayFile, renderer); // "view" para o display file
     ExampleAppLog log; // o log usa singleton, vc pode criar dentro das classes
     // ao inves de passar para o construtor.
     

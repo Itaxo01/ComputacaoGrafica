@@ -7,6 +7,7 @@
 #include "DisplayFile.hpp"
 #include "Line.hpp"
 #include "Point.hpp"
+#include "Renderer.hpp"
 #include "Wireframe.hpp"
 #include "Shape.hpp"
 #include <set>
@@ -23,6 +24,7 @@ class EntityManager{
     private: 
         long long currentId = 1;
         DisplayFile &displayFile; // EntityManager deve ser o único
+        Renderer &renderer;
 
         std::string getName(core::ShapeType type, unsigned int fake_id){
             std::string name;
@@ -45,7 +47,7 @@ class EntityManager{
 
     public:
         // DisplayFile pertencerá a main
-        EntityManager(DisplayFile &df): displayFile(df) {
+        EntityManager(DisplayFile &df, Renderer &r): displayFile(df), renderer(r) {
             currentId = 1;
         }
 
