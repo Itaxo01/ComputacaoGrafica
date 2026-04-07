@@ -1,6 +1,10 @@
 #include "EntityManager.hpp"
+#include "Point.hpp"
+#include "Matrix.hpp"
 #include "Shape.hpp"
+#include "Wireframe.hpp"
 #include <cassert>
+#include <stdexcept>
 
 void setName(core::Shape &s, const std::string &name){
     #ifndef DONT_DRAW_SHAPE_NAME
@@ -69,5 +73,25 @@ std::string EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
 
 void EntityManager::ApplyTransformation(long long real_id, const core::Matrix<float>& matrix){
     core::Shape &shape = displayFile.getShape(real_id);
-    shape *= matrix; // Aqui a operação é invertida no operador do shape, pois a matriz precisa estar a esquerda do ponto.
+    switch(shape.type){
+        case core::ShapeType::POINT: {
+            core::Point &p = static_cast<core::Point&>(shape);
+            p = matrix*p;
+            break;
+        }
+        case core::ShapeType::LINE: {
+            core::Line &line = static_cast<core::Line&>(shape);
+            line.a = matrix*line.a;
+            line.b = matrix*line.b;
+            break;
+        }
+        case core::ShapeType::WIREFRAME: {
+            core::Wireframe &wireframe = static_cast<core::Wireframe&>(shape);
+            for(core::Point &p: wireframe.points){
+                p = matrix*p;
+            }
+            break;
+        }
+        default: throw std::runtime_error("Invalid object at Entity Manager ApplyTransformation\n");
+    }
 }

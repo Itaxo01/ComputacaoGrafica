@@ -4,7 +4,7 @@ void MultipleSelectionList::Draw() {
 
     // REFAZER ESQUEMA DE PAGINACAO
     
-    for (int index = 0; index < names.size(); ++index) {
+    for (int index = 0; index < (int)names.size(); ++index) {
 
         // Check if current item is in our selected set
         bool is_selected = selected_indexes.find(index) != selected_indexes.end();
@@ -51,7 +51,7 @@ void MultipleSelectionList::Draw() {
             ImGui::Separator();
 
             selected_context_item = -1; // Mudar de lugar depois?
-            for (int j = 0; j < context_item_names.size(); ++j) {
+            for (int j = 0; j < (int)context_item_names.size(); ++j) {
                 if (ImGui::MenuItem(context_item_names[j].c_str())) {
                     selected_context_item = j;
                     // Context Item Handle now need to be captured by the user of this class 
