@@ -2,6 +2,7 @@
 #define OBJECT_CREATOR_HPP
 #include "EntityManager.hpp"
 #include "Shape.hpp"
+#include "imgui.h"
 #include "log_app.h"
 
 class ObjectCreator{
@@ -11,9 +12,15 @@ class ObjectCreator{
         bool enable_object_creation = false;
         int e = 0;
         char obj_name[16] = "DEFAULT_NAME";
+        int rgb_color[3] = {255, 255, 255}; // Stores RGB text inputs
+        int object_color = IM_COL32_WHITE;
         ExampleAppLog &log;
         EntityManager &entityManager;
         
+        void set_color(int r, int g, int b, int a){
+            object_color = IM_COL32(r, g, b, a);
+        }
+
     public:
         ObjectCreator(ExampleAppLog &log, EntityManager &em): log(log), entityManager(em){}
         

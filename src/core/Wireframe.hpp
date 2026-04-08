@@ -34,7 +34,9 @@ namespace core{
         }
 
         std::string to_string(long long id, bool p3d = false) const {
-            std::string result = "Wireframe | " + std::to_string(id) + " | [";
+            std::string result = "Wireframe | " + std::to_string(id) + " | ";
+            result += this->getName() + " | ";
+            result += this->getColor() + " | [";
             for (size_t i = 0; i < points.size(); ++i) {
                 result += points[i].coords(p3d);
                 if (i < points.size() - 1) result += "\n";

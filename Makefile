@@ -133,7 +133,7 @@ windows: $(OBJS)
 windows_fast: CXX = x86_64-w64-mingw32-g++
 windows_fast: EXE = ./build/windows/programa_foda.exe
 windows_fast: ECHO_MESSAGE = "Windows Fast (with TBB, requires DLLs)"
-windows_fast: CXXFLAGS += -D_WIN32 -DUSE_TBB_EXECUTION -I./libs/windows/include -O3 -DDONT_DRAW_SHAPE_NAME
+windows_fast: CXXFLAGS += -D_WIN32 -DUSE_TBB_EXECUTION -I./libs/windows/include
 windows_fast: LIBS = ./libs/windows/libtbb12.dll.a -L./libs/windows -lglfw3 -lgdi32 -lopengl32 -limm32
 windows_fast: LDFLAGS = -static
 

@@ -26,7 +26,9 @@ namespace core{
             return os;
         }
         std::string to_string(long long id, bool p3d = false) const {
-            std::string result = "Line | " + std::to_string(id) + " | [";
+            std::string result = "Line | " + std::to_string(id) + " | ";
+            result += this->getName() + " | ";
+            result += this->getColor() + " | [";
             result += a.coords(p3d) + '\n';
             result += b.coords(p3d);
             result += "]";

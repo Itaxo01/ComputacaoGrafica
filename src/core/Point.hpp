@@ -125,8 +125,10 @@ namespace core{
             }
 
             std::string to_string(long long id, bool p3d = false) const {
-                std::string result = "Point | " + std::to_string(id) + " | [";
-                result += coords(p3d);
+                std::string result = "Point | " + std::to_string(id) + " | ";
+                result += this->getName() + " | ";
+                result += this->getColor() + " | ";
+                result += "[" + coords(p3d);
                 result += "]";
                 return result;
             }

@@ -264,9 +264,11 @@ std::vector<std::string> siplit_stringTEMP(const std::string &s, char split_char
 }
 
 void ObjectGUI::DrawObjectDetails() {
-    if (ImGui::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
+    if (ImGui::BeginTable("DetailsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
         ImGui::TableSetupColumn("Type");
         ImGui::TableSetupColumn("ID");
+        ImGui::TableSetupColumn("Name");
+        ImGui::TableSetupColumn("Color");
         ImGui::TableSetupColumn("Points");
         ImGui::TableHeadersRow();
 

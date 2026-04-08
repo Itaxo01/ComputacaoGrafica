@@ -198,24 +198,24 @@ void Renderer::RenderBackground() {
     }
 }
 
-void Renderer::DrawObject(const core::Point &p) {
+void Renderer::DrawObject(const core::Point &p, bool draw_color) {
     const float rad = 2.5;
-    draw_list->AddCircle(ToImVec2(p), rad, IM_COL32_WHITE, 0, 2.0f);
+    draw_list->AddCircle(ToImVec2(p), rad, p.object_color, 0, 2.0f);
 }
 
-void Renderer::DrawObject(const core::Line &line) {
+void Renderer::DrawObject(const core::Line &line, bool draw_color) {
     const float width = 2.0f;
-    draw_list->AddLine(ToImVec2(line.a), ToImVec2(line.b), IM_COL32_WHITE, width);
+    draw_list->AddLine(ToImVec2(line.a), ToImVec2(line.b), line.object_color, width);
 }
 
-void Renderer::DrawObject(const core::Wireframe &wireframe) {
+void Renderer::DrawObject(const core::Wireframe &wireframe, bool draw_color) {
     const float width = 2.0f;
     int size = wireframe.points.size();
     for (int i = 0; i < size-1; i++) {
         core::Point p0 = window.WindowToViewport(wireframe.points[i]); 
         core::Point p1 = window.WindowToViewport(wireframe.points[i+1]);
 
-        draw_list->AddLine(ToImVec2(p0), ToImVec2(p1), IM_COL32_WHITE, width);
+        draw_list->AddLine(ToImVec2(p0), ToImVec2(p1), wireframe.object_color, width);
     }
 }
 
@@ -268,9 +268,13 @@ void Renderer::render() {
     RenderBackground();
     GenerateDrawList();    
 
-    for (const core::Point &point: drawPointList) DrawObject(point);
-    for (const core::Line &line: drawLineList) DrawObject(line);
-    for (const core::Line &w_line: drawWireframeList) DrawObject(w_line);
+    bool draw_color = true;
+    #ifndef DONT_USE_OBJECT_COLOR
+        draw_color = false;
+    #endif
+    for (const core::Point &point: drawPointList) DrawObject(point, draw_color);
+    for (const core::Line &line: drawLineList) DrawObject(line, draw_color);
+    for (const core::Line &w_line: drawWireframeList) DrawObject(w_line, draw_color);
     
 
     #ifndef DONT_DRAW_SHAPE_NAME 

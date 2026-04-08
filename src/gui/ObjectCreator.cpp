@@ -36,6 +36,21 @@ void ObjectCreator::DrawWindow(){
         }
         ImGui::Text("Object name:"); ImGui::SameLine();
         ImGui::InputText("##", obj_name, IM_COUNTOF(obj_name));
+        
+        ImGui::Text("Object color (RGB):"); ImGui::SameLine();
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::DragInt3("##rgb", rgb_color, 1.0f, 0, 255)) {
+            // Update the actual object color when changed, drag natively clamps but typed texts might need a check
+            if (rgb_color[0] < 0) rgb_color[0] = 0; 
+            if (rgb_color[0] > 255) rgb_color[0] = 255;
+            if (rgb_color[1] < 0) rgb_color[1] = 0; 
+            if (rgb_color[1] > 255) rgb_color[1] = 255;
+            if (rgb_color[2] < 0) rgb_color[2] = 0; 
+            if (rgb_color[2] > 255) rgb_color[2] = 255;
+            
+            set_color(rgb_color[0], rgb_color[1], rgb_color[2], 255);
+        }
+
         ImGui::Text("To create a point: \nclick on canvas 1 time\n");
         ImGui::Text("To create a line: \nClick on canvas 2 times\n");
         ImGui::Text("To create a wireframe: \nClick on canvas at least 3 times and\nclick on the same location again.\n");
@@ -82,7 +97,7 @@ void ObjectCreator::ImportFromFile(const char* file_path){
 
             points.clear();
             points.emplace_back(x, y);
-            entityManager.add(true, points);
+            entityManager.add(true, points, IM_COL32_WHITE); // Mudar a cor quando utilizar .obj
             count++;
         } else if(line.compare(0, 4, "LINE") == 0){
             ptr += 4;
@@ -93,7 +108,7 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             points.clear();
             points.emplace_back(x1, y1);
             points.emplace_back(x2, y2);
-            entityManager.add(true, points);
+            entityManager.add(true, points, IM_COL32_WHITE);
             count++;
         } else if(line.compare(0, 9, "WIREFRAME") == 0){
             ptr += 9;
@@ -110,7 +125,7 @@ void ObjectCreator::ImportFromFile(const char* file_path){
                 points.emplace_back(x, y);
             }
             if (!points.empty()) {
-                entityManager.add(true, points);
+                entityManager.add(true, points, IM_COL32_WHITE);
                 count++;
             }
         }
@@ -164,11 +179,11 @@ void ObjectCreator::AddGraphicObject(){
         return;
     } else if (name == "DEFAULT_NAME"){
         log.AddLog("Creating new object... auto-generated name\n");
-        entityManager.add(true, points);
+        entityManager.add(true, points, object_color);
         points.clear();
     } else {
         log.AddLog("Creating new object... name: {%s}\n", obj_name);
-        entityManager.add(name, points);
+        entityManager.add(name, points, object_color);
         points.clear();
     }
 }

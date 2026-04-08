@@ -29,9 +29,9 @@ private:
 
 
     void RenderBackground();
-    void DrawObject(const core::Point &point);
-    void DrawObject(const core::Line &line);
-    void DrawObject(const core::Wireframe &wireframe);
+    void DrawObject(const core::Point &point, bool draw_color);
+    void DrawObject(const core::Line &line, bool draw_color);
+    void DrawObject(const core::Wireframe &wireframe, bool draw_color);
 
     #ifndef DONT_DRAW_SHAPE_NAME
         void draw_name_if_visible(const core::Shape &shape);

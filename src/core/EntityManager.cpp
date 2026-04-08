@@ -12,24 +12,31 @@ void setName(core::Shape &s, const std::string &name){
     #endif
 }
 
-void EntityManager::addPoint(const std::string &name, float x, float y){
+void setColor(core::Shape &s, int object_color){
+    #ifndef DONT_USE_OBJECT_COLOR
+        s.object_color = object_color;
+    #endif
+}
+
+void EntityManager::addPoint(const std::string &name, float x, float y, int object_color){
     long long id = this->nextID(core::ShapeType::POINT);
     core::Point p(x, y);
     setName(p, name);
-
+    setColor(p, object_color);
     displayFile.add(p, name, id);
 }
 
-void EntityManager::addLine(const std::string &name, float x1, float y1, float x2, float y2){
+void EntityManager::addLine(const std::string &name, float x1, float y1, float x2, float y2, int object_color){
     long long id = this->nextID(core::ShapeType::LINE);
     core::Point p1(x1, y1); core::Point p2(x2, y2);
     core::Line l(p1, p2);
     setName(l, name);
+    setColor(l, object_color);
     
     displayFile.add(l, name, id);
 }
 
-void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp) {
+void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp, int object_color) {
     long long id = this->nextID(core::ShapeType::WIREFRAME);
     std::vector<core::Point> core_vp;
     core_vp.reserve(vp.size()); // small optimization
@@ -38,20 +45,21 @@ void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<
     }
     core::Wireframe w(core_vp);
     setName(w, name);
+    setColor(w, object_color);
 
     displayFile.add(w, name, id);
 }
 
-void EntityManager::add(const std::string &name, std::vector<std::pair<float, float>> &p) {
-    if(p.size() == 1) return addPoint(name, p[0].first, p[0].second);
-    if(p.size() == 2) return addLine(name, p[0].first, p[0].second, p[1].first, p[1].second);
-    if(p.size() >= 3) return addWireframe(name, p);
+void EntityManager::add(const std::string &name, std::vector<std::pair<float, float>> &p, int object_color) {
+    if(p.size() == 1) return addPoint(name, p[0].first, p[0].second, object_color);
+    if(p.size() == 2) return addLine(name, p[0].first, p[0].second, p[1].first, p[1].second, object_color);
+    if(p.size() >= 3) return addWireframe(name, p, object_color);
 }
 
-void EntityManager::add(const bool generate_name, std::vector<std::pair<float, float>> &p){
+void EntityManager::add(const bool generate_name, std::vector<std::pair<float, float>> &p, int object_color){
     assert(generate_name == true);
     std::string name = getName(getType(p), currentId);
-    return add(name, p);    
+    return add(name, p, object_color);    
 }
 
 std::string EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
@@ -76,13 +84,8 @@ void EntityManager::ApplyTransformation(long long real_id, const core::Matrix<fl
     switch(shape.type){
         case core::ShapeType::POINT: {
             core::Point &p = static_cast<core::Point&>(shape);
-            #ifndef DONT_DRAW_SHAPE_NAME
-            std::string save_name = p.name; 
-            #endif
-            p = matrix*p;
-            #ifndef DONT_DRAW_SHAPE_NAME
-            p.name = save_name;
-            #endif
+            core::Point k = matrix*p;
+            p.x = k.x, p.y = k.y, p.z = k.z; // Para não modificar os outros atributos do ponto.
             break;
         }
         case core::ShapeType::LINE: {

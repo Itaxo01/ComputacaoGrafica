@@ -176,6 +176,9 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
                     cLine.b.x = line.a.x + u2 * dx;
                     cLine.b.y = line.a.y + u2 * dy;
                 }
+                #ifndef DONT_USE_OBJECT_COLOR
+                    cLine.object_color = w.object_color;
+                #endif
 
                 size_t insert_index = count.fetch_add(1, std::memory_order_relaxed);
                 ret[insert_index] = cLine;
@@ -189,7 +192,12 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
 }
 
 void TransformToNCS(std::vector<core::Point> &v, const core::Matrix<float> &mat){
-    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &p){ p = mat * p; });
+    PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &p){ 
+        core::Point np = mat * p; 
+        p.x = np.x; 
+        p.y = np.y; 
+        p.z = np.z; 
+    });
 }
 
 void TransformToNCS(std::vector<core::Line> &v, const core::Matrix<float> &mat){
@@ -205,9 +213,10 @@ void TransformToNCS(std::vector<core::Wireframe> &v, const core::Matrix<float> &
 
 void TransformToViewport(std::vector<core::Point> &v, const Window &window, const ImVec2 &offset){
     PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &p){
-        p = window.NCSToViewport(p);
-        p.x += offset.x; 
-        p.y += offset.y;
+        core::Point np = window.NCSToViewport(p);
+        p.x = np.x + offset.x; 
+        p.y = np.y + offset.y;
+        p.z = np.z;
     });
 }
 

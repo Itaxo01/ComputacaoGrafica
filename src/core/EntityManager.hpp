@@ -57,11 +57,11 @@ class EntityManager{
             return id;
         }
 
-        void addPoint(const std::string &name, float x, float y);
-        void addLine(const std::string &name, float x1, float y1, float x2, float y2);
-        void addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp);
-        void add(const std::string &name, std::vector<std::pair<float, float>> &p);
-        void add(const bool generate_name, std::vector<std::pair<float, float>> &p);
+        void addPoint(const std::string &name, float x, float y, int object_color);
+        void addLine(const std::string &name, float x1, float y1, float x2, float y2, int object_color);
+        void addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp, int object_color);
+        void add(const std::string &name, std::vector<std::pair<float, float>> &p, int object_color);
+        void add(const bool generate_name, std::vector<std::pair<float, float>> &p, int object_color);
 
         const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}
