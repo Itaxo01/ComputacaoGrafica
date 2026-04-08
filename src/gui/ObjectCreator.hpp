@@ -8,7 +8,7 @@
 class ObjectCreator{
     private:    
         core::ShapeType mode = core::ShapeType::POINT;
-        std::vector<std::pair<float, float>> points;
+        std::vector<std::tuple<float, float, float>> points;
         bool enable_object_creation = false;
         int e = 0;
         char obj_name[16] = "DEFAULT_NAME";
@@ -25,7 +25,7 @@ class ObjectCreator{
         ObjectCreator(ExampleAppLog &log, EntityManager &em): log(log), entityManager(em){}
         
         void DrawWindow();
-        void RegisterLeftClick(float x, float y); // received from the viewport
+        void RegisterLeftClick(float x, float y, float z = 0.0f); // received from the viewport
         void AddGraphicObject();
         
         void ImportFromFile(const char* file_path);

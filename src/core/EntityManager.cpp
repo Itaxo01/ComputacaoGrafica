@@ -18,17 +18,17 @@ void setColor(core::Shape &s, int object_color){
     #endif
 }
 
-void EntityManager::addPoint(const std::string &name, float x, float y, int object_color){
+void EntityManager::addPoint(const std::string &name, std::tuple<float, float, float> &t, int object_color){
     long long id = this->nextID(core::ShapeType::POINT);
-    core::Point p(x, y);
+    core::Point p(t);
     setName(p, name);
     setColor(p, object_color);
     displayFile.add(p, name, id);
 }
 
-void EntityManager::addLine(const std::string &name, float x1, float y1, float x2, float y2, int object_color){
+void EntityManager::addLine(const std::string &name, std::tuple<float, float, float> &t1, std::tuple<float, float, float> &t2, int object_color){
     long long id = this->nextID(core::ShapeType::LINE);
-    core::Point p1(x1, y1); core::Point p2(x2, y2);
+    core::Point p1(t1); core::Point p2(t2);
     core::Line l(p1, p2);
     setName(l, name);
     setColor(l, object_color);
@@ -36,12 +36,12 @@ void EntityManager::addLine(const std::string &name, float x1, float y1, float x
     displayFile.add(l, name, id);
 }
 
-void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp, int object_color) {
+void EntityManager::addWireframe(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color) {
     long long id = this->nextID(core::ShapeType::WIREFRAME);
     std::vector<core::Point> core_vp;
     core_vp.reserve(vp.size()); // small optimization
     for (const auto &p : vp) {
-        core_vp.emplace_back(p.first, p.second); 
+        core_vp.emplace_back(p); 
     }
     core::Wireframe w(core_vp);
     setName(w, name);
@@ -50,13 +50,13 @@ void EntityManager::addWireframe(const std::string &name, std::vector<std::pair<
     displayFile.add(w, name, id);
 }
 
-void EntityManager::add(const std::string &name, std::vector<std::pair<float, float>> &p, int object_color) {
-    if(p.size() == 1) return addPoint(name, p[0].first, p[0].second, object_color);
-    if(p.size() == 2) return addLine(name, p[0].first, p[0].second, p[1].first, p[1].second, object_color);
+void EntityManager::add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, int object_color) {
+    if(p.size() == 1) return addPoint(name, p[0], object_color);
+    if(p.size() == 2) return addLine(name, p[0], p[1], object_color);
     if(p.size() >= 3) return addWireframe(name, p, object_color);
 }
 
-void EntityManager::add(const bool generate_name, std::vector<std::pair<float, float>> &p, int object_color){
+void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, int object_color){
     assert(generate_name == true);
     std::string name = getName(getType(p), currentId);
     return add(name, p, object_color);    

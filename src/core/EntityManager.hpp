@@ -38,7 +38,7 @@ class EntityManager{
             return name;
         }
 
-        core::ShapeType getType(const std::vector<std::pair<float, float>> &p){
+        core::ShapeType getType(const std::vector<std::tuple<float, float, float>> &p){
             if(p.size() == 1) return core::ShapeType::POINT;
             if(p.size() == 2) return core::ShapeType::LINE;
             if(p.size() >= 3) return core::ShapeType::WIREFRAME;
@@ -57,11 +57,11 @@ class EntityManager{
             return id;
         }
 
-        void addPoint(const std::string &name, float x, float y, int object_color);
-        void addLine(const std::string &name, float x1, float y1, float x2, float y2, int object_color);
-        void addWireframe(const std::string &name, std::vector<std::pair<float, float>> &vp, int object_color);
-        void add(const std::string &name, std::vector<std::pair<float, float>> &p, int object_color);
-        void add(const bool generate_name, std::vector<std::pair<float, float>> &p, int object_color);
+        void addPoint(const std::string &name, std::tuple<float, float, float> &t, int object_color);
+        void addLine(const std::string &name, std::tuple<float, float, float> &t1, std::tuple<float, float, float> &t2, int object_color);
+        void addWireframe(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
+        void add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, int object_color);
+        void add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, int object_color);
 
         const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}

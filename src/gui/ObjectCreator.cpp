@@ -76,96 +76,147 @@ void ObjectCreator::DrawWindow(){
 }
 
 void ObjectCreator::ImportFromFile(const char* file_path){
-    std::ifstream file(file_path);
+    std::string path(file_path);
+    if (path.length() < 4 || path.substr(path.length() - 4) != ".obj") {
+        path += ".obj";
+    }
+    
+    std::ifstream file(path);
     if (!file.is_open()) {
-        log.AddLog("[error] Failed to open file: %s\n", file_path);
+        log.AddLog("[error] Failed to open file: %s. The suffix of the path should include .obj\n", path.c_str());
         return;
     }
-    std::string line;
     
+    std::string line;
     unsigned int count = 0;
+    std::vector<std::tuple<float, float, float>> file_vertices;
+    std::string current_name;
+    
     while(std::getline(file, line)){
-        if(line.empty()) continue;
-
-        const char*ptr = line.c_str();
-        char *next_ptr = nullptr; 
-
-        if(line.compare(0, 5, "POINT") == 0) {
-            ptr += 5;
-            float x = std::strtof(ptr, &next_ptr); ptr = next_ptr;
-            float y = std::strtof(ptr, &next_ptr);
-
+        if(line.empty() || line[0] == '#') continue;
+        
+        std::istringstream iss(line);
+        std::string type;
+        iss >> type;
+        
+        if (type == "v") {
+            float x, y, z, w = 1.0;
+            iss >> x >> y >> z;
+            if (iss >> w) { } // successfully read w
+            file_vertices.emplace_back(x, y, z); 
+        } else if (type == "o" || type == "g") {
+            iss >> current_name;
+        } else if (type == "p") {
             points.clear();
-            points.emplace_back(x, y);
-            entityManager.add(true, points, IM_COL32_WHITE); // Mudar a cor quando utilizar .obj
-            count++;
-        } else if(line.compare(0, 4, "LINE") == 0){
-            ptr += 4;
-            float x1 = std::strtof(ptr, &next_ptr); ptr = next_ptr;
-            float y1 = std::strtof(ptr, &next_ptr); ptr = next_ptr;
-            float x2 = std::strtof(ptr, &next_ptr); ptr = next_ptr;
-            float y2 = std::strtof(ptr, &next_ptr);
-            points.clear();
-            points.emplace_back(x1, y1);
-            points.emplace_back(x2, y2);
-            entityManager.add(true, points, IM_COL32_WHITE);
-            count++;
-        } else if(line.compare(0, 9, "WIREFRAME") == 0){
-            ptr += 9;
-            points.clear();
-            // strtof sets next_ptr to ptr if it finds no more numbers
-            while (true) {
-                float x = std::strtof(ptr, &next_ptr);
-                if (ptr == next_ptr) break; // No more numbers on this line
-                ptr = next_ptr;
-                
-                float y = std::strtof(ptr, &next_ptr);
-                ptr = next_ptr;
-                
-                points.emplace_back(x, y);
+            std::string v_str;
+            while (iss >> v_str) {
+                try {
+                    int v_idx = std::stoi(v_str);
+                    if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1; // Support relative negative indices
+                    if (v_idx > 0 && v_idx <= file_vertices.size()) {
+                        points.push_back(file_vertices[v_idx - 1]);
+                    }
+                } catch (...) {}
             }
             if (!points.empty()) {
-                entityManager.add(true, points, IM_COL32_WHITE);
+                if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
+                else entityManager.add(true, points, IM_COL32_WHITE);
+                count++;
+            }
+        } else if (type == "l" || type == "f") {
+            points.clear();
+            std::string v_str;
+            while (iss >> v_str) {
+                try {
+                    // std::stoi parses up to first non-digit, smartly ignoring /uv/normals (e.g. 1/2/3 -> 1)
+                    int v_idx = std::stoi(v_str);
+                    if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
+                    if (v_idx > 0 && v_idx <= file_vertices.size()) {
+                        points.push_back(file_vertices[v_idx - 1]);
+                    }
+                } catch (...) {}
+            }
+            if (!points.empty()) {
+                // If it is a face, obj format intrinsically closes the loop. Re-add the first element if needed
+                if (type == "f" && points.front() != points.back()) {
+                    points.push_back(points.front());
+                }
+                if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
+                else entityManager.add(true, points, IM_COL32_WHITE);
                 count++;
             }
         }
-        points.clear();
     }
-    log.AddLog("Imported %d objects from %s\n", count, file_path);
+    points.clear();
+    log.AddLog("Imported %d objects from %s\n", count, path.c_str());
 }
 
 
 void ObjectCreator::ExportToFile(const char* file_path){
-    std::ofstream file(file_path);
+    std::string path(file_path);
+    if (path.length() < 4 || path.substr(path.length() - 4) != ".obj") {
+        path += ".obj";
+    }
+
+    std::ofstream file(path);
     if (!file.is_open()) {
-        log.AddLog("[error] Failed to open file: %s\n", file_path);
+        log.AddLog("[error] Failed to open file: %s\n", path.c_str());
         return;
     }
+
+    int vertex_index = 1;
+    file << "# Fast OBJ Export\n";
+
     for (const auto &point: entityManager.getPointList()){
-        file << "POINT "<<point.x<<" "<<point.y<<'\n';
+        file << "o " << point.getName() << "\n";
+        file << "v " << point.x << " " << point.y << " 0.0\n";
+        file << "p " << vertex_index << "\n";
+        vertex_index++;
     }
     for (const auto &line: entityManager.getLineList()){
-        file << "LINE "<<line.a.x<<" "<<line.a.y<<" "<<line.b.x<<" "<<line.b.y<<'\n';
+        file << "o " << line.getName() << "\n";
+        file << "v " << line.a.x << " " << line.a.y << " 0.0\n";
+        file << "v " << line.b.x << " " << line.b.y << " 0.0\n";
+        file << "l " << vertex_index << " " << vertex_index+1 << "\n";
+        vertex_index += 2;
     }
     for (const auto& wireframe : entityManager.getWireframeList()) {
-        file << "WIREFRAME";
+        file << "o " << wireframe.getName() << "\n";
         for (const auto& vertex : wireframe.points) {
-            file << " " << vertex.x << " " << vertex.y;
+            file << "v " << vertex.x << " " << vertex.y << " 0.0\n";
+        }
+        
+        // If wireframe naturally closes, write it as face 'f' instead of 'l'
+        if (wireframe.points.size() > 2 && wireframe.points.front() == wireframe.points.back()) {
+            file << "f";
+            // Ignore the duplicated back vertex since face representation is intrinsically closed
+            for (size_t i = 0; i < wireframe.points.size() - 1; ++i) {
+                file << " " << vertex_index + i;
+            }
+        } else {
+            file << "l";
+            for (size_t i = 0; i < wireframe.points.size(); ++i) {
+                file << " " << vertex_index + i;
+            }
         }
         file << "\n";
+        vertex_index += wireframe.points.size();
     }
+    
+    log.AddLog("Exported objects to %s\n", path.c_str());
 }
 
 
-void ObjectCreator::RegisterLeftClick(float x, float y){
+void ObjectCreator::RegisterLeftClick(float x, float y, float z){
     if (enable_object_creation) {
+        auto &[x1, y1, z1] = points.back();
         if (points.size() > 2 && mode == core::ShapeType::WIREFRAME &&
-            x == points.back().first && y == points.back().second) {
+            x == x1 && y == y1 && z == z1) {
             AddGraphicObject();
             return;
         }
 
-        points.push_back(std::make_pair(x, y));
+        points.push_back(std::make_tuple(x, y, z));
         if (mode == core::ShapeType::POINT || (mode == core::ShapeType::LINE && points.size() == 2)) {
             AddGraphicObject();
         }
