@@ -171,7 +171,7 @@ windows_fast: $(OBJS)
 		$(MAKE) clean; \
 		exit 1; \
 	fi
-	@cd $(dir $(EXE)) && zip programa_foda_fast.zip programa_foda.exe libtbb12.dll libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll
+	@cd $(dir $(EXE)) && zip programa_compilado_windows64.zip programa_foda.exe libtbb12.dll libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll
 	@echo Build complete for $(ECHO_MESSAGE)
 	@echo The fast Windows build was saved to $(dir $(EXE))
 	@echo "** IMPORTANT: Keep libtbb12.dll in the same folder as your .exe! **"
