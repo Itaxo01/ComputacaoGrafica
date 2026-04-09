@@ -72,6 +72,15 @@ int main(int, char**) {
         guiController.run();
         renderer.render();
 
+        // FPS Overlay
+        ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+        if (ImGui::Begin("FPS Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove)) {
+            float current_fps = ImGui::GetIO().DeltaTime > 0.0f ? 1.0f / ImGui::GetIO().DeltaTime : 0.0f;
+            ImGui::Text("%.1f FPS (%.3f ms/frame)", current_fps, ImGui::GetIO().DeltaTime * 1000.0f);
+        }
+        ImGui::End();
+
         // Rendering
         ImGuiRender(window, clear_color);
     }
