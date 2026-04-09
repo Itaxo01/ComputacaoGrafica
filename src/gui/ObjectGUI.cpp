@@ -155,7 +155,7 @@ inline void ObjectGUI::DrawAddRotation() {
     ImGui::PopID();
 }
 
-inline void DrawMatrix(core::Matrix<float> &matrix) {
+inline void DrawMatrix(core::mat4 &matrix) {
     if (ImGui::BeginTable("DetailsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
         ImGui::TableSetupColumn("0");
         ImGui::TableSetupColumn("1");

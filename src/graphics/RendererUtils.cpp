@@ -191,7 +191,7 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
     return ret;
 }
 
-void TransformToNCS(std::vector<core::Point> &v, const core::Matrix<float> &mat){
+void TransformToNCS(std::vector<core::Point> &v, const core::mat4 &mat){
     PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Point &p){ 
         core::Point np = mat * p; 
         p.x = np.x; 
@@ -200,11 +200,11 @@ void TransformToNCS(std::vector<core::Point> &v, const core::Matrix<float> &mat)
     });
 }
 
-void TransformToNCS(std::vector<core::Line> &v, const core::Matrix<float> &mat){
+void TransformToNCS(std::vector<core::Line> &v, const core::mat4 &mat){
     PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Line &l){ l.a = mat * l.a; l.b = mat * l.b; });
 }
 
-void TransformToNCS(std::vector<core::Wireframe> &v, const core::Matrix<float> &mat){
+void TransformToNCS(std::vector<core::Wireframe> &v, const core::mat4 &mat){
     // Em wireframes iteramos pelas linhas internas do mesmo objeto também
     PARALLEL_FOR_EACH(v.begin(), v.end(), [&](core::Wireframe &w){ 
         for(auto &p: w.points) p = mat * p; 

@@ -1,6 +1,6 @@
 #include "EntityManager.hpp"
 #include "Point.hpp"
-#include "Matrix.hpp"
+#include "Mat4.hpp"
 #include "Shape.hpp"
 #include "Wireframe.hpp"
 #include <cassert>
@@ -79,7 +79,7 @@ std::string EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
     }
 }
 
-void EntityManager::ApplyTransformation(long long real_id, const core::Matrix<float>& matrix){
+void EntityManager::ApplyTransformation(long long real_id, const core::mat4& matrix){
     core::Shape &shape = displayFile.getShape(real_id);
     switch(shape.type){
         case core::ShapeType::POINT: {

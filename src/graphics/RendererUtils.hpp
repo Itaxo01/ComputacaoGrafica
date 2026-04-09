@@ -18,9 +18,9 @@ std::vector<core::Line> ClipLines(const std::vector<core::Line> &v, const core::
 std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, const core::Point &wp0, const core::Point &wp1);
 
 // Paraleliza as transformações de matrizes e viewport
-void TransformToNCS(std::vector<core::Point> &points, const core::Matrix<float> &ncs_mat);
-void TransformToNCS(std::vector<core::Line> &lines, const core::Matrix<float> &ncs_mat);
-void TransformToNCS(std::vector<core::Wireframe> &wireframes, const core::Matrix<float> &ncs_mat);
+void TransformToNCS(std::vector<core::Point> &points, const core::mat4 &ncs_mat);
+void TransformToNCS(std::vector<core::Line> &lines, const core::mat4 &ncs_mat);
+void TransformToNCS(std::vector<core::Wireframe> &wireframes, const core::mat4 &ncs_mat);
 
 void TransformToViewport(std::vector<core::Point> &points, const Window &window, const ImVec2 &offset);
 void TransformToViewport(std::vector<core::Line> &lines, const Window &window, const ImVec2 &offset);

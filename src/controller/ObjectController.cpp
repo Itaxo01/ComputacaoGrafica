@@ -33,7 +33,7 @@ void ObjectController::HandleAddRotation(float x, float y, float angle) {
 
 void ObjectController::ApplyTransformations() {
    for (long long id : selected_ids) {
-        core::Matrix<float> final_matrix(4, 4, 0.0f, true);
+        core::mat4 final_matrix(true);
         for (const auto& t : transformation_buffer[id]) {
             final_matrix = t.matrix * final_matrix;
         }

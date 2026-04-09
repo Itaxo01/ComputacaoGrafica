@@ -20,7 +20,7 @@ private:
     const char* GetTypeName(core::ShapeType type);
 
     bool view_matrix_popup_open = false; // State variable for popup
-    core::Matrix<float> matrix_to_view; // Matrix to display in popup
+    core::mat4 matrix_to_view; // Matrix to display in popup
 
     void DrawObjectList();
     void DrawObjectDetails();

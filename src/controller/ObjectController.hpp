@@ -2,14 +2,14 @@
 #define OBJECT_CONTROLLER_HPP
 
 #include "EntityManager.hpp"
-#include "Matrix.hpp"
+#include "Mat4.hpp"
 #include "Transformations.hpp"
 #include <unordered_map>
 #include <unordered_set>
 
 struct Transformation {
     long long id;
-    core::Matrix<float> matrix;
+    core::mat4 matrix;
     char* description; // For GUI display purposes
 };
 
@@ -38,8 +38,8 @@ public:
             selected_transformations.push_back(tranformation_intersection[i]);
         }
     }
-    core::Matrix<float> GetSelectedTransformationMatrix() {
-        return selected_transformations.empty() ? core::Matrix<float>(4, 4, 0.0f, true) : selected_transformations[0].matrix;
+    core::mat4 GetSelectedTransformationMatrix() {
+        return selected_transformations.empty() ? core::mat4(true) : selected_transformations[0].matrix;
     }
     const std::vector<char*> GetTransformationBufferNames();
 

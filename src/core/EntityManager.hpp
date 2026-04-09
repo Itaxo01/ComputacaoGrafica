@@ -99,7 +99,7 @@ class EntityManager{
             return displayFile.getShape(id);
         }
 
-        void ApplyTransformation(long long real_id, const core::Matrix<float>& matrix);
+        void ApplyTransformation(long long real_id, const core::mat4& matrix);
 };
 
 

@@ -4,7 +4,7 @@
 #include "Transformations.hpp"
 #include "imgui.h"
 #include "Point.hpp"
-#include "Matrix.hpp"
+#include "Mat4.hpp"
 
 class Viewport; // Forward declaration
 
@@ -31,10 +31,10 @@ private:
 
     float zoom_factor_acc = 1.0f;
 
-    core::Matrix<float> NCSTransformMatrix = core::Matrix<float>(4, 4, 0.0f, true);
+    core::mat4 NCSTransformMatrix = core::mat4(true);
 
     // Inversa é guardada para reverter do viewport para window
-    core::Matrix<float> InverseNCSTransformMatrix = core::Matrix<float>(4, 4, 0.0f, true);
+    core::mat4 InverseNCSTransformMatrix = core::mat4(true);
 
     void UpdateNCSMatrix();
 
@@ -52,8 +52,8 @@ public:
     core::Point WindowToViewport(const core::Point &wp) const;
     core::Point ViewportToWindow(const ImVec2 &vp) const;
 
-    core::Matrix<float> GetWindowNCSMatrix() const {return NCSTransformMatrix;}
-    core::Matrix<float> GetWindowInverseNCSMatrix() const {return InverseNCSTransformMatrix;}
+    core::mat4 GetWindowNCSMatrix() const {return NCSTransformMatrix;}
+    core::mat4 GetWindowInverseNCSMatrix() const {return InverseNCSTransformMatrix;}
     core::Point NCSToViewport(const core::Point &p) const;
     core::Point ViewportToNCS(const core::Point &p) const;
 
@@ -62,7 +62,7 @@ public:
         UpdateNCSMatrix();
     }
 
-    void ApplyTransformation(const core::Matrix<float> &m) {
+    void ApplyTransformation(const core::mat4 &m) {
         this->NCSTransformMatrix *= m;
     };
 

@@ -13,7 +13,6 @@
 Essa classe não precisava ser tão grande, é só pq eu já tinha a estrutura pronta (livro do time de maratona de programação).
 */
 namespace core{
-    template <typename T> class Matrix; // forward declaration
     static constexpr float EPS = 1e-9;
 
     class Point: public Shape{
@@ -33,7 +32,6 @@ namespace core{
                 this->x = x, this->y = y, this->z = z;
                 type = core::ShapeType::POINT;
             }
-            explicit Point(const Matrix<float> &m);
 
             friend Point operator+(const Point &p, const Point &q) {return Point(p.x + q.x, p.y + q.y, p.z + q.z);}
             friend Point operator-(const Point &p, const Point &q) {return Point(p.x - q.x, p.y - q.y, p.z - q.z);}
