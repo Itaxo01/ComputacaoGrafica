@@ -63,7 +63,7 @@ void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, 
 }
 
 std::string EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
-    auto hash_id = getHashID();
+    const auto& hash_id = getHashID();
     auto p_it = hash_id.find(real_id);
     if(p_it == hash_id.end()) return "Object not found";
 

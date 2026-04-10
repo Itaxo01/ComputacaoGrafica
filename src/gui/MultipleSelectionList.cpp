@@ -4,7 +4,7 @@
 void MultipleSelectionList::Draw() {
 
     // REFAZER ESQUEMA DE PAGINACAO
-    int total_items = names.size();
+    int total_items = size;
     int total_pages = (total_items + items_per_page - 1) / items_per_page; // arendonda para cima.
 
     // Diminui automaticamente no caso de deleção de algum elemento.
@@ -36,7 +36,7 @@ void MultipleSelectionList::Draw() {
         bool is_selected = selected_indexes.find(index) != selected_indexes.end();
 
         // Draw the selectable item
-        if (ImGui::Selectable((names)[index].c_str(), is_selected)) {
+        if (ImGui::Selectable(get_name(index).c_str(), is_selected)) {
             ImGuiIO& io = ImGui::GetIO();
             
             if (io.KeyCtrl) {

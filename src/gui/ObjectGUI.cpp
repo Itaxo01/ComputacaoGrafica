@@ -17,30 +17,28 @@ const char* ObjectGUI::GetTypeName(core::ShapeType type) {
 }
 
 void ObjectGUI::DrawObjectList() {
-    std::vector<ManifestEntry> manifest = entityManager.GetManifest();
-    std::vector<std::string> names = entityManager.GetObjectNames();
-    std::vector<long long> ids = entityManager.GetObjectIDs();
+    const auto &manifest = entityManager.GetManifest();
+    // Em vez de pegar todas as strings, mandar em tempo real as utilizadas pelo MultipleSelectionList usando uma lambda function. Dessa forma, não é necessário passar a lista inteira de nomes para o objeto.
+
+    multipleSelectionList.SetData(manifest.size(), [&](int index){
+        const auto& entry = manifest[index];
+        std::string label = "[" + std::to_string(entry.fake_id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
+        return label;
+    });
+    // Monta label para display na lista usando o nome, tipo e fake_id do objeto
+
 
     ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);  
     
-    // Monta label para display na lista usando o nome, tipo e fake_id do objeto
-    std::vector<std::string> labels;
-    for (auto& entry : manifest) {
-        std::string label = "[" + std::to_string(entry.fake_id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
-        labels.push_back(label);
-    }
-
     // Inicializa a lista de seleção múltipla com os nomes dos objetos e operações de right click
     std::vector<std::string> context_item_names = {"Delete", "Rotate (Placeholder)"};
-    multipleSelectionList.SetNames(labels);
     multipleSelectionList.SetContextItems(context_item_names);
     multipleSelectionList.Draw();
 
     // Captura IDs do itens selecionados
     selected_ids.clear();
-    std::unordered_set<int> selected_indexes = multipleSelectionList.GetSelectedIndexes();
-    for (int i : selected_indexes) {
-        selected_ids.insert(ids[i]);
+    for (int i :  multipleSelectionList.GetSelectedIndexes()) {
+        selected_ids.insert(manifest[i].id);
     }
     objectController.SetSelectedIDs(selected_ids); // Redundante?
 
@@ -181,9 +179,10 @@ void ObjectGUI::DrawTransformCombination() {
 
     std::vector<char*> transform_buf_names = objectController.GetTransformationBufferNames();
     // Atualmente convertendo char* para string. Talvez seja bom no futuro redefinir names para char* no MultipleSelectionList
-    std::vector<std::string> names(transform_buf_names.begin(), transform_buf_names.end());
-    // std::vector<std::string> context_item_names = {"Delete", "View Matrix"};
-    transformationsList.SetNames(names);
+    transformationsList.SetData(transform_buf_names.size(), [&](int index) {
+        return std::string(transform_buf_names[index]);
+    });
+
     // transformationsList.SetContextItems(context_item_names);
     transformationsList.Draw();
 
@@ -240,10 +239,16 @@ inline std::string get_selected_idsTEMP(const std::unordered_set<long long> &ids
         selected_objects = "Selected objects IDs: ";
         selected_objects += '(';
         bool sep = false;
+        int count = 0;
         for(const auto &i: ids){
             if(sep) selected_objects += ", ";
             sep = true;
             selected_objects += std::to_string(i/10); // divide por 10 para mostrar o fake_id
+            count++;
+            if(count > 20){
+                selected_objects += "...";
+                break;
+            }
         }
         selected_objects += ')';
     } else selected_objects = "Selected object ID: "+std::to_string(*ids.begin()/10);

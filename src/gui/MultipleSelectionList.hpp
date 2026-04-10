@@ -2,6 +2,7 @@
 #define MULTIPLE_SELECTION_LIST_HPP
 
 #include "imgui.h"
+#include <functional>
 #include <unordered_set>
 #include <vector>
 #include <algorithm> // for min and max
@@ -11,7 +12,6 @@ class MultipleSelectionList {
 private:
     int size = 0;
     std::unordered_set<int> selected_indexes;
-    std::vector<std::string> names;
     std::vector<std::string> context_item_names;
     int last_selected_index = -1;
     int selected_context_item = -1;
@@ -19,9 +19,15 @@ private:
     unsigned int current_page = 0;
     const int items_per_page = 20;
 
+    std::function<std::string(int)> get_name; // Função recebida em SetData
+
 public:
-    MultipleSelectionList() : size(0), selected_indexes(), names(), context_item_names() {}
-    void SetNames(std::vector<std::string>& names) { this->names = names; }
+    MultipleSelectionList() : size(0), selected_indexes(), context_item_names() {}
+    void SetData(int size, std::function<std::string(int)> callback) {
+        this->size = size;
+        this->get_name = callback;
+    }
+    
     void Draw();
     std::unordered_set<int> GetSelectedIndexes();
     //void AddContextItem(std::string name);
