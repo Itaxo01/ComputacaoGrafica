@@ -254,6 +254,7 @@ void Renderer::GenerateDrawList(){
     unsigned long obj_count = displayFile.object_count;
     WindowAttributes w = window.getWindowAttributes();
     if(this->refresh_cache || rendererCache.cache_changed(w, obj_count)){
+        log.AddLog("Scene changed, refreshing object cache\n");
         rendererCache.store_cache(w, obj_count);
         refresh_cache = false;
 

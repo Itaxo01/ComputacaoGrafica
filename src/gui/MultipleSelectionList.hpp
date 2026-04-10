@@ -15,6 +15,10 @@ private:
     std::vector<std::string> context_item_names;
     int last_selected_index = -1;
     int selected_context_item = -1;
+
+    unsigned int current_page = 0;
+    const int items_per_page = 20;
+
 public:
     MultipleSelectionList() : size(0), selected_indexes(), names(), context_item_names() {}
     void SetNames(std::vector<std::string>& names) { this->names = names; }

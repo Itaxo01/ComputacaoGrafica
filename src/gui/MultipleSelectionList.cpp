@@ -1,10 +1,36 @@
 #include "MultipleSelectionList.hpp"
+#include "imgui.h"
 
 void MultipleSelectionList::Draw() {
 
     // REFAZER ESQUEMA DE PAGINACAO
+    int total_items = names.size();
+    int total_pages = (total_items + items_per_page - 1) / items_per_page; // arendonda para cima.
+
+    // Diminui automaticamente no caso de deleção de algum elemento.
+    if (current_page >= total_pages && total_pages > 0){
+        current_page = total_pages - 1;
+    }
+
+    ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+
+    // Controles da paginação
+    ImGui::PushItemWidth(100);
+    if (ImGui::Button("<") && current_page > 0) {
+        current_page--;
+    }
+    ImGui::SameLine();
+    ImGui::Text("%d / %d", current_page + 1, std::max(1, total_pages));
+    ImGui::SameLine();
+    if (ImGui::Button(">") && current_page < total_pages - 1) {
+        current_page++;
+    }
+    ImGui::Separator();
+
+    int start_idx = current_page * items_per_page;
+    int end_idx = std::min(start_idx + items_per_page, total_items);
     
-    for (int index = 0; index < (int)names.size(); ++index) {
+    for (int index = start_idx; index < end_idx; ++index) {
 
         // Check if current item is in our selected set
         bool is_selected = selected_indexes.find(index) != selected_indexes.end();
@@ -61,6 +87,7 @@ void MultipleSelectionList::Draw() {
             ImGui::EndPopup();
         }
     }
+    ImGui::EndChild();
 }
 
 std::unordered_set<int> MultipleSelectionList::GetSelectedIndexes() {
