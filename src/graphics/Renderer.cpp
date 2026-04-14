@@ -394,7 +394,7 @@ void Renderer::ApplyClipping(){
     this->drawPointList = ClipPoints(this->drawPointList, ncs_min, ncs_max);
     this->drawLineList = ClipLines(this->drawLineList, ncs_min, ncs_max, viewport.GetClippingMode());
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
-    // this->drawPolygonList = ClipWireframes(this->drawPolygonList, ncs_min, ncs_max);
+    // this->drawPolygonList = ClipPoygons(this->drawPolygonList, ncs_min, ncs_max);
 }
 
 void Renderer::ApplyNCSTransform(){
