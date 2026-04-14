@@ -105,7 +105,7 @@ $(BUILD_DIR)/%.o: %.cpp
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
-fast: CXXFLAGS += -O3 -DDONT_DRAW_SHAPE_NAME 
+fast: CXXFLAGS += -O3 -DDONT_DRAW_SHAPE_NAME -DUSE_PARALLEL_DRAWLIST
 
 fast: $(EXE)
 	@echo Fast build complete for $(ECHO_MESSAGE)

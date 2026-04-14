@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include "RendererUtils.hpp"
+#include "ParallelUtils.hpp"
 
 inline ImVec2 ToImVec2(const core::Point &p) {
     return ImVec2(p.x, p.y);
@@ -197,10 +198,11 @@ void Renderer::RenderBackground() {
         }
     }
 }
-
 void Renderer::DrawObject(const core::Point &p, bool draw_color) {
-    const float rad = 2.5;
-    draw_list->AddCircle(ToImVec2(p), rad, p.object_color, 0, 2.0f);
+    const float half = 2.0f;
+    draw_list->AddRectFilled(ImVec2(p.x - half, p.y - half),
+                             ImVec2(p.x + half, p.y + half),
+                             p.object_color, 0, 2.0f);
 }
 
 void Renderer::DrawObject(const core::Line &line, bool draw_color) {
@@ -212,13 +214,158 @@ void Renderer::DrawObject(const core::Wireframe &wireframe, bool draw_color) {
     const float width = 2.0f;
     int size = wireframe.points.size();
     for (int i = 0; i < size-1; i++) {
-        core::Point p0 = window.WindowToViewport(wireframe.points[i]); 
-        core::Point p1 = window.WindowToViewport(wireframe.points[i+1]);
-
-        draw_list->AddLine(ToImVec2(p0), ToImVec2(p1), wireframe.object_color, width);
+        draw_list->AddLine(ToImVec2(wireframe.points[i]), ToImVec2(wireframe.points[i+1]), wireframe.object_color, width);
     }
 }
 
+
+// Esse método manipula diretamente os ponteiros da drawlist para realizar a escrita em paralelo (A drawlist não possui mecanismos de acesso concorrentes).
+void Renderer::DrawAllParallel() {
+    const int n_points = (int)drawPointList.size();
+    const int n_lines  = (int)drawLineList.size();
+    const int n_wlines = (int)drawWireframeList.size();
+    const int n_all_lines = n_lines + n_wlines;
+
+    // Cada ponto vira um quad preenchido: 4 vértices, 6 índices (2 triângulos).
+    // Cada segmento de reta vira um quad espesso: mesma conta.
+    constexpr int VPP = 4, IPP = 6;   // vértices/índices por ponto
+    constexpr int VPL = 4, IPL = 6;   // vértices/índices por linha
+    constexpr float HP = 2.0f;        // meia-largura do quad de ponto (pixels)
+    constexpr float HL = 1.0f;        // meia-espessura da linha (pixels)
+
+    const int total_vtx = n_points * VPP + n_all_lines * VPL;
+    const int total_idx = n_points * IPP + n_all_lines * IPL;
+    if (total_vtx == 0) return;
+
+    // UV de pixel branco — necessário para desenhar cor sólida via ImDrawList.
+    const ImVec2 uv = ImGui::GetFontTexUvWhitePixel();
+
+    // === SERIAL: reserva todo o espaço de uma vez ===
+    // PrimReserve redimensiona VtxBuffer e IdxBuffer e aponta _VtxWritePtr/_IdxWritePtr
+    // para o início da região recém-alocada. _VtxCurrentIdx NÃO é alterado aqui.
+    const unsigned int vtx_base = draw_list->_VtxCurrentIdx;
+    draw_list->PrimReserve(total_idx, total_vtx);
+    ImDrawVert* const vtx_ptr = draw_list->_VtxWritePtr;
+    ImDrawIdx*  const idx_ptr = draw_list->_IdxWritePtr;
+
+    // === PARALLEL: preenche pontos como quads preenchidos ===
+    // Cada thread escreve numa fatia não-sobrepostas de vtx_ptr/idx_ptr.
+    // O índice i é derivado do ponteiro para evitar alocação de vetor de índices.
+    if (n_points > 0) {
+        cg_parallel_for_each(drawPointList.begin(), drawPointList.end(), [&](const core::Point& p) {
+            const int i = (int)(&p - drawPointList.data());
+            const unsigned int v0 = vtx_base + i * VPP;
+            ImDrawVert* v  = vtx_ptr + i * VPP;
+            ImDrawIdx*  ix = idx_ptr + i * IPP;
+            #ifdef DONT_USE_OBJECT_COLOR
+                const ImU32 col = IM_COL32_WHITE;
+            #else
+                const ImU32 col = (ImU32)p.object_color;
+            #endif
+            v[0] = { {p.x - HP, p.y - HP}, uv, col };
+            v[1] = { {p.x + HP, p.y - HP}, uv, col };
+            v[2] = { {p.x + HP, p.y + HP}, uv, col };
+            v[3] = { {p.x - HP, p.y + HP}, uv, col };
+            ix[0] = v0;     ix[1] = v0 + 1; ix[2] = v0 + 2;
+            ix[3] = v0;     ix[4] = v0 + 2; ix[5] = v0 + 3;
+        });
+    }
+
+    // === PARALLEL: preenche segmentos de reta como quads espessos ===
+    // Calcula o vetor perpendicular normalizado e extrudamos os dois endpoints.
+    // drawLineList e drawWireframeList são processados como um único espaço contíguo
+    // no buffer (drawLineList vem primeiro, wireframeList logo depois).
+    auto fill_line_batch = [&](const std::vector<core::Line>& lines, int batch_offset) {
+        if (lines.empty()) return;
+        const int base_vtx = n_points * VPP + batch_offset * VPL;
+        const int base_idx = n_points * IPP + batch_offset * IPL;
+        cg_parallel_for_each(lines.begin(), lines.end(), [&](const core::Line& l) {
+            const int i = (int)(&l - lines.data());
+            const unsigned int v0 = vtx_base + base_vtx + i * VPL;
+            ImDrawVert* v  = vtx_ptr + base_vtx + i * VPL;
+            ImDrawIdx*  ix = idx_ptr + base_idx + i * IPL;
+            #ifdef DONT_USE_OBJECT_COLOR
+                const ImU32 col = IM_COL32_WHITE;
+            #else
+                const ImU32 col = (ImU32)l.object_color;
+            #endif
+            // Vetor perpendicular escalado para meia-espessura
+            const float dx = l.b.x - l.a.x;
+            const float dy = l.b.y - l.a.y;
+            const float len = std::sqrt(dx * dx + dy * dy);
+            float nx = 0.0f, ny = HL;
+            if (len > 1e-6f) { nx = (-dy / len) * HL; ny = (dx / len) * HL; }
+
+            v[0] = { {l.a.x - nx, l.a.y - ny}, uv, col };
+            v[1] = { {l.a.x + nx, l.a.y + ny}, uv, col };
+            v[2] = { {l.b.x + nx, l.b.y + ny}, uv, col };
+            v[3] = { {l.b.x - nx, l.b.y - ny}, uv, col };
+            ix[0] = v0;     ix[1] = v0 + 1; ix[2] = v0 + 2;
+            ix[3] = v0;     ix[4] = v0 + 2; ix[5] = v0 + 3;
+        });
+    };
+
+    fill_line_batch(drawLineList, 0);
+    fill_line_batch(drawWireframeList, n_lines);
+
+    // === SERIAL: avança os ponteiros de escrita do ImDrawList ===
+    // Após o preenchimento paralelo os ponteiros ainda apontam para o início
+    // da região reservada; precisamos movê-los para depois do que escrevemos.
+    draw_list->_VtxWritePtr   += total_vtx;
+    draw_list->_IdxWritePtr   += total_idx;
+    draw_list->_VtxCurrentIdx += total_vtx;
+}
+
+void Renderer::DrawPreview() {
+    const auto& pts = displayFile.getPreviewPoints();
+    if (pts.empty()) return;
+
+    core::ShapeType mode = displayFile.getPreviewMode();
+    if (mode != core::ShapeType::LINE &&
+        mode != core::ShapeType::WIREFRAME &&
+        mode != core::ShapeType::POLYGON) return;
+
+    auto canvas_p = viewport.GetCanvasP();
+    ImVec2 offset  = canvas_p.first;
+    auto ncs_mat   = window.GetWindowNCSMatrix();
+
+    // World → NCS → viewport → screen
+    auto to_screen = [&](float wx, float wy) -> ImVec2 {
+        core::Point ncs = ncs_mat * core::Point(wx, wy, 0.0f);
+        core::Point vp  = window.NCSToViewport(ncs);
+        return ImVec2(vp.x + offset.x, vp.y + offset.y);
+    };
+
+    constexpr ImU32 COL_EDGE   = IM_COL32(200, 200, 200, 200);
+    constexpr ImU32 COL_RUBBER = IM_COL32(200, 200, 200, 120);
+    constexpr ImU32 COL_CLOSE  = IM_COL32(100, 200, 255, 100);
+    constexpr ImU32 COL_VERTEX = IM_COL32(255, 220,  80, 220);
+
+    // Lines between placed vertices
+    for (size_t i = 1; i < pts.size(); i++) {
+        auto [x0, y0, z0] = pts[i - 1];
+        auto [x1, y1, z1] = pts[i];
+        draw_list->AddLine(to_screen(x0, y0), to_screen(x1, y1), COL_EDGE, 1.5f);
+    }
+
+    // Rubber-band from last vertex to mouse cursor
+    ImVec2 mouse = ImGui::GetMousePos();
+    {
+        auto [lx, ly, lz] = pts.back();
+        draw_list->AddLine(to_screen(lx, ly), mouse, COL_RUBBER, 1.0f);
+    }
+
+    // Polygon closing hint: mouse → first vertex
+    if (mode == core::ShapeType::POLYGON && pts.size() >= 2) {
+        auto [fx, fy, fz] = pts.front();
+        draw_list->AddLine(mouse, to_screen(fx, fy), COL_CLOSE, 1.0f);
+    }
+
+    // Vertex dots
+    for (const auto& [px, py, pz] : pts) {
+        draw_list->AddCircleFilled(to_screen(px, py), 3.5f, COL_VERTEX);
+    }
+}
 
 void Renderer::ApplyClipping(){
     core::Point ncs_min(-1.0f, -1.0f, 0.0f);
@@ -267,23 +414,24 @@ void Renderer::GenerateDrawList(){
 void Renderer::render() {
     this->draw_list = viewport.GetDrawList();
     RenderBackground();
-    GenerateDrawList();    
+    GenerateDrawList();
 
-    bool draw_color = true;
-    #ifndef DONT_USE_OBJECT_COLOR
-        draw_color = false;
+    #ifdef USE_PARALLEL_DRAWLIST
+        DrawAllParallel();
+    #else
+        for (const auto &p : drawPointList)    DrawObject(p, true);
+        for (const auto &l : drawLineList)     DrawObject(l, true);
+        for (const auto &w : drawWireframeList) DrawObject(w, true);
     #endif
-    for (const core::Point &point: drawPointList) DrawObject(point, draw_color);
-    for (const core::Line &line: drawLineList) DrawObject(line, draw_color);
-    for (const core::Line &w_line: drawWireframeList) DrawObject(w_line, draw_color);
-    
 
-    #ifndef DONT_DRAW_SHAPE_NAME 
+    #ifndef DONT_DRAW_SHAPE_NAME
         for(const auto &p: displayFile.getPointList()) draw_name_if_visible(p);
         for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
         for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
     #endif
-    
+
+    DrawPreview();
+
     log.Draw("Log");
 }
 

@@ -25,14 +25,14 @@ namespace core{
             os <<"["<< l.a << " -- " << l.b<<"]";
             return os;
         }
-        std::string to_string(long long id, bool p3d = false) const {
-            std::string result = "Line | " + std::to_string(id) + " | ";
-            result += this->getName() + " | ";
-            result += this->getColor() + " | [";
-            result += a.coords(p3d) + '\n';
-            result += b.coords(p3d);
-            result += "]";
-            return result;
+        ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+            ObjectDetails details;
+            details.type = "Line";
+            details.id = std::to_string(id);
+            details.name = this->getName();
+            details.color = this->getColor();
+            details.points = "[" + a.coords(p3d) + '\n' + b.coords(p3d) + "]";
+            return details;
         }
         std::tuple<float, float, float> centerPoint() const override {
             return std::make_tuple((a.x + b.x) / 2.0f, (a.y + b.y) / 2.0f, (a.z + b.z) / 2.0f);

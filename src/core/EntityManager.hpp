@@ -69,7 +69,7 @@ class EntityManager{
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
         const std::unordered_map<long long, std::pair<int, int>>&  getHashID() const {return displayFile.getHashID();}
         
-        std::string GetObjectDetails(long long real_id, bool p3d = false) const;
+        core::ObjectDetails GetObjectDetails(long long real_id, bool p3d = false) const;
 
         std::vector<std::string> GetObjectNames() const {
             std::vector<std::string> names;
@@ -93,6 +93,10 @@ class EntityManager{
 
         void remove(long long id) {
             displayFile.remove(id);
+        }
+
+        void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts, core::ShapeType mode) {
+            displayFile.setPreviewState(pts, mode);
         }
 
         core::Shape& getObject(long long id) {

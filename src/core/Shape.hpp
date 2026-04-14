@@ -8,12 +8,21 @@
 #include "Util.hpp"
 #include "imgui.h"
 namespace core{
+    struct { // Detalhes do objeto para serialização dos detalhes na interface 
+        std::string type = "";
+        std::string id = "";
+        std::string name = "";
+        std::string color = "";
+        std::string points = "";
+    } typedef ObjectDetails;
+
     enum class ShapeType {
         POINT, // 0
         LINE, // 1
         WIREFRAME, // 2
         NONE, // 3
-        ENUM_SIZE, // 4
+        POLYGON, // 4
+        ENUM_SIZE, // 5
     }; // Se esse enum passar de 10 elementos, modificar a lógica de ID do entity manager
 
     

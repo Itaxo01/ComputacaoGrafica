@@ -3,61 +3,101 @@
 #include <fstream>
 #include <sstream>
 
+// ─── Dynamic instruction text ────────────────────────────────────────────────
+
+static const char* point_instruction() {
+    return "Click on the canvas to place a point.";
+}
+
+static const char* line_instruction(int n) {
+    if (n == 0) return "Click to place the first endpoint.";
+    return "Click to place the second endpoint.";
+}
+
+static const char* wireframe_instruction(int n) {
+    if (n == 0) return "Click to place the first vertex.";
+    if (n == 1) return "Click to place more vertices.\nPress Enter or double-click to finish.";
+    return "Click to add vertices.\nPress Enter or double-click to finish.\nEsc to cancel.";
+}
+
+static const char* polygon_instruction(int n) {
+    if (n == 0) return "Click to place the first vertex.";
+    if (n == 1) return "Click to place more vertices (need 3+).";
+    if (n == 2) return "Click to place more vertices (need 3+).";
+    return "Click to add vertices.\nPress Enter or double-click to close.\nEsc to cancel.";
+}
+
+// ─── DrawWindow ──────────────────────────────────────────────────────────────
+
 void ObjectCreator::DrawWindow(){
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImVec2 monitor_pos = viewport->Pos;
     ImVec2 monitor_size = viewport->Size;
 
-    // Proportional window configurations based on the app window/monitor size
-    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (899.0f / 1700.0f), monitor_pos.y + monitor_size.y * (22.0f / 940.0f)), ImGuiCond_FirstUseEver); // Create New Object window position
-    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (730.0f / 1700.0f), monitor_size.y * (204.0f / 940.0f)), ImGuiCond_FirstUseEver); // Create New Object window size
+    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (899.0f / 1700.0f), monitor_pos.y + monitor_size.y * (22.0f / 940.0f)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (730.0f / 1700.0f), monitor_size.y * (204.0f / 940.0f)), ImGuiCond_FirstUseEver);
     ImGui::Begin("Create New Object");
         ImGui::Columns(2, "ObjectCreatorColumns", true);
 
-        if (ImGui::Checkbox("Enable Object Creation:", &enable_object_creation)) {
-            points.clear();
-        }
+        // ── Mode radio buttons ──
         if (ImGui::RadioButton("Point", &e, 0)) {
             log.AddLog("Mode changed to POINT\n");
             mode = core::ShapeType::POINT;
+            polygon_mode = false;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Line", &e, 1)) {
             log.AddLog("Mode changed to LINE\n");
             mode = core::ShapeType::LINE;
+            polygon_mode = false;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Wireframe", &e, 2)) {
             log.AddLog("Mode changed to WIREFRAME\n");
             mode = core::ShapeType::WIREFRAME;
+            polygon_mode = false;
             points.clear();
         }
-        ImGui::Text("Object name:"); ImGui::SameLine();
-        ImGui::InputText("##", obj_name, IM_COUNTOF(obj_name));
-        
-        ImGui::Text("Object color (RGB):"); ImGui::SameLine();
-        ImGui::SetNextItemWidth(100);
-        if (ImGui::DragInt3("##rgb", rgb_color, 1.0f, 0, 255)) {
-            // Update the actual object color when changed, drag natively clamps but typed texts might need a check
-            if (rgb_color[0] < 0) rgb_color[0] = 0; 
-            if (rgb_color[0] > 255) rgb_color[0] = 255;
-            if (rgb_color[1] < 0) rgb_color[1] = 0; 
-            if (rgb_color[1] > 255) rgb_color[1] = 255;
-            if (rgb_color[2] < 0) rgb_color[2] = 0; 
-            if (rgb_color[2] > 255) rgb_color[2] = 255;
-            
-            set_color(rgb_color[0], rgb_color[1], rgb_color[2], 255);
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Polygon", &e, 3)) {
+            log.AddLog("Mode changed to POLYGON\n");
+            mode = core::ShapeType::POLYGON;
+            polygon_mode = true;
+            points.clear();
         }
 
-        ImGui::Text("To create a point: \nclick on canvas 1 time\n");
-        ImGui::Text("To create a line: \nClick on canvas 2 times\n");
-        ImGui::Text("To create a wireframe: \nClick on canvas at least 3 times and\nclick on the same location again.\n");
+        // ── Filled toggle (polygon only) ──
+        if (polygon_mode) {
+            ImGui::SameLine();
+            ImGui::Checkbox("Filled", &filled);
+        }
+
+        // ── Object name ──
+        ImGui::Text("Name (empty = auto):"); ImGui::SameLine();
+        ImGui::InputText("##name", obj_name, IM_COUNTOF(obj_name));
+
+        // ── Color picker ──
+        ImGui::Text("Color:");  ImGui::SameLine();
+        if (ImGui::ColorEdit3("##color", color_f)) {
+            set_color(color_f[0], color_f[1], color_f[2]);
+        }
+
+        // ── Dynamic instructions ──
+        ImGui::Spacing();
+        ImGui::TextDisabled("=== Instructions ===");
+        int n = (int)points.size();
+        switch (e) {
+            case 0: ImGui::TextWrapped("%s", point_instruction()); break;
+            case 1: ImGui::TextWrapped("%s", line_instruction(n)); break;
+            case 2: ImGui::TextWrapped("%s", wireframe_instruction(n)); break;
+            case 3: ImGui::TextWrapped("%s", polygon_instruction(n)); break;
+        }
 
         ImGui::NextColumn();
 
-        // Import from file
+        // ── Import ──
         static char file_path[256] = "";
         ImGui::Text("Import from File:");
         ImGui::InputText("File Path", file_path, IM_COUNTOF(file_path));
@@ -65,7 +105,7 @@ void ObjectCreator::DrawWindow(){
             this->ImportFromFile(file_path);
         }
 
-        // Export to file
+        // ── Export ──
         ImGui::Text("Export to File:");
         static char export_path[256] = "";
         ImGui::InputText("Export Path", export_path, IM_COUNTOF(export_path));
@@ -73,37 +113,91 @@ void ObjectCreator::DrawWindow(){
             this->ExportToFile(export_path);
         }
     ImGui::End();
+
+    // Push current in-progress state so Renderer can draw the creation preview.
+    entityManager.setPreviewState(points, mode);
 }
+
+// ─── Input handling ──────────────────────────────────────────────────────────
+
+void ObjectCreator::RegisterLeftClick(float x, float y, float z){
+    points.push_back(std::make_tuple(x, y, z));
+    if (mode == core::ShapeType::POINT ||
+        (mode == core::ShapeType::LINE && points.size() == 2)) {
+        AddGraphicObject();
+    }
+}
+
+void ObjectCreator::CloseShape(){
+    if (mode == core::ShapeType::POLYGON) {
+        if (points.size() < 3) {
+            log.AddLog("[error] Polygon needs at least 3 vertices.\n");
+            return;
+        }
+        // TODO: create a core::Polygon instead of a closed Wireframe once the
+        //       EntityManager and DisplayFile pipeline support ShapeType::POLYGON.
+        if (points.front() != points.back())
+            points.push_back(points.front());
+    } else if (mode == core::ShapeType::WIREFRAME) {
+        if (points.size() < 2) {
+            log.AddLog("[error] Wireframe needs at least 2 vertices.\n");
+            return;
+        }
+    } else {
+        return; // Point and Line auto-finish in RegisterLeftClick
+    }
+    AddGraphicObject();
+}
+
+void ObjectCreator::CancelCreation(){
+    if (!points.empty()) {
+        points.clear();
+        log.AddLog("Object creation cancelled.\n");
+    }
+}
+
+void ObjectCreator::AddGraphicObject(){
+    std::string name(obj_name);
+    bool auto_name = name.empty();
+
+    // TODO: add a Polygon branch here once EntityManager supports ShapeType::POLYGON.
+    // For now, a Polygon falls through to the generic add() which creates a Wireframe.
+    if (auto_name) entityManager.add(true,  points, object_color);
+    else           entityManager.add(name,  points, object_color);
+    points.clear();
+}
+
+// ─── File I/O (unchanged) ────────────────────────────────────────────────────
 
 void ObjectCreator::ImportFromFile(const char* file_path){
     std::string path(file_path);
     if (path.length() < 4 || path.substr(path.length() - 4) != ".obj") {
         path += ".obj";
     }
-    
+
     std::ifstream file(path);
     if (!file.is_open()) {
         log.AddLog("[error] Failed to open file: %s. The suffix of the path should include .obj\n", path.c_str());
         return;
     }
-    
+
     std::string line;
     unsigned int count = 0;
     std::vector<std::tuple<float, float, float>> file_vertices;
     std::string current_name;
-    
+
     while(std::getline(file, line)){
         if(line.empty() || line[0] == '#') continue;
-        
+
         std::istringstream iss(line);
         std::string type;
         iss >> type;
-        
+
         if (type == "v") {
             float x, y, z, w = 1.0;
             iss >> x >> y >> z;
-            if (iss >> w) { } // successfully read w
-            file_vertices.emplace_back(x, y, z); 
+            if (iss >> w) { }
+            file_vertices.emplace_back(x, y, z);
         } else if (type == "o" || type == "g") {
             iss >> current_name;
         } else if (type == "p") {
@@ -112,8 +206,8 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             while (iss >> v_str) {
                 try {
                     int v_idx = std::stoi(v_str);
-                    if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1; // Support relative negative indices
-                    if (v_idx > 0 && v_idx <= file_vertices.size()) {
+                    if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
+                    if (v_idx > 0 && v_idx <= (int)file_vertices.size()) {
                         points.push_back(file_vertices[v_idx - 1]);
                     }
                 } catch (...) {}
@@ -128,16 +222,14 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             std::string v_str;
             while (iss >> v_str) {
                 try {
-                    // std::stoi parses up to first non-digit, smartly ignoring /uv/normals (e.g. 1/2/3 -> 1)
                     int v_idx = std::stoi(v_str);
                     if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
-                    if (v_idx > 0 && v_idx <= file_vertices.size()) {
+                    if (v_idx > 0 && v_idx <= (int)file_vertices.size()) {
                         points.push_back(file_vertices[v_idx - 1]);
                     }
                 } catch (...) {}
             }
             if (!points.empty()) {
-                // If it is a face, obj format intrinsically closes the loop. Re-add the first element if needed
                 if (type == "f" && points.front() != points.back()) {
                     points.push_back(points.front());
                 }
@@ -185,56 +277,18 @@ void ObjectCreator::ExportToFile(const char* file_path){
         for (const auto& vertex : wireframe.points) {
             file << "v " << vertex.x << " " << vertex.y << " 0.0\n";
         }
-        
-        // If wireframe naturally closes, write it as face 'f' instead of 'l'
         if (wireframe.points.size() > 2 && wireframe.points.front() == wireframe.points.back()) {
             file << "f";
-            // Ignore the duplicated back vertex since face representation is intrinsically closed
-            for (size_t i = 0; i < wireframe.points.size() - 1; ++i) {
+            for (size_t i = 0; i < wireframe.points.size() - 1; ++i)
                 file << " " << vertex_index + i;
-            }
         } else {
             file << "l";
-            for (size_t i = 0; i < wireframe.points.size(); ++i) {
+            for (size_t i = 0; i < wireframe.points.size(); ++i)
                 file << " " << vertex_index + i;
-            }
         }
         file << "\n";
         vertex_index += wireframe.points.size();
     }
-    
+
     log.AddLog("Exported objects to %s\n", path.c_str());
-}
-
-
-void ObjectCreator::RegisterLeftClick(float x, float y, float z){
-    if (enable_object_creation) {
-        auto &[x1, y1, z1] = points.back();
-        if (points.size() > 2 && mode == core::ShapeType::WIREFRAME &&
-            x == x1 && y == y1 && z == z1) {
-            AddGraphicObject();
-            return;
-        }
-
-        points.push_back(std::make_tuple(x, y, z));
-        if (mode == core::ShapeType::POINT || (mode == core::ShapeType::LINE && points.size() == 2)) {
-            AddGraphicObject();
-        }
-    }
-} 
-
-void ObjectCreator::AddGraphicObject(){
-    std::string name(obj_name);
-    if (name == "" || name == "\1") { // Substituir por um regex depois...
-        log.AddLog("[error] Cannot create object (Invalid name): {%s}\n", obj_name);
-        return;
-    } else if (name == "DEFAULT_NAME"){
-        log.AddLog("Creating new object... auto-generated name\n");
-        entityManager.add(true, points, object_color);
-        points.clear();
-    } else {
-        log.AddLog("Creating new object... name: {%s}\n", obj_name);
-        entityManager.add(name, points, object_color);
-        points.clear();
-    }
 }

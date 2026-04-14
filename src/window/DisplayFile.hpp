@@ -47,10 +47,21 @@ private:
     */ 
     std::unordered_map<long long, std::pair<int, int>> hash_id; 
 
+    // Preview state: in-progress object being created by the user
+    std::vector<std::tuple<float, float, float>> preview_points;
+    core::ShapeType preview_mode = core::ShapeType::NONE;
+
 public:
     unsigned long object_count = 0;
     void add(core::Shape &k, const std::string &name, const long long id);
     void remove(const long long id);
+
+    void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts, core::ShapeType mode) {
+        preview_points = pts;
+        preview_mode   = mode;
+    }
+    const std::vector<std::tuple<float, float, float>>& getPreviewPoints() const { return preview_points; }
+    core::ShapeType getPreviewMode() const { return preview_mode; }
     
     /* Não desenhamos essas, apenas armazenamos os valores */
     const std::vector<core::Point>& getPointList() const {return pointList;}

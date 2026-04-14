@@ -22,13 +22,14 @@ private:
 
     ExampleAppLog log; // REMOVER DEPOIS
 
-    std::vector<core::Point> drawPointList; // O Renderer guarda os objetos que de fato serão desenhados (Pós clipping).
+    std::vector<core::Point> drawPointList;
     std::vector<core::Line> drawLineList;
     std::vector<core::Wireframe> wireframeMiddleware;
     std::vector<core::Line> drawWireframeList;
 
-
     void RenderBackground();
+    void DrawAllParallel();
+    void DrawPreview();
     void DrawObject(const core::Point &point, bool draw_color);
     void DrawObject(const core::Line &line, bool draw_color);
     void DrawObject(const core::Wireframe &wireframe, bool draw_color);
@@ -37,13 +38,11 @@ private:
         void draw_name_if_visible(const core::Shape &shape);
     #endif
 
-    
     void ApplyClipping();
     void ApplyViewportTransform();
     void ApplyNCSTransform();
     void GenerateDrawList();
 public:
-    //Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {}
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {
         rendererCache = RendererCache(w.getWindowAttributes(), df.object_count);
     }

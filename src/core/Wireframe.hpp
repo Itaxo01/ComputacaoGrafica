@@ -14,7 +14,7 @@ namespace core{
             type = ShapeType::WIREFRAME;
         }
 
-        std::tuple<float, float, float> anchorPoint() const {
+        std::tuple<float, float, float> anchorPoint() const override{
             core::Point p = points.front();
             for(long unsigned int i = 1; i<points.size(); i++){
                 p = max_y(p, points[i]);
@@ -33,16 +33,21 @@ namespace core{
             return os;
         }
 
-        std::string to_string(long long id, bool p3d = false) const {
-            std::string result = "Wireframe | " + std::to_string(id) + " | ";
-            result += this->getName() + " | ";
-            result += this->getColor() + " | [";
+        ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+            ObjectDetails details;
+            details.type = "Wireframe";
+            details.id = std::to_string(id);
+            details.name = this->getName();
+            details.color = this->getColor();
+            
+            std::string pts = "[";
             for (size_t i = 0; i < points.size(); ++i) {
-                result += points[i].coords(p3d);
-                if (i < points.size() - 1) result += "\n";
+                pts += points[i].coords(p3d);
+                if (i < points.size() - 1) pts += "\n";
             }
-            result += "]";
-            return result;
+            pts += "]";
+            details.points = pts;
+            return details;
         }
 
         std::tuple<float, float, float> centerPoint() const override {

@@ -122,13 +122,14 @@ namespace core{
                 return r;
             }
 
-            std::string to_string(long long id, bool p3d = false) const {
-                std::string result = "Point | " + std::to_string(id) + " | ";
-                result += this->getName() + " | ";
-                result += this->getColor() + " | ";
-                result += "[" + coords(p3d);
-                result += "]";
-                return result;
+            ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+                ObjectDetails details;
+                details.type = "Point";
+                details.id = std::to_string(id);
+                details.name = this->getName();
+                details.color = this->getColor();
+                details.points = "[" + coords(p3d) + "]";
+                return details;
             }
 
             std::tuple<float, float, float> centerPoint() const override {

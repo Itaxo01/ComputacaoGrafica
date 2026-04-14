@@ -5,14 +5,14 @@
 
 #define DFM_INPUT_BOX_SIZE 100
 #define DFM_BUTTON_SIZE ImVec2(50.0f, 20.0f)
-#define DEFAULT_SPLIT_CHAR '|'
 
 const char* ObjectGUI::GetTypeName(core::ShapeType type) {
     switch (type) {
-        case core::ShapeType::POINT: return "Point";
-        case core::ShapeType::LINE: return "Line";
+        case core::ShapeType::POINT:     return "Point";
+        case core::ShapeType::LINE:      return "Line";
         case core::ShapeType::WIREFRAME: return "Wireframe";
-        default: return "Unknown";
+        case core::ShapeType::POLYGON:   return "Polygon";
+        default:                         return "Unknown";
     }
 }
 
@@ -26,7 +26,7 @@ void ObjectGUI::DrawObjectList() {
         return label;
     });
     // Monta label para display na lista usando o nome, tipo e fake_id do objeto
-
+    
 
     ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);  
     
@@ -255,19 +255,6 @@ inline std::string get_selected_idsTEMP(const std::unordered_set<long long> &ids
     return selected_objects;
 }
 
-std::vector<std::string> siplit_stringTEMP(const std::string &s, char split_char){
-    std::vector<std::string> res;
-    std::string current_string = "";
-    for(char e: s){
-        if(e == split_char){
-            res.push_back(current_string);
-            current_string = "";
-        } else current_string.push_back(e);
-    }
-    res.push_back(current_string);
-    return res;
-}
-
 void ObjectGUI::DrawObjectDetails() {
     if (ImGui::BeginTable("DetailsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) { 
         ImGui::TableSetupColumn("Type");
@@ -279,16 +266,15 @@ void ObjectGUI::DrawObjectDetails() {
 
         for (const auto& id : selected_ids) {
             // Retrieve the object details from the EntityManager
-            std::string object_details = entityManager.GetObjectDetails(id);
-            // Split the string into columns
-            auto columns = siplit_stringTEMP(object_details, DEFAULT_SPLIT_CHAR);
+            core::ObjectDetails object_details = entityManager.GetObjectDetails(id);
 
             // Populate the table row
             ImGui::TableNextRow();
-            for (size_t i = 0; i < columns.size(); ++i) {
-                ImGui::TableSetColumnIndex(i);
-                ImGui::Text("%s", columns[i].c_str());
-            }
+            ImGui::TableSetColumnIndex(0); ImGui::Text("%s", object_details.type.c_str());
+            ImGui::TableSetColumnIndex(1); ImGui::Text("%s", object_details.id.c_str());
+            ImGui::TableSetColumnIndex(2); ImGui::Text("%s", object_details.name.c_str());
+            ImGui::TableSetColumnIndex(3); ImGui::Text("%s", object_details.color.c_str());
+            ImGui::TableSetColumnIndex(4); ImGui::Text("%s", object_details.points.c_str());
         }
         ImGui::EndTable();
     }
