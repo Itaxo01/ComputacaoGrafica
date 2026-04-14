@@ -26,13 +26,15 @@ private:
     std::vector<core::Line> drawLineList;
     std::vector<core::Wireframe> wireframeMiddleware;
     std::vector<core::Line> drawWireframeList;
+    std::vector<core::Polygon> drawPolygonList;
 
     void RenderBackground();
     void DrawAllParallel();
     void DrawPreview();
-    void DrawObject(const core::Point &point, bool draw_color);
-    void DrawObject(const core::Line &line, bool draw_color);
-    void DrawObject(const core::Wireframe &wireframe, bool draw_color);
+    void DrawObject(const core::Point &point);
+    void DrawObject(const core::Line &line);
+    void DrawObject(const core::Wireframe &wireframe);
+    void DrawObject(const core::Polygon &polygon);
 
     #ifndef DONT_DRAW_SHAPE_NAME
         void draw_name_if_visible(const core::Shape &shape);

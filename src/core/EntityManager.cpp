@@ -1,6 +1,7 @@
 #include "EntityManager.hpp"
 #include "Point.hpp"
 #include "Mat4.hpp"
+#include "Polygon.hpp"
 #include "Shape.hpp"
 #include "Wireframe.hpp"
 #include <cassert>
@@ -50,16 +51,35 @@ void EntityManager::addWireframe(const std::string &name, std::vector<std::tuple
     displayFile.add(w, name, id);
 }
 
-void EntityManager::add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, int object_color) {
-    if(p.size() == 1) return addPoint(name, p[0], object_color);
-    if(p.size() == 2) return addLine(name, p[0], p[1], object_color);
-    if(p.size() >= 3) return addWireframe(name, p, object_color);
+void EntityManager::addPolygon(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, bool filled, int object_color){
+    long long id = this->nextID(core::ShapeType::POLYGON);
+    std::vector<core::Point> core_vp;
+    core_vp.reserve(vp.size()); // small optimization
+    for (const auto &p : vp) {
+        core_vp.emplace_back(p); 
+    }
+    core::Polygon p(core_vp, filled);
+    setName(p, name);
+    setColor(p, object_color);
+
+    displayFile.add(p, name, id);
 }
 
-void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, int object_color){
+
+void EntityManager::add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color) {
+    switch(type){
+        case core::ShapeType::POINT: return addPoint(name, p[0], object_color);
+        case core::ShapeType::LINE: return addLine(name, p[0], p[1], object_color);
+        case core::ShapeType::WIREFRAME: return addWireframe(name, p, object_color);
+        case core::ShapeType::POLYGON: return addPolygon(name, p, filled, object_color);
+        default: throw std::runtime_error("Undefined type at EntityManager add\n");
+    }
+}
+
+void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color){
     assert(generate_name == true);
-    std::string name = getName(getType(p), currentId);
-    return add(name, p, object_color);    
+    std::string name = getName(type, currentId);
+    return add(name, p, type, filled, object_color);
 }
 
 core::ObjectDetails EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
@@ -75,7 +95,7 @@ core::ObjectDetails EntityManager::GetObjectDetails(long long real_id, bool p3d)
         case core::ShapeType::POINT: return displayFile.getPoint(list_id).GetObjectDetails(fake_id, p3d);
         case core::ShapeType::LINE: return displayFile.getLine(list_id).GetObjectDetails(fake_id, p3d);
         case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).GetObjectDetails(fake_id, p3d);
-        // case core::ShapeType::POLYGON: return displayFile.getPolygon(list_id).GetObjectDetails(fake_id, p3d);
+        case core::ShapeType::POLYGON: return displayFile.getPolygon(list_id).GetObjectDetails(fake_id, p3d);
         default: return core::ObjectDetails{"Undefined", "", "", "", ""};
     }
 }
@@ -98,6 +118,13 @@ void EntityManager::ApplyTransformation(long long real_id, const core::mat4& mat
         case core::ShapeType::WIREFRAME: {
             core::Wireframe &wireframe = static_cast<core::Wireframe&>(shape);
             for(core::Point &p: wireframe.points){
+                p = matrix*p;
+            }
+            break;
+        }
+        case core::ShapeType::POLYGON: {
+            core::Polygon &polygon = static_cast<core::Polygon&>(shape);
+            for(core::Point &p: polygon.points){
                 p = matrix*p;
             }
             break;

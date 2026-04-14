@@ -9,7 +9,6 @@ class ObjectCreator{
     private:
         core::ShapeType mode = core::ShapeType::POINT;
         std::vector<std::tuple<float, float, float>> points;
-        bool polygon_mode = false; // true when Polygon radio is selected (wireframe + auto-close + fill option)
         bool filled = false;       // only meaningful in polygon_mode; wired up when Polygon class is ready
         int e = 0;                 // radio button state: 0=Point 1=Line 2=Wireframe 3=Polygon
         char obj_name[64] = "";    // empty = auto-generate
@@ -34,7 +33,6 @@ class ObjectCreator{
         // Read-only state for GuiController to draw the in-progress preview
         const std::vector<std::tuple<float, float, float>>& getInProgressPoints() const { return points; }
         core::ShapeType getMode() const { return mode; }
-        bool isPolygonMode() const { return polygon_mode; }
 
         void ImportFromFile(const char* file_path);
         void ExportToFile(const char* file_path);

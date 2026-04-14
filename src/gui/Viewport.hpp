@@ -15,6 +15,7 @@ private:
     ImVec2 canvas_p1;
     ImVec2 canvas_sz;
     ImDrawList* draw_list;
+    const float offset = 15.0f;
 
     bool is_hovered = false;
     bool is_active = false;
@@ -25,6 +26,7 @@ public:
     bool show_grid = true;
     bool show_axis_coordinates = true;
     bool is3d = false;
+    int  clipping_mode = 0;
     
     void DrawWindow();
     bool IsHovered() const {return is_hovered;}
@@ -33,6 +35,9 @@ public:
     ImVec2 GetCanvasSize() {return canvas_sz;};
     std::pair<ImVec2, ImVec2> GetCanvasP() {return std::make_pair(canvas_p0, canvas_p1);}
     ImDrawList* GetDrawList() {return draw_list;}
+
+    // 0 Liang Barsky, 1 South alguma coisa
+    int GetClippingMode() const {return clipping_mode;}
 };
 
 #endif // VIEWPORT_HPP

@@ -32,17 +32,11 @@ class EntityManager{
                 case core::ShapeType::POINT: name = "P"; break;
                 case core::ShapeType::LINE: name = "L"; break;
                 case core::ShapeType::WIREFRAME: name = "W"; break;
+                case core::ShapeType::POLYGON: name = "POLY"; break;
                 default: name = "Notdef"; break;
             }
             name.append(std::to_string(fake_id));
             return name;
-        }
-
-        core::ShapeType getType(const std::vector<std::tuple<float, float, float>> &p){
-            if(p.size() == 1) return core::ShapeType::POINT;
-            if(p.size() == 2) return core::ShapeType::LINE;
-            if(p.size() >= 3) return core::ShapeType::WIREFRAME;
-            return core::ShapeType::NONE;
         }
 
     public:
@@ -60,8 +54,9 @@ class EntityManager{
         void addPoint(const std::string &name, std::tuple<float, float, float> &t, int object_color);
         void addLine(const std::string &name, std::tuple<float, float, float> &t1, std::tuple<float, float, float> &t2, int object_color);
         void addWireframe(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
-        void add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, int object_color);
-        void add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, int object_color);
+        void addPolygon(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, bool filled, int object_color);
+        void add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color);
+        void add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color);
 
         const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}

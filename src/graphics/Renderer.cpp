@@ -1,8 +1,10 @@
 #include "Renderer.hpp"
+#include "Shape.hpp"
 #include "Window.hpp"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include "RendererUtils.hpp"
 #include "ParallelUtils.hpp"
 
@@ -51,8 +53,11 @@ void Renderer::RenderBackground() {
     std::pair<ImVec2, ImVec2> canvas_p = viewport.GetCanvasP();
     ImVec2 canvas_p0 = canvas_p.first; ImVec2 canvas_p1 = canvas_p.second;
 
-    draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
-    draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
+    const float offset = 1.0f;
+    ImVec2 canvas_p0_offset(canvas_p0.x - offset, canvas_p0.y - offset);
+    ImVec2 canvas_p1_offset(canvas_p1.x + offset, canvas_p1.y + offset);
+    draw_list->AddRectFilled(canvas_p0_offset, canvas_p1_offset, IM_COL32(50, 50, 50, 255));
+    draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255), 1.0f, offset*2);
 
     WindowAttributes w_attr = window.getWindowAttributes();
     core::Point origin_on_screen = window.WindowToViewport(core::Point(0, 0, 0));
@@ -198,23 +203,40 @@ void Renderer::RenderBackground() {
         }
     }
 }
-void Renderer::DrawObject(const core::Point &p, bool draw_color) {
+void Renderer::DrawObject(const core::Point &p) {
     const float half = 2.0f;
     draw_list->AddRectFilled(ImVec2(p.x - half, p.y - half),
                              ImVec2(p.x + half, p.y + half),
                              p.object_color, 0, 2.0f);
 }
 
-void Renderer::DrawObject(const core::Line &line, bool draw_color) {
+void Renderer::DrawObject(const core::Line &line) {
     const float width = 2.0f;
     draw_list->AddLine(ToImVec2(line.a), ToImVec2(line.b), line.object_color, width);
 }
 
-void Renderer::DrawObject(const core::Wireframe &wireframe, bool draw_color) {
+void Renderer::DrawObject(const core::Wireframe &wireframe) {
     const float width = 2.0f;
     int size = wireframe.points.size();
     for (int i = 0; i < size-1; i++) {
         draw_list->AddLine(ToImVec2(wireframe.points[i]), ToImVec2(wireframe.points[i+1]), wireframe.object_color, width);
+    }
+}
+
+void Renderer::DrawObject(const core::Polygon &polygon) {
+    const float width = 2.0f;
+    int size = polygon.points.size();
+    for (int i = 0; i < size; i++) {
+        const core::Point& p1 = polygon.points[i];
+        const core::Point& p2 = polygon.points[(i + 1) % size];
+        draw_list->AddLine(ToImVec2(p1), ToImVec2(p2), polygon.object_color, width);
+    }
+    if (polygon.filled) {
+        ImVector<ImVec2> vertices;
+        for (const auto& p : polygon.points) {
+            vertices.push_back(ToImVec2(p)); 
+        }
+        draw_list->AddConvexPolyFilled(vertices.Data, vertices.Size, polygon.object_color);
     }
 }
 
@@ -321,9 +343,7 @@ void Renderer::DrawPreview() {
     if (pts.empty()) return;
 
     core::ShapeType mode = displayFile.getPreviewMode();
-    if (mode != core::ShapeType::LINE &&
-        mode != core::ShapeType::WIREFRAME &&
-        mode != core::ShapeType::POLYGON) return;
+    if (mode == core::ShapeType::POINT) return;
 
     auto canvas_p = viewport.GetCanvasP();
     ImVec2 offset  = canvas_p.first;
@@ -372,20 +392,23 @@ void Renderer::ApplyClipping(){
     core::Point ncs_max(1.0f, 1.0f, 0.0f);
     
     this->drawPointList = ClipPoints(this->drawPointList, ncs_min, ncs_max);
-    this->drawLineList = ClipLines(this->drawLineList, ncs_min, ncs_max);
+    this->drawLineList = ClipLines(this->drawLineList, ncs_min, ncs_max, viewport.GetClippingMode());
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
+    // this->drawPolygonList = ClipWireframes(this->drawPolygonList, ncs_min, ncs_max);
 }
 
 void Renderer::ApplyNCSTransform(){
     this->drawPointList = displayFile.getPointList();
     this->drawLineList  = displayFile.getLineList();
     this->wireframeMiddleware = displayFile.getWireframeList();
+    this->drawPolygonList = displayFile.getPolygonList();
     
     auto ncs_mat = window.GetWindowNCSMatrix();
     
     TransformToNCS(this->drawPointList, ncs_mat);
     TransformToNCS(this->drawLineList, ncs_mat);
     TransformToNCS(this->wireframeMiddleware, ncs_mat);
+    TransformToNCS(this->drawPolygonList, ncs_mat);
 }
 
 void Renderer::ApplyViewportTransform(){
@@ -395,6 +418,7 @@ void Renderer::ApplyViewportTransform(){
     TransformToViewport(this->drawPointList, window, offset);
     TransformToViewport(this->drawLineList, window, offset);
     TransformToViewport(this->drawWireframeList, window, offset);
+    TransformToViewport(this->drawPolygonList, window, offset);
 }
 
 void Renderer::GenerateDrawList(){
@@ -419,15 +443,17 @@ void Renderer::render() {
     #ifdef USE_PARALLEL_DRAWLIST
         DrawAllParallel();
     #else
-        for (const auto &p : drawPointList)    DrawObject(p, true);
-        for (const auto &l : drawLineList)     DrawObject(l, true);
-        for (const auto &w : drawWireframeList) DrawObject(w, true);
+        for (const auto &p : drawPointList)    DrawObject(p);
+        for (const auto &l : drawLineList)     DrawObject(l);
+        for (const auto &w : drawWireframeList) DrawObject(w);
+        for (const auto &p : drawPolygonList) DrawObject(p);
     #endif
 
     #ifndef DONT_DRAW_SHAPE_NAME
         for(const auto &p: displayFile.getPointList()) draw_name_if_visible(p);
         for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
         for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
+        for(const auto &p: displayFile.getPolygonList()) draw_name_if_visible(p);
     #endif
 
     DrawPreview();

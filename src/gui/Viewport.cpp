@@ -15,6 +15,10 @@ void Viewport::DrawWindow() {
         if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
         canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);
 
+
+        // canvas_sz.x -= 2*offset, canvas_sz.y -= 2*offset; // offset requerido na entrega 1.4
+        // canvas_p0.x += offset, canvas_p0.y += offset;
+        // canvas_p1.x -= offset, canvas_p1.y -= offset;
         draw_list = ImGui::GetWindowDrawList();
 
         // This will catch our interactions
@@ -29,6 +33,8 @@ void Viewport::DrawWindow() {
             ImGui::Checkbox("Show Axes", &show_axes);
             ImGui::Checkbox("Show Grid", &show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
+            ImGui::RadioButton("Clipping one", &clipping_mode, 0); ImGui::SameLine();
+            ImGui::RadioButton("Clipping two", &clipping_mode, 1);
             // ImGui::Checkbox("Enable 3D visualization", &is3d);
         ImGui::EndChild();
  

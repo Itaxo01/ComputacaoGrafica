@@ -1,4 +1,5 @@
 #include "ObjectCreator.hpp"
+#include "Shape.hpp"
 #include "imgui.h"
 #include <fstream>
 #include <sstream>
@@ -43,34 +44,31 @@ void ObjectCreator::DrawWindow(){
         if (ImGui::RadioButton("Point", &e, 0)) {
             log.AddLog("Mode changed to POINT\n");
             mode = core::ShapeType::POINT;
-            polygon_mode = false;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Line", &e, 1)) {
             log.AddLog("Mode changed to LINE\n");
             mode = core::ShapeType::LINE;
-            polygon_mode = false;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Wireframe", &e, 2)) {
             log.AddLog("Mode changed to WIREFRAME\n");
             mode = core::ShapeType::WIREFRAME;
-            polygon_mode = false;
             points.clear();
         }
         ImGui::SameLine();
+        float polygon_x = ImGui::GetCursorPosX();
         if (ImGui::RadioButton("Polygon", &e, 3)) {
             log.AddLog("Mode changed to POLYGON\n");
             mode = core::ShapeType::POLYGON;
-            polygon_mode = true;
             points.clear();
         }
 
         // ── Filled toggle (polygon only) ──
-        if (polygon_mode) {
-            ImGui::SameLine();
+        if (mode == core::ShapeType::POLYGON) {
+            ImGui::SetCursorPosX(polygon_x);
             ImGui::Checkbox("Filled", &filled);
         }
 
@@ -134,8 +132,6 @@ void ObjectCreator::CloseShape(){
             log.AddLog("[error] Polygon needs at least 3 vertices.\n");
             return;
         }
-        // TODO: create a core::Polygon instead of a closed Wireframe once the
-        //       EntityManager and DisplayFile pipeline support ShapeType::POLYGON.
         if (points.front() != points.back())
             points.push_back(points.front());
     } else if (mode == core::ShapeType::WIREFRAME) {
@@ -160,10 +156,8 @@ void ObjectCreator::AddGraphicObject(){
     std::string name(obj_name);
     bool auto_name = name.empty();
 
-    // TODO: add a Polygon branch here once EntityManager supports ShapeType::POLYGON.
-    // For now, a Polygon falls through to the generic add() which creates a Wireframe.
-    if (auto_name) entityManager.add(true,  points, object_color);
-    else           entityManager.add(name,  points, object_color);
+    if (auto_name) entityManager.add(true, points, mode, filled,  object_color);
+    else           entityManager.add(name, points, mode, filled, object_color);
     points.clear();
 }
 
@@ -213,8 +207,9 @@ void ObjectCreator::ImportFromFile(const char* file_path){
                 } catch (...) {}
             }
             if (!points.empty()) {
-                if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
-                else entityManager.add(true, points, IM_COL32_WHITE);
+                /*if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
+                else entityManager.add(true, points, IM_COL32_WHITE);*/
+                AddGraphicObject();
                 count++;
             }
         } else if (type == "l" || type == "f") {
@@ -233,8 +228,9 @@ void ObjectCreator::ImportFromFile(const char* file_path){
                 if (type == "f" && points.front() != points.back()) {
                     points.push_back(points.front());
                 }
-                if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
-                else entityManager.add(true, points, IM_COL32_WHITE);
+                /*if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
+                else entityManager.add(true, points, IM_COL32_WHITE);*/
+                AddGraphicObject();
                 count++;
             }
         }

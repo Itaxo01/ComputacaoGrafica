@@ -1,4 +1,5 @@
 #include "DisplayFile.hpp"
+#include "Polygon.hpp"
 #include "Shape.hpp"
 #include <stdexcept>
 
@@ -21,6 +22,12 @@ void DisplayFile::add(core::Shape &k, const std::string &name, const long long i
             auto &wireframe = static_cast<core::Wireframe&>(k);
             listId = wireframeList.size();
             wireframeList.push_back(wireframe);
+            break;
+        }
+        case core::ShapeType::POLYGON: {
+            auto &polygon = static_cast<core::Polygon&>(k);
+            listId = polygonList.size();
+            polygonList.push_back(polygon);
             break;
         }
         default:
@@ -52,6 +59,10 @@ void DisplayFile::remove(const long long id){
             erase_id(wireframeList, list_id);
             break;
         }
+        case core::ShapeType::POLYGON: {
+            erase_id(polygonList, list_id);
+            break;
+        }
         default:
             throw std::runtime_error("Invalid object at display file remove");
     }
@@ -67,6 +78,7 @@ core::Shape& DisplayFile::getShape(long long real_id){
         case core::ShapeType::POINT: return pointList[list_id];
         case core::ShapeType::LINE: return lineList[list_id];
         case core::ShapeType::WIREFRAME: return wireframeList[list_id];
+        case core::ShapeType::POLYGON: return polygonList[list_id];
         default: throw std::runtime_error("Invalid object at display file getShape");
     }
 }

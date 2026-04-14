@@ -1,6 +1,7 @@
 #ifndef POLYGON_H
 #define POLYGON_H
 
+#include <algorithm>
 #include <ostream>
 #include <vector>
 #include "Point.hpp"
@@ -26,6 +27,11 @@ namespace core {
             : points(data), filled(filled)
         {
             type = ShapeType::POLYGON;
+            int min_idx = 0;
+            for(int i = 0; i<(int)points.size(); i++){
+                if(points[i] < points[min_idx]) min_idx = i;
+            }
+            std::rotate(points.begin(), points.begin() + min_idx, points.end());
         }
 
         std::tuple<float, float, float> anchorPoint() const override {
