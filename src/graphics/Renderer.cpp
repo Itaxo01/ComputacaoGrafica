@@ -53,11 +53,11 @@ void Renderer::RenderBackground() {
     std::pair<ImVec2, ImVec2> canvas_p = viewport.GetCanvasP();
     ImVec2 canvas_p0 = canvas_p.first; ImVec2 canvas_p1 = canvas_p.second;
 
-    const float offset = 0.5f;
+    const float offset = 2.0f;
     ImVec2 canvas_p0_offset(canvas_p0.x - offset, canvas_p0.y - offset);
     ImVec2 canvas_p1_offset(canvas_p1.x + offset, canvas_p1.y + offset);
     draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
-    draw_list->AddRect(canvas_p0_offset, canvas_p1_offset, IM_COL32(255, 255, 255, 255), 1.0f, offset);
+    draw_list->AddRect(canvas_p0_offset, canvas_p1_offset, IM_COL32(255, 255, 255, 255), 0.0f, offset*2);
 
     WindowAttributes w_attr = window.getWindowAttributes();
     core::Point origin_on_screen = window.WindowToViewport(core::Point(0, 0, 0));
@@ -223,6 +223,99 @@ void Renderer::DrawObject(const core::Wireframe &wireframe) {
     }
 }
 
+/* Polyogon drawing helper functions*/
+float polygonArea(const std::vector <ImVec2>& p) {
+    float A = 0;
+    for (int i = 0; i < p.size(); i++) {
+        int j = (i + 1) % p.size();
+        A += p[i].x * p[j].y - p[j].x * p[i].y;
+    }
+    return A * 0.5f;
+}
+
+bool isCCW(const std::vector <ImVec2>& p) {
+    return polygonArea(p) > 0;
+}
+
+float cross(const ImVec2& a, const ImVec2& b, const ImVec2& c) {
+    return (b.x - a.x)*(c.y - a.y) - (b.y - a.y)*(c.x - a.x);
+}
+
+bool isConvex(const ImVec2& prev, const ImVec2& curr, const ImVec2& next, bool ccw) {
+    float c = cross(prev, curr, next);
+    return ccw ? (c > 0) : (c < 0);
+}
+
+bool pointInTriangle(const ImVec2& a, const ImVec2& b, const ImVec2& c, const ImVec2& p) {
+    float c1 = cross(a, b, p);
+    float c2 = cross(b, c, p);
+    float c3 = cross(c, a, p);
+
+    // strictly inside (avoids edge issues)
+    return (c1 > 0 && c2 > 0 && c3 > 0) ||
+           (c1 < 0 && c2 < 0 && c3 < 0);
+}
+
+std::vector<int> Renderer::triangulate(std::vector <ImVec2> poly) {
+    std::vector<int> result;
+    int n = poly.size();
+    if (n < 3) return result;
+
+    bool ccw = isCCW(poly);
+
+    std::vector<int> V(n);
+    for (int i = 0; i < n; i++) V[i] = i;
+
+    while (V.size() > 3) {
+        bool ear_found = false;
+
+        for (int i = 0; i < V.size(); i++) {
+            int prev = V[(i - 1 + V.size()) % V.size()];
+            int curr = V[i];
+            int next = V[(i + 1) % V.size()];
+
+            if (!isConvex(poly[prev], poly[curr], poly[next], ccw))
+                continue;
+
+            bool inside = false;
+            for (int j = 0; j < V.size(); j++) {
+                int vi = V[j];
+                if (vi == prev || vi == curr || vi == next)
+                    continue;
+
+                if (pointInTriangle(poly[prev], poly[curr], poly[next], poly[vi])) {
+                    inside = true;
+                    break;
+                }
+            }
+
+            if (inside) continue;
+
+            // EAR FOUND
+            result.push_back(prev);
+            result.push_back(curr);
+            result.push_back(next);
+
+            V.erase(V.begin() + i);
+            ear_found = true;
+            break;
+        }
+
+        if (!ear_found) {
+            // This means polygon is probably invalid (self-intersecting)
+            break;
+        }
+    }
+
+    if (V.size() == 3) {
+        result.push_back(V[0]);
+        result.push_back(V[1]);
+        result.push_back(V[2]);
+    }
+
+    return result;
+}
+
 void Renderer::DrawObject(const core::Polygon &polygon) {
     const float width = 2.0f;
     int size = polygon.points.size();
@@ -232,11 +325,20 @@ void Renderer::DrawObject(const core::Polygon &polygon) {
         draw_list->AddLine(ToImVec2(p1), ToImVec2(p2), polygon.object_color, width);
     }
     if (polygon.filled) {
-        ImVector<ImVec2> vertices;
+        std::vector<ImVec2> vertices;
         for (const auto& p : polygon.points) {
             vertices.push_back(ToImVec2(p)); 
         }
-        draw_list->AddConvexPolyFilled(vertices.Data, vertices.Size, polygon.object_color);
+        auto tris = triangulate(vertices);
+        for (int i = 0; i < tris.size(); i += 3) {
+            draw_list->AddTriangleFilled(
+                ImVec2(vertices[tris[i]].x,     vertices[tris[i]].y),
+                ImVec2(vertices[tris[i+1]].x,   vertices[tris[i+1]].y),
+                ImVec2(vertices[tris[i+2]].x,   vertices[tris[i+2]].y),
+                polygon.object_color
+            );
+        }
+        //draw_list->AddConvexPolyFilled(vertices.Data, vertices.Size, polygon.object_color);
     }
 }
 

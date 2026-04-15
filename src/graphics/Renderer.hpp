@@ -48,6 +48,7 @@ public:
     Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {
         rendererCache = RendererCache(w.getWindowAttributes(), df.object_count);
     }
+    static std::vector<int> triangulate(std::vector <ImVec2> poly); // refatorar depois
     void notifyTransformation();
     void render();
 };
