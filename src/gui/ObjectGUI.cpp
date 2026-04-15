@@ -8,11 +8,12 @@
 
 const char* ObjectGUI::GetTypeName(core::ShapeType type) {
     switch (type) {
-        case core::ShapeType::POINT:     return "Point";
-        case core::ShapeType::LINE:      return "Line";
-        case core::ShapeType::WIREFRAME: return "Wireframe";
-        case core::ShapeType::POLYGON:   return "Polygon";
-        default:                         return "Unknown";
+        case core::ShapeType::POINT:        return "Point";
+        case core::ShapeType::LINE:         return "Line";
+        case core::ShapeType::WIREFRAME:    return "Wireframe";
+        case core::ShapeType::POLYGON:      return "Polygon";
+        case core::ShapeType::BEZIER_CURVE: return "Bezier Curve";
+        default:                            return "Unknown";
     }
 }
 

@@ -28,6 +28,12 @@ static const char* polygon_instruction(int n) {
     return "Click to add vertices.\nPress Enter or double-click to close.\nEsc to cancel.";
 }
 
+static const char* bezier_curve_instruction(int n) {
+    if (n == 0) return "Click to place the first vertex.";
+    if (n == 1) return "Click to place more vertices (need 1+).";
+    return "Click to add control vertices.\nPress Enter or double-click to close.\nEsc to cancel.";
+}
+
 // ─── DrawWindow ──────────────────────────────────────────────────────────────
 
 void ObjectCreator::DrawWindow(){
@@ -72,6 +78,12 @@ void ObjectCreator::DrawWindow(){
             ImGui::Checkbox("Filled", &filled);
         }
 
+        if (ImGui::RadioButton("Bezier Curve", &e, 4)) {
+            log.AddLog("Mode changed to BEZIER_CURVE\n");
+            mode = core::ShapeType::BEZIER_CURVE;
+            points.clear();
+        }
+
         // ── Object name ──
         ImGui::Text("Name (empty = auto):"); ImGui::SameLine();
         ImGui::InputText("##name", obj_name, IM_COUNTOF(obj_name));
@@ -91,6 +103,7 @@ void ObjectCreator::DrawWindow(){
             case 1: ImGui::TextWrapped("%s", line_instruction(n)); break;
             case 2: ImGui::TextWrapped("%s", wireframe_instruction(n)); break;
             case 3: ImGui::TextWrapped("%s", polygon_instruction(n)); break;
+            case 4: ImGui::TextWrapped("%s", bezier_curve_instruction(n)); break;
         }
 
         ImGui::NextColumn();
@@ -137,6 +150,11 @@ void ObjectCreator::CloseShape(){
     } else if (mode == core::ShapeType::WIREFRAME) {
         if (points.size() < 2) {
             log.AddLog("[error] Wireframe needs at least 2 vertices.\n");
+            return;
+        }
+    } else if (mode == core::ShapeType::BEZIER_CURVE){
+        if (points.size() < 2) {
+            log.AddLog("[error] Bezier curve needs at least 2 vertices.\n");
             return;
         }
     } else {

@@ -446,6 +446,8 @@ void Renderer::DrawPreview() {
     core::ShapeType mode = displayFile.getPreviewMode();
     if (mode == core::ShapeType::POINT) return;
 
+    if (mode == core::ShapeType::BEZIER_CURVE) return; // fazer tratamento especial depois
+
     auto canvas_p = viewport.GetCanvasP();
     ImVec2 offset  = canvas_p.first;
     auto ncs_mat   = window.GetWindowNCSMatrix();

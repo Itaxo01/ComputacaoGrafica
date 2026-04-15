@@ -22,6 +22,7 @@ namespace core{
         WIREFRAME, // 2
         NONE, // 3
         POLYGON, // 4
+        BEZIER_CURVE,
         ENUM_SIZE, // 5
     }; // Se esse enum passar de 10 elementos, modificar a lógica de ID do entity manager
 

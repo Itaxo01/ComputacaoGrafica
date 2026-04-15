@@ -10,6 +10,7 @@
 #include "Line.hpp"
 #include "Polygon.hpp"
 #include "Wireframe.hpp"
+#include "BezierCurve.hpp"
 #include <unordered_map>
 #include "Shape.hpp"
 
@@ -40,6 +41,7 @@ private:
     std::vector<core::Line> lineList;
     std::vector<core::Wireframe> wireframeList;
     std::vector<core::Polygon> polygonList;
+    std::vector<core::BezierCurve> bezierCurveList;
 
     std::vector<ManifestEntry> manifest; // Essa é a lista que a interface irá conhecer. 
 
@@ -70,6 +72,7 @@ public:
     const std::vector<core::Line>& getLineList() const {return lineList;}
     const std::vector<core::Wireframe>& getWireframeList() const {return wireframeList;}
     const std::vector<core::Polygon>& getPolygonList() const {return polygonList;}
+    const std::vector<core::BezierCurve>& getBezierCurveList() const {return bezierCurveList;}
     const std::vector<ManifestEntry>& getManifest() const {return manifest;}
     core::Shape &getShape(long long real_id);
 
@@ -77,6 +80,7 @@ public:
     const core::Line &getLine(long long id) const {return lineList[id];}
     const core::Wireframe &getWireframe(long long id) const {return wireframeList[id];}
     const core::Polygon &getPolygon(long long id) const {return polygonList[id];}
+    const core::BezierCurve &getBezierCurve(long long id) const {return bezierCurveList[id];}
 
     const std::unordered_map<long long, std::pair<int, int>>& getHashID() const {return hash_id;}
 
