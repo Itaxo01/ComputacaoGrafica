@@ -288,9 +288,7 @@ std::vector<int> Renderer::triangulate(std::vector <ImVec2> poly) {
                     break;
                 }
             }
-
             if (inside) continue;
-
             // EAR FOUND
             result.push_back(prev);
             result.push_back(curr);
@@ -344,6 +342,7 @@ void Renderer::DrawObject(const core::Polygon &polygon) {
 
 
 // Esse método manipula diretamente os ponteiros da drawlist para realizar a escrita em paralelo (A drawlist não possui mecanismos de acesso concorrentes).
+// Só é utilizado na rotina make fast, e não está funcionando atualmente (falta implementar preenchimento do poligono aqui).
 void Renderer::DrawAllParallel() {
     const int n_points = (int)drawPointList.size();
     const int n_lines  = (int)drawLineList.size();
@@ -526,9 +525,10 @@ void Renderer::ApplyViewportTransform(){
 void Renderer::GenerateDrawList(){
     unsigned long obj_count = displayFile.object_count;
     WindowAttributes w = window.getWindowAttributes();
-    if(this->refresh_cache || rendererCache.cache_changed(w, obj_count)){
+    auto canvas_p = viewport.GetCanvasP();
+    if(this->refresh_cache || rendererCache.cache_changed(w, obj_count, canvas_p.first, canvas_p.second)){
         log.AddLog("Scene changed, refreshing object cache\n");
-        rendererCache.store_cache(w, obj_count);
+        rendererCache.store_cache(w, obj_count, canvas_p.first, canvas_p.second);
         refresh_cache = false;
 
         ApplyNCSTransform(); 
@@ -559,8 +559,6 @@ void Renderer::render() {
     #endif
 
     DrawPreview();
-
-    log.Draw("Log");
 }
 
 void Renderer::notifyTransformation(){

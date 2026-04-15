@@ -32,12 +32,12 @@ int main(int, char**) {
 
 
     // 3. Inicializa nossas classes
-    DisplayFile displayFile; // Coleção de draws
-    Viewport viewport; 
-    Window programWindow(viewport);
-    Renderer renderer(displayFile, viewport, programWindow);
-    EntityManager entityManager(displayFile, renderer); // "view" para o display file
     ExampleAppLog log; // o log usa singleton, vc pode criar dentro das classes
+    DisplayFile displayFile; // Coleção de draws
+    Viewport viewport(log); 
+    Window programWindow(viewport);
+    Renderer renderer(displayFile, viewport, programWindow, log);
+    EntityManager entityManager(displayFile, renderer); // "view" para o display file
     // ao inves de passar para o construtor.
     
     ObjectCreator objectCreator(log, entityManager);

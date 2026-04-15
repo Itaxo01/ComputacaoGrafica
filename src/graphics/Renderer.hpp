@@ -20,7 +20,7 @@ private:
     RendererCache rendererCache;
     bool refresh_cache = false;
 
-    ExampleAppLog log; // REMOVER DEPOIS
+    ExampleAppLog &log;
 
     std::vector<core::Point> drawPointList;
     std::vector<core::Line> drawLineList;
@@ -45,7 +45,7 @@ private:
     void ApplyNCSTransform();
     void GenerateDrawList();
 public:
-    Renderer(DisplayFile &df, Viewport &v, Window &w): displayFile(df), viewport(v), window(w) {
+    Renderer(DisplayFile &df, Viewport &v, Window &w, ExampleAppLog &log): displayFile(df), viewport(v), window(w), log(log) {
         rendererCache = RendererCache(w.getWindowAttributes(), df.object_count);
     }
     static std::vector<int> triangulate(std::vector <ImVec2> poly); // refatorar depois

@@ -2,6 +2,7 @@
 #define VIEWPORT_HPP
 
 #include "imgui.h"
+#include "log_app.h"
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -16,11 +17,12 @@ private:
     ImVec2 canvas_sz;
     ImDrawList* draw_list;
     const float offset = 15.0f;
+    ExampleAppLog &log;
 
     bool is_hovered = false;
     bool is_active = false;
 public:
-    Viewport() = default;
+    Viewport(ExampleAppLog &log): log(log) {};
     
     bool show_axes = true;
     bool show_grid = true;
