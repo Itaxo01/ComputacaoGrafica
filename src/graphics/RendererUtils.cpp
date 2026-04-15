@@ -163,10 +163,62 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
     return ret;
 }
 
-std::vector<core::Polygon> ClipPolygon(const std::vector<core::Polygon> &v, const core::Point &wp0, const core::Point &wp1){
-    // TODO
-}
+/* Sutherland–Hodgman clipping */
+std::vector<core::Polygon> ClipPolygons(const std::vector<core::Polygon> &v, const core::Point &wp0, const core::Point &wp1) {
+    std::vector<core::Polygon> ret;
+    for (auto &p: v) {
+        auto newPolygonPoints = p.points;
+        for (int edge = 0; edge < 4; ++edge) {
+            std::vector<core::Point> inputList = newPolygonPoints;
+            newPolygonPoints.clear();
+            if (inputList.empty()) break;
 
+            core::Point A, B;
+            switch (edge) {
+                case 0: A = {wp0.x, wp0.y}; B = {wp0.x, wp1.y}; break; // left
+                case 1: A = {wp1.x, wp0.y}; B = {wp1.x, wp1.y}; break; // right
+                case 2: A = {wp0.x, wp0.y}; B = {wp1.x, wp0.y}; break; // bottom
+                case 3: A = {wp0.x, wp1.y}; B = {wp1.x, wp1.y}; break; // top
+            }
+
+            auto isInside = [&](const core::Point &pt) {
+                switch (edge) {
+                    case 0: return pt.x >= wp0.x; // left
+                    case 1: return pt.x <= wp1.x; // right
+                    case 2: return pt.y >= wp0.y; // bottom
+                    case 3: return pt.y <= wp1.y; // top
+                }
+                return false;
+            };
+
+            for (size_t i = 0; i < inputList.size(); ++i) {
+                const core::Point &current = inputList[i];
+                const core::Point &prev = inputList[(i + inputList.size() - 1) % inputList.size()];
+
+                bool currentInside = isInside(current);
+                bool prevInside = isInside(prev);
+
+                if (currentInside && !prevInside) {
+                    float t = ((A.x - prev.x) * (B.y - A.y) - (A.y - prev.y) * (B.x - A.x)) /
+                              ((B.x - A.x) * (prev.y - current.y) - (B.y - A.y) * (prev.x - current.x));
+                    newPolygonPoints.push_back({prev.x + t * (current.x - prev.x), prev.y + t * (current.y - prev.y)});
+                }
+                if (currentInside) {
+                    newPolygonPoints.push_back(current);
+                }
+                if (!currentInside && prevInside) {
+                    float t = ((A.x - prev.x) * (B.y - A.y) - (A.y - prev.y) * (B.x - A.x)) /
+                              ((B.x - A.x) * (prev.y - current.y) - (B.y - A.y) * (prev.x - current.x));
+                    newPolygonPoints.push_back({prev.x + t * (current.x - prev.x), prev.y + t * (current.y - prev.y)});
+                }
+            }
+        }
+        auto newP = p;
+        newP.points = newPolygonPoints;
+        ret.push_back(newP);
+    }
+    return ret;
+}
 
 void TransformToNCS(std::vector<core::Point> &v, const core::mat4 &mat){
     cg_parallel_for_each(v.begin(), v.end(), [&](core::Point &p){ 

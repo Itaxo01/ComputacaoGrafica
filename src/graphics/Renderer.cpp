@@ -53,11 +53,11 @@ void Renderer::RenderBackground() {
     std::pair<ImVec2, ImVec2> canvas_p = viewport.GetCanvasP();
     ImVec2 canvas_p0 = canvas_p.first; ImVec2 canvas_p1 = canvas_p.second;
 
-    const float offset = 1.0f;
+    const float offset = 0.5f;
     ImVec2 canvas_p0_offset(canvas_p0.x - offset, canvas_p0.y - offset);
     ImVec2 canvas_p1_offset(canvas_p1.x + offset, canvas_p1.y + offset);
-    draw_list->AddRectFilled(canvas_p0_offset, canvas_p1_offset, IM_COL32(50, 50, 50, 255));
-    draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255), 1.0f, offset*2);
+    draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
+    draw_list->AddRect(canvas_p0_offset, canvas_p1_offset, IM_COL32(255, 255, 255, 255), 1.0f, offset);
 
     WindowAttributes w_attr = window.getWindowAttributes();
     core::Point origin_on_screen = window.WindowToViewport(core::Point(0, 0, 0));
@@ -394,7 +394,7 @@ void Renderer::ApplyClipping(){
     this->drawPointList = ClipPoints(this->drawPointList, ncs_min, ncs_max);
     this->drawLineList = ClipLines(this->drawLineList, ncs_min, ncs_max, viewport.GetClippingMode());
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
-    // this->drawPolygonList = ClipPoygons(this->drawPolygonList, ncs_min, ncs_max);
+    this->drawPolygonList = ClipPolygons(this->drawPolygonList, ncs_min, ncs_max);
 }
 
 void Renderer::ApplyNCSTransform(){
