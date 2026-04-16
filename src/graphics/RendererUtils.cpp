@@ -126,7 +126,7 @@ static inline bool ClipLineCohenSutherland(core::Line &line, const core::Point &
 		} else {
 			// failed both tests, so calculate the line segment to clip
 			// from an outside point to an intersection with clip edge
-			float x, y;
+			float x = 0.0f, y = 0.0f;
 
 			// At least one endpoint is outside the clip rectangle; pick it.
 			OUT outcodeOut = out2 > out1 ? out2 : out1;
@@ -312,7 +312,7 @@ std::vector<core::Polygon> ClipPolygons(const std::vector<core::Polygon> &v, con
                 vertices.push_back(ImVec2(pl.x, pl.y)); 
             }
             auto tris = Renderer::triangulate(vertices);
-            for (int i = 0; i < tris.size(); i += 3) {
+            for (int i = 0; i < (int)tris.size(); i += 3) {
                 core::Polygon tri = p;
                 tri.points = {
                     p.points[tris[i]],

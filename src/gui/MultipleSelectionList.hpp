@@ -16,7 +16,7 @@ private:
     int last_selected_index = -1;
     int selected_context_item = -1;
 
-    unsigned int current_page = 0;
+    int current_page = 0;
     const int items_per_page = 20;
 
     std::function<std::string(int)> get_name; // Função recebida em SetData

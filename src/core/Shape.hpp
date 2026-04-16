@@ -59,7 +59,7 @@ namespace core{
                 std::string name;
             #endif
             #ifndef DONT_USE_OBJECT_COLOR
-                int object_color; // Uses 32 bit 
+                int object_color = 0xFF; // Uses 32 bit 
             #endif
     };
 }

@@ -179,7 +179,16 @@ void ObjectCreator::AddGraphicObject(){
     points.clear();
 }
 
-// ─── File I/O (unchanged) ────────────────────────────────────────────────────
+// ─── File I/O ────────────────────────────────────────────────────────────────
+
+// Extract R,G,B,A (0-255) from an ImU32 color (layout: A<<24|B<<16|G<<8|R).
+static void unpack_color(int col, int &r, int &g, int &b, int &a) {
+    unsigned int uc = (unsigned int)col;
+    r = (uc >>  0) & 0xFF;
+    g = (uc >>  8) & 0xFF;
+    b = (uc >> 16) & 0xFF;
+    a = (uc >> 24) & 0xFF;
+}
 
 void ObjectCreator::ImportFromFile(const char* file_path){
     std::string path(file_path);
@@ -193,67 +202,140 @@ void ObjectCreator::ImportFromFile(const char* file_path){
         return;
     }
 
+    // Salva os dados atuais para restaurar depois da importação
+    core::ShapeType saved_mode   = mode;
+    bool            saved_filled = filled;
+    int             saved_color  = object_color;
+
     std::string line;
     unsigned int count = 0;
     std::vector<std::tuple<float, float, float>> file_vertices;
     std::string current_name;
 
+    // Per-object metadata parsed from custom comments
+    int  pending_color  = IM_COL32_WHITE;
+    bool pending_filled = false;
+
     while(std::getline(file, line)){
-        if(line.empty() || line[0] == '#') continue;
+        // Handle custom metadata comments before skipping all '#' lines
+        if (!line.empty() && line[0] == '#') {
+            std::istringstream css(line.substr(1));
+            std::string tag;
+            css >> tag;
+            if (tag == "color") {
+                int r, g, b, a = 255;
+                if (css >> r >> g >> b) {
+                    css >> a;
+                    pending_color = IM_COL32(r, g, b, a);
+                }
+            } else if (tag == "filled") {
+                int f = 0;
+                css >> f;
+                pending_filled = (f != 0);
+            }
+            continue;
+        }
+        if (line.empty()) continue;
 
         std::istringstream iss(line);
         std::string type;
         iss >> type;
 
         if (type == "v") {
-            float x, y, z, w = 1.0;
+            float x, y, z = 0.0f, w = 1.0f;
             iss >> x >> y >> z;
-            if (iss >> w) { }
+            (void)w;
             file_vertices.emplace_back(x, y, z);
         } else if (type == "o" || type == "g") {
             iss >> current_name;
+            // Reset per-object metadata for each new object
+            pending_color  = IM_COL32_WHITE;
+            pending_filled = false;
         } else if (type == "p") {
             points.clear();
             std::string v_str;
             while (iss >> v_str) {
                 try {
                     int v_idx = std::stoi(v_str);
-                    if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
-                    if (v_idx > 0 && v_idx <= (int)file_vertices.size()) {
+                    if (v_idx < 0) v_idx = (int)file_vertices.size() + v_idx + 1;
+                    if (v_idx > 0 && v_idx <= (int)file_vertices.size())
                         points.push_back(file_vertices[v_idx - 1]);
-                    }
                 } catch (...) {}
             }
             if (!points.empty()) {
-                /*if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
-                else entityManager.add(true, points, IM_COL32_WHITE);*/
+                mode         = core::ShapeType::POINT;
+                object_color = pending_color;
+                filled       = false;
+                if (!current_name.empty()) {
+                    std::strncpy(obj_name, current_name.c_str(), sizeof(obj_name) - 1);
+                    obj_name[sizeof(obj_name) - 1] = '\0';
+                } else {
+                    obj_name[0] = '\0';
+                }
                 AddGraphicObject();
                 count++;
             }
-        } else if (type == "l" || type == "f") {
+        } else if (type == "l") {
+            // 'l' → Wireframe (open or closed polyline)
             points.clear();
             std::string v_str;
             while (iss >> v_str) {
                 try {
                     int v_idx = std::stoi(v_str);
-                    if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
-                    if (v_idx > 0 && v_idx <= (int)file_vertices.size()) {
+                    if (v_idx < 0) v_idx = (int)file_vertices.size() + v_idx + 1;
+                    if (v_idx > 0 && v_idx <= (int)file_vertices.size())
                         points.push_back(file_vertices[v_idx - 1]);
-                    }
                 } catch (...) {}
             }
-            if (!points.empty()) {
-                if (type == "f" && points.front() != points.back()) {
-                    points.push_back(points.front());
+            if (points.size() >= 2) {
+                mode         = core::ShapeType::WIREFRAME;
+                object_color = pending_color;
+                filled       = false;
+                if (!current_name.empty()) {
+                    std::strncpy(obj_name, current_name.c_str(), sizeof(obj_name) - 1);
+                    obj_name[sizeof(obj_name) - 1] = '\0';
+                } else {
+                    obj_name[0] = '\0';
                 }
-                /*if (!current_name.empty()) entityManager.add(current_name, points, IM_COL32_WHITE);
-                else entityManager.add(true, points, IM_COL32_WHITE);*/
+                AddGraphicObject();
+                count++;
+            }
+        } else if (type == "f") {
+            // 'f' → Polygon (closed; filled flag from # filled comment)
+            points.clear();
+            std::string v_str;
+            while (iss >> v_str) {
+                try {
+                    // OBJ faces can be "v/vt/vn" — take only the vertex index part
+                    int v_idx = std::stoi(v_str);
+                    if (v_idx < 0) v_idx = (int)file_vertices.size() + v_idx + 1;
+                    if (v_idx > 0 && v_idx <= (int)file_vertices.size())
+                        points.push_back(file_vertices[v_idx - 1]);
+                } catch (...) {}
+            }
+            if (points.size() >= 3) {
+                mode         = core::ShapeType::POLYGON;
+                filled       = pending_filled;
+                object_color = pending_color;
+                if (!current_name.empty()) {
+                    std::strncpy(obj_name, current_name.c_str(), sizeof(obj_name) - 1);
+                    obj_name[sizeof(obj_name) - 1] = '\0';
+                } else {
+                    obj_name[0] = '\0';
+                }
                 AddGraphicObject();
                 count++;
             }
         }
     }
     points.clear();
+    obj_name[0] = '\0';
+
+    // Restore UI state
+    mode         = saved_mode;
+    filled       = saved_filled;
+    object_color = saved_color;
+
     log.AddLog("Imported %d objects from %s\n", count, path.c_str());
 }
 
@@ -274,34 +356,59 @@ void ObjectCreator::ExportToFile(const char* file_path){
     file << "# Fast OBJ Export\n";
 
     for (const auto &point: entityManager.getPointList()){
+        int r, g, b, a;
+        unpack_color(point.object_color, r, g, b, a);
         file << "o " << point.getName() << "\n";
+        file << "# color " << r << " " << g << " " << b << " " << a << "\n";
         file << "v " << point.x << " " << point.y << " 0.0\n";
         file << "p " << vertex_index << "\n";
         vertex_index++;
     }
-    for (const auto &line: entityManager.getLineList()){
-        file << "o " << line.getName() << "\n";
-        file << "v " << line.a.x << " " << line.a.y << " 0.0\n";
-        file << "v " << line.b.x << " " << line.b.y << " 0.0\n";
-        file << "l " << vertex_index << " " << vertex_index+1 << "\n";
+
+    for (const auto &ln: entityManager.getLineList()){
+        int r, g, b, a;
+        unpack_color(ln.object_color, r, g, b, a);
+        file << "o " << ln.getName() << "\n";
+        file << "# color " << r << " " << g << " " << b << " " << a << "\n";
+        file << "v " << ln.a.x << " " << ln.a.y << " 0.0\n";
+        file << "v " << ln.b.x << " " << ln.b.y << " 0.0\n";
+        file << "l " << vertex_index << " " << vertex_index + 1 << "\n";
         vertex_index += 2;
     }
+
     for (const auto& wireframe : entityManager.getWireframeList()) {
+        int r, g, b, a;
+        unpack_color(wireframe.object_color, r, g, b, a);
         file << "o " << wireframe.getName() << "\n";
+        file << "# color " << r << " " << g << " " << b << " " << a << "\n";
         for (const auto& vertex : wireframe.points) {
             file << "v " << vertex.x << " " << vertex.y << " 0.0\n";
         }
-        if (wireframe.points.size() > 2 && wireframe.points.front() == wireframe.points.back()) {
-            file << "f";
-            for (size_t i = 0; i < wireframe.points.size() - 1; ++i)
-                file << " " << vertex_index + i;
-        } else {
-            file << "l";
-            for (size_t i = 0; i < wireframe.points.size(); ++i)
-                file << " " << vertex_index + i;
-        }
+        file << "l";
+        for (size_t i = 0; i < wireframe.points.size(); ++i)
+            file << " " << vertex_index + i;
         file << "\n";
-        vertex_index += wireframe.points.size();
+        vertex_index += (int)wireframe.points.size();
+    }
+
+    for (const auto& polygon : entityManager.getPolygonList()) {
+        int r, g, b, a;
+        unpack_color(polygon.object_color, r, g, b, a);
+        file << "o " << polygon.getName() << "\n";
+        file << "# color " << r << " " << g << " " << b << " " << a << "\n";
+        file << "# filled " << (polygon.filled ? 1 : 0) << "\n";
+        // Polygons store a closing duplicate of the first vertex — skip it on export
+        size_t n = polygon.points.size();
+        if (n > 1 && polygon.points.front().x == polygon.points.back().x &&
+                     polygon.points.front().y == polygon.points.back().y)
+            n--;
+        for (size_t i = 0; i < n; ++i)
+            file << "v " << polygon.points[i].x << " " << polygon.points[i].y << " 0.0\n";
+        file << "f";
+        for (size_t i = 0; i < n; ++i)
+            file << " " << vertex_index + i;
+        file << "\n";
+        vertex_index += (int)n;
     }
 
     log.AddLog("Exported objects to %s\n", path.c_str());

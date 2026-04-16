@@ -63,6 +63,7 @@ class EntityManager{
         const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}
         const std::vector<core::Wireframe>& getWireframeList() const {return displayFile.getWireframeList();}
+        const std::vector<core::Polygon>& getPolygonList() const {return displayFile.getPolygonList();}
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
         const std::unordered_map<long long, std::pair<int, int>>&  getHashID() const {return displayFile.getHashID();}
         

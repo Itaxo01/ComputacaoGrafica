@@ -17,8 +17,8 @@ namespace core{
 
     class Point: public Shape{
         public:
-            float x, y, z;
-            Point(): x(0), y(0), z(0) {
+            float x = 0, y = 0, z = 0;
+            Point(){
                 type = core::ShapeType::POINT;
             }
             Point(float x, float y, float z = 0.0f): x(x), y(y), z(z){

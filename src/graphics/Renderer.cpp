@@ -204,10 +204,10 @@ void Renderer::RenderBackground() {
     }
 }
 void Renderer::DrawObject(const core::Point &p) {
-    const float half = 2.0f;
+    const float half = 1.0f;
     draw_list->AddRectFilled(ImVec2(p.x - half, p.y - half),
                              ImVec2(p.x + half, p.y + half),
-                             p.object_color, 0, 2.0f);
+                             p.object_color, 2.0f, ImDrawFlags_RoundCornersAll);
 }
 
 void Renderer::DrawObject(const core::Line &line) {
@@ -226,7 +226,7 @@ void Renderer::DrawObject(const core::Wireframe &wireframe) {
 /* Polyogon drawing helper functions*/
 float polygonArea(const std::vector <ImVec2>& p) {
     float A = 0;
-    for (int i = 0; i < p.size(); i++) {
+    for (int i = 0; i < (int)p.size(); i++) {
         int j = (i + 1) % p.size();
         A += p[i].x * p[j].y - p[j].x * p[i].y;
     }
@@ -269,7 +269,7 @@ std::vector<int> Renderer::triangulate(std::vector <ImVec2> poly) {
     while (V.size() > 3) {
         bool ear_found = false;
 
-        for (int i = 0; i < V.size(); i++) {
+        for (int i = 0; i < (int)V.size(); i++) {
             int prev = V[(i - 1 + V.size()) % V.size()];
             int curr = V[i];
             int next = V[(i + 1) % V.size()];
@@ -278,7 +278,7 @@ std::vector<int> Renderer::triangulate(std::vector <ImVec2> poly) {
                 continue;
 
             bool inside = false;
-            for (int j = 0; j < V.size(); j++) {
+            for (int j = 0; j < (int)V.size(); j++) {
                 int vi = V[j];
                 if (vi == prev || vi == curr || vi == next)
                     continue;
@@ -328,7 +328,7 @@ void Renderer::DrawObject(const core::Polygon &polygon) {
             vertices.push_back(ToImVec2(p)); 
         }
         auto tris = triangulate(vertices);
-        for (int i = 0; i < tris.size(); i += 3) {
+        for (int i = 0; i < (int)tris.size(); i += 3) {
             draw_list->AddTriangleFilled(
                 ImVec2(vertices[tris[i]].x,     vertices[tris[i]].y),
                 ImVec2(vertices[tris[i+1]].x,   vertices[tris[i+1]].y),
@@ -341,6 +341,7 @@ void Renderer::DrawObject(const core::Polygon &polygon) {
 }
 
 
+/* ======================== DEPRECATED ============================
 // Esse método manipula diretamente os ponteiros da drawlist para realizar a escrita em paralelo (A drawlist não possui mecanismos de acesso concorrentes).
 // Só é utilizado na rotina make fast, e não está funcionando atualmente (falta implementar preenchimento do poligono aqui).
 void Renderer::DrawAllParallel() {
@@ -438,6 +439,7 @@ void Renderer::DrawAllParallel() {
     draw_list->_IdxWritePtr   += total_idx;
     draw_list->_VtxCurrentIdx += total_vtx;
 }
+    ======================== DEPRECATED ============================ */
 
 void Renderer::DrawPreview() {
     const auto& pts = displayFile.getPreviewPoints();
@@ -544,14 +546,14 @@ void Renderer::render() {
     RenderBackground();
     GenerateDrawList();
 
-    #ifdef USE_PARALLEL_DRAWLIST
-        DrawAllParallel();
-    #else
+    // #ifdef USE_PARALLEL_DRAWLIST
+    //     DrawAllParallel();
+    // #else
         for (const auto &p : drawPointList)    DrawObject(p);
         for (const auto &l : drawLineList)     DrawObject(l);
         for (const auto &w : drawWireframeList) DrawObject(w);
         for (const auto &p : drawPolygonList) DrawObject(p);
-    #endif
+    // #endif
 
     #ifndef DONT_DRAW_SHAPE_NAME
         for(const auto &p: displayFile.getPointList()) draw_name_if_visible(p);

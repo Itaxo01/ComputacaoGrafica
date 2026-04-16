@@ -29,66 +29,74 @@ public:
         
         cout << "Validating file: " << path << endl;
 
+        int colorCount = 0;
         while(getline(file, line)){
-            if(line.empty() || line[0] == '#') continue;
-            
+            if (!line.empty() && line[0] == '#') {
+                istringstream css(line.substr(1));
+                string tag; css >> tag;
+                if (tag == "color") colorCount++;
+                continue;
+            }
+            if (line.empty()) continue;
+
             istringstream iss(line);
             string type;
             iss >> type;
-            
+
             if (type == "v") {
-                float x, y, z, w = 1.0;
+                float x, y, z, w = 1.0f;
                 iss >> x >> y >> z;
-                if (iss >> w) { } // successfully read w
-                file_vertices.emplace_back(x, y, z); 
+                (void)w;
+                file_vertices.emplace_back(x, y, z);
             } else if (type == "o" || type == "g") {
                 iss >> current_name;
             } else if (type == "p") {
-                vector<tuple<float, float, float>> points;
                 string v_str;
+                bool valid = false;
                 while (iss >> v_str) {
                     try {
-                        size_t pos;
-                        int v_idx = stoi(v_str, &pos);
-                        if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
-                        if (v_idx > 0 && v_idx <= file_vertices.size()) {
-                            points.push_back(file_vertices[v_idx - 1]);
-                        }
+                        int v_idx = stoi(v_str);
+                        if (v_idx < 0) v_idx = (int)file_vertices.size() + v_idx + 1;
+                        if (v_idx > 0 && v_idx <= (int)file_vertices.size()) valid = true;
                     } catch (...) {}
                 }
-                if (!points.empty()) {
-                    count++;
-                }
+                if (valid) count++;
             } else if (type == "l" || type == "f") {
-                vector<tuple<float, float, float>> points;
+                int resolved = 0;
                 string v_str;
                 while (iss >> v_str) {
                     try {
-                        size_t pos;
-                        int v_idx = stoi(v_str, &pos);
-                        if (v_idx < 0) v_idx = file_vertices.size() + v_idx + 1;
-                        if (v_idx > 0 && v_idx <= file_vertices.size()) {
-                            points.push_back(file_vertices[v_idx - 1]);
-                        }
+                        int v_idx = stoi(v_str);
+                        if (v_idx < 0) v_idx = (int)file_vertices.size() + v_idx + 1;
+                        if (v_idx > 0 && v_idx <= (int)file_vertices.size()) resolved++;
                     } catch (...) {}
                 }
-                if (!points.empty()) {
-                    if (type == "f" && points.front() != points.back()) {
-                        points.push_back(points.front());
-                    }
-                    count++;
-                }
+                if (resolved >= (type == "l" ? 2 : 3)) count++;
             }
         }
-        cout << "Validation successful. Found " << file_vertices.size() << " vertices and " << count << " objects." << endl;
+        cout << "Validation successful. Found " << file_vertices.size() << " vertices, "
+             << count << " objects, " << colorCount << " colored." << endl;
     }
 };
 
+static mt19937 rng(random_device{}());
+
 float getRandomFloat(float min_val, float max_val) {
-    random_device rd;
-    mt19937 gen(rd());
     uniform_real_distribution<float> dis(min_val, max_val);
-    return dis(gen);
+    return dis(rng);
+}
+
+int getRandomInt(int min_val, int max_val) {
+    uniform_int_distribution<int> dis(min_val, max_val);
+    return dis(rng);
+}
+
+// Writes "# color R G B 255\n" with random RGB to the file
+void writeRandomColor(ofstream &file) {
+    file << "# color " << getRandomInt(0, 255)
+         << " "        << getRandomInt(0, 255)
+         << " "        << getRandomInt(0, 255)
+         << " 255\n";
 }
 
 void interactiveGenerator() {
@@ -112,13 +120,15 @@ void interactiveGenerator() {
         cin >> max_val;
     }
 
-    int numPoints = 0, numLines = 0, numFaces = 0;
+    int numPoints = 0, numLines = 0, numWireframes = 0, numPolygons = 0;
     cout << "Enter number of point objects to generate: ";
     cin >> numPoints;
     cout << "Enter number of line objects to generate (each with 2 vertices): ";
     cin >> numLines;
-    cout << "Enter number of face/wireframe objects to generate (each with 3-6 vertices): ";
-    cin >> numFaces;
+    cout << "Enter number of wireframe objects to generate (each with 2-6 vertices): ";
+    cin >> numWireframes;
+    cout << "Enter number of polygon objects to generate (each with 3-6 vertices): ";
+    cin >> numPolygons;
 
     ofstream file(filename);
     if (!file.is_open()) {
@@ -127,13 +137,16 @@ void interactiveGenerator() {
     }
 
     file << "# Generated by SampleGenerator\n";
-    
+
     int vertex_count = 1;
 
     // Generate Points
     for (int i = 0; i < numPoints; ++i) {
         file << "o Point_" << i << "\n";
-        file << "v " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << "\n";
+        writeRandomColor(file);
+        file << "v " << getRandomFloat(min_val, max_val)
+             << " "  << getRandomFloat(min_val, max_val)
+             << " "  << getRandomFloat(min_val, max_val) << "\n";
         file << "p " << vertex_count << "\n";
         vertex_count++;
     }
@@ -141,27 +154,49 @@ void interactiveGenerator() {
     // Generate Lines
     for (int i = 0; i < numLines; ++i) {
         file << "o Line_" << i << "\n";
-        file << "v " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << "\n";
-        file << "v " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << "\n";
+        writeRandomColor(file);
+        file << "v " << getRandomFloat(min_val, max_val)
+             << " "  << getRandomFloat(min_val, max_val)
+             << " "  << getRandomFloat(min_val, max_val) << "\n";
+        file << "v " << getRandomFloat(min_val, max_val)
+             << " "  << getRandomFloat(min_val, max_val)
+             << " "  << getRandomFloat(min_val, max_val) << "\n";
         file << "l " << vertex_count << " " << vertex_count + 1 << "\n";
         vertex_count += 2;
     }
 
-    // Generate Faces
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> polyDis(3, 6);
-
-    for (int i = 0; i < numFaces; ++i) {
-        file << "o Face_" << i << "\n";
-        int polySize = polyDis(gen);
+    // Generate Wireframes (open polylines via 'l')
+    for (int i = 0; i < numWireframes; ++i) {
+        int polySize = getRandomInt(2, 6);
+        file << "o Wireframe_" << i << "\n";
+        writeRandomColor(file);
         for (int j = 0; j < polySize; j++) {
-            file << "v " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << " " << getRandomFloat(min_val, max_val) << "\n";
+            file << "v " << getRandomFloat(min_val, max_val)
+                 << " "  << getRandomFloat(min_val, max_val)
+                 << " "  << getRandomFloat(min_val, max_val) << "\n";
+        }
+        file << "l";
+        for (int j = 0; j < polySize; j++)
+            file << " " << vertex_count + j;
+        file << "\n";
+        vertex_count += polySize;
+    }
+
+    // Generate Polygons (closed faces via 'f', randomly filled or outline)
+    for (int i = 0; i < numPolygons; ++i) {
+        int polySize = getRandomInt(3, 6);
+        bool filled  = getRandomInt(0, 1) == 1;
+        file << "o Polygon_" << i << "\n";
+        writeRandomColor(file);
+        file << "# filled " << (filled ? 1 : 0) << "\n";
+        for (int j = 0; j < polySize; j++) {
+            file << "v " << getRandomFloat(min_val, max_val)
+                 << " "  << getRandomFloat(min_val, max_val)
+                 << " "  << getRandomFloat(min_val, max_val) << "\n";
         }
         file << "f";
-        for (int j = 0; j < polySize; j++) {
+        for (int j = 0; j < polySize; j++)
             file << " " << vertex_count + j;
-        }
         file << "\n";
         vertex_count += polySize;
     }
