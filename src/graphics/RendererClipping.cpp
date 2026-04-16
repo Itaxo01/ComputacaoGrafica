@@ -1,12 +1,5 @@
-#include "RendererUtils.hpp"
-#include "Line.hpp"
+#include "RendererClipping.hpp"
 #include "ParallelUtils.hpp"
-#include "Point.hpp"
-#include "Polygon.hpp"
-#include "Window.hpp"
-#include <atomic>
-#include <utility>
-#include <vector>
 #include "Renderer.hpp"
 
 // Helpers para o Cohen-Sutherland
@@ -17,7 +10,6 @@ const int RIGHT  = 0b0010;
 const int BOTTOM = 0b0100;
 const int TOP    = 0b1000;
 
-/* Seleção simples verificando os limites da window */
 std::vector<core::Point> ClipPoints(const std::vector<core::Point> &v, const core::Point &wp0, const core::Point &wp1){
     std::vector<core::Point> ret(v.size());
     std::atomic<size_t> count{0}; // Utilizado para se livrar do mutex ao inserir no vetor
@@ -48,8 +40,7 @@ inline bool LineClipTest(float p, float q, float &u1, float &u2){
     return true;
 }
 
-/* Usada para alguma coisa que não é renderização, acho que o background talvez*/
-std::pair<core::Line, bool> ClipLine(const core::Line &line, const core::Point &wp0, const core::Point&wp1) {
+bool ClipLine(core::Line &line, const core::Point &wp0, const core::Point&wp1) {
     float u1 = 0.0f;
     float u2 = 1.0f;
     float dx = line.b.x - line.a.x;
@@ -59,18 +50,19 @@ std::pair<core::Line, bool> ClipLine(const core::Line &line, const core::Point &
         LineClipTest(-dy, line.a.y - wp0.y, u1, u2)  && // bottom
         LineClipTest(dy, wp1.y - line.a.y, u1, u2)     // top
     ){
-        core::Line cLine = line;
+        const float ox = line.a.x;
+        const float oy = line.a.y;
         if(u1 > 0.0f){
-            cLine.a.x = line.a.x + u1 * dx;
-            cLine.a.y = line.a.y + u1 * dy;
+            line.a.x = ox + u1 * dx;
+            line.a.y = oy + u1 * dy;
         }
         if(u2 < 1.0f){
-            cLine.b.x = line.a.x + u2 * dx;
-            cLine.b.y = line.a.y + u2 * dy;
+            line.b.x = ox + u2 * dx;
+            line.b.y = oy + u2 * dy;
         }
-        return std::make_pair(cLine, true);
+        return true;
     }
-    return std::make_pair(line, false);
+    return false;
 }
 
 static inline bool ClipLineLiangBarsky(core::Line &line, const core::Point &wp0, const core::Point &wp1) {
@@ -83,13 +75,15 @@ static inline bool ClipLineLiangBarsky(core::Line &line, const core::Point &wp0,
         LineClipTest(-dy, line.a.y - wp0.y, u1, u2)  && // bottom
         LineClipTest(dy, wp1.y - line.a.y, u1, u2)     // top
     ){
+        const float ox = line.a.x;
+        const float oy = line.a.y;
         if(u1 > 0.0f){
-            line.a.x = line.a.x + u1 * dx;
-            line.a.y = line.a.y + u1 * dy;
+            line.a.x = ox + u1 * dx;
+            line.a.y = oy + u1 * dy;
         }
         if(u2 < 1.0f){
-            line.b.x = line.a.x + u2 * dx;
-            line.b.y = line.a.y + u2 * dy;
+            line.b.x = ox + u2 * dx;
+            line.b.y = oy + u2 * dy;
         }
         return true;
     }
@@ -195,7 +189,6 @@ std::vector<core::Line> ClipLines(const std::vector<core::Line> &v, const core::
 }
 
 
-/* */
 std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, const core::Point &wp0, const core::Point &wp1){
     size_t max_lines = 0;
     for(const auto &w: v){
@@ -301,7 +294,6 @@ static inline bool SHClipping(std::vector<core::Point> &newP, const core::Point 
     return true;
 }
 
-/* Sutherland–Hodgman clipping */
 std::vector<core::Polygon> ClipPolygons(const std::vector<core::Polygon> &v, const core::Point &wp0, const core::Point &wp1) {
     std::vector<core::Polygon> ret;
     ret.reserve(v.size());
@@ -335,58 +327,3 @@ std::vector<core::Polygon> ClipPolygons(const std::vector<core::Polygon> &v, con
     }
     return ret;
 }
-
-void TransformToNCS(std::vector<core::Point> &v, const core::mat4 &mat){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Point &p){ 
-        core::Point np = mat * p; 
-        p.x = np.x; 
-        p.y = np.y; 
-        p.z = np.z; 
-    });
-}
-
-void TransformToNCS(std::vector<core::Line> &v, const core::mat4 &mat){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Line &l){ l.a = mat * l.a; l.b = mat * l.b; });
-}
-
-void TransformToNCS(std::vector<core::Wireframe> &v, const core::mat4 &mat){
-    // Em wireframes iteramos pelas linhas internas do mesmo objeto também
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Wireframe &w){ 
-        for(auto &p: w.points) p = mat * p; 
-    });
-}
-
-void TransformToNCS(std::vector<core::Polygon> &v, const core::mat4 &mat){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Polygon &v){ 
-        for(auto &p: v.points) p = mat * p; 
-    });
-}
-
-
-void TransformToViewport(std::vector<core::Point> &v, const Window &window, const ImVec2 &offset){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Point &p){
-        core::Point np = window.NCSToViewport(p);
-        p.x = np.x + offset.x; 
-        p.y = np.y + offset.y;
-        p.z = np.z;
-    });
-}
-
-void TransformToViewport(std::vector<core::Line> &v, const Window &window, const ImVec2 &offset){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Line &l){
-        l.a = window.NCSToViewport(l.a); 
-        l.a.x += offset.x; l.a.y += offset.y;
-        l.b = window.NCSToViewport(l.b); 
-        l.b.x += offset.x; l.b.y += offset.y;
-    });
-}
-void TransformToViewport(std::vector<core::Polygon> &v, const Window &window, const ImVec2 &offset){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::Polygon &p) {
-        for(core::Point& pt: p.points){
-            pt = window.NCSToViewport(pt);
-            pt.x += offset.x, pt.y+=offset.y;
-        }
-    });
-}
-
-

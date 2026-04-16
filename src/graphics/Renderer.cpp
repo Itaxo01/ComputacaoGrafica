@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
-#include "RendererUtils.hpp"
-#include "ParallelUtils.hpp"
+#include "RendererClipping.hpp"
+#include "RendererTransform.hpp"
 
 inline ImVec2 ToImVec2(const core::Point &p) {
     return ImVec2(p.x, p.y);
@@ -107,12 +107,12 @@ void Renderer::RenderBackground() {
             core::Point pa(x, start_y); core::Point pb(x, end_y);
             core::Line l(pa, pb);
             l.a = ncs_mat * l.a; l.b = ncs_mat * l.b;
-            auto [clipped, isOnScreen]  = ClipLine(l, ncs_min, ncs_max);
+            bool isOnScreen  = ClipLine(l, ncs_min, ncs_max);
             
             if (!isOnScreen) continue;
 
-            core::Point top_screen = window.NCSToViewport(clipped.b);
-            core::Point bottom_screen = window.NCSToViewport(clipped.a);
+            core::Point top_screen = window.NCSToViewport(l.b);
+            core::Point bottom_screen = window.NCSToViewport(l.a);
             top_screen.x += canvas_p0.x; top_screen.y += canvas_p0.y;
             bottom_screen.x += canvas_p0.x; bottom_screen.y += canvas_p0.y;
 
@@ -121,7 +121,7 @@ void Renderer::RenderBackground() {
             if (viewport.show_axis_coordinates && std::abs(x) > step * 0.1f) {
                 snprintf(label, sizeof(label), "%g", x);  
                 
-                core::Point screen_pos = get_clamped_text_pos(core::Point(x, 0, 0), clipped.a, clipped.b);
+                core::Point screen_pos = get_clamped_text_pos(core::Point(x, 0, 0), l.a, l.b);
                 
                 ImVec2 text_dr(screen_pos.x + 6, screen_pos.y + 4);
                 // Leve clamp para que o texto não corte nas extremidades (offset do AddText)
@@ -137,12 +137,12 @@ void Renderer::RenderBackground() {
             core::Point pa(start_x, y); core::Point pb(end_x, y);
             core::Line l(pa, pb);
             l.a = ncs_mat * l.a; l.b = ncs_mat * l.b;
-            auto [clipped, isOnScreen]  = ClipLine(l, ncs_min, ncs_max);
+            bool isOnScreen  = ClipLine(l, ncs_min, ncs_max);
             
             if (!isOnScreen) continue;
 
-            core::Point rightmost = window.NCSToViewport(clipped.b);
-            core::Point leftmost = window.NCSToViewport(clipped.a);
+            core::Point rightmost = window.NCSToViewport(l.b);
+            core::Point leftmost = window.NCSToViewport(l.a);
             rightmost.x += canvas_p0.x; rightmost.y += canvas_p0.y;
             leftmost.x += canvas_p0.x; leftmost.y += canvas_p0.y;
 
@@ -151,7 +151,7 @@ void Renderer::RenderBackground() {
             if (viewport.show_axis_coordinates && std::abs(y) > step * 0.1f) {
                 snprintf(label, sizeof(label), "%g", y);
                 
-                core::Point screen_pos = get_clamped_text_pos(core::Point(0, y, 0), clipped.a, clipped.b);
+                core::Point screen_pos = get_clamped_text_pos(core::Point(0, y, 0), l.a, l.b);
                 
                 ImVec2 text_dr(screen_pos.x + 6, screen_pos.y - 16);
                 text_dr.x = std::clamp(text_dr.x, canvas_p0.x + 2.0f, canvas_p1.x - 30.0f);
@@ -178,11 +178,11 @@ void Renderer::RenderBackground() {
         core::Point pay(0, center.y + max_radius, 0); core::Point pby(0, center.y - max_radius, 0);
         core::Line l_y(pay, pby);
         l_y.a = ncs_mat * l_y.a; l_y.b = ncs_mat * l_y.b;
-        auto [clipped_y, isOnScreen_y]  = ClipLine(l_y, ncs_min, ncs_max);
+        bool isOnScreen_y = ClipLine(l_y, ncs_min, ncs_max);
 
         if(isOnScreen_y){
-            core::Point top_screen = window.NCSToViewport(clipped_y.a);
-            core::Point bottom_screen = window.NCSToViewport(clipped_y.b);
+            core::Point top_screen = window.NCSToViewport(l_y.a);
+            core::Point bottom_screen = window.NCSToViewport(l_y.b);
             top_screen.x += canvas_p0.x; top_screen.y += canvas_p0.y;
             bottom_screen.x += canvas_p0.x; bottom_screen.y += canvas_p0.y;
             draw_list->AddLine(ToImVec2(top_screen), ToImVec2(bottom_screen), IM_COL32(100, 100, 100, 255), 2.0f);
@@ -192,11 +192,11 @@ void Renderer::RenderBackground() {
         core::Point pax(center.x + max_radius, 0, 0); core::Point pbx(center.x - max_radius, 0, 0);
         core::Line l_x(pax, pbx);
         l_x.a = ncs_mat * l_x.a; l_x.b = ncs_mat * l_x.b;
-        auto [clipped_x, isOnScreen_x]  = ClipLine(l_x, ncs_min, ncs_max);
+        bool isOnScreen_x  = ClipLine(l_x, ncs_min, ncs_max);
 
         if(isOnScreen_x){
-            core::Point rightmost = window.NCSToViewport(clipped_x.a);
-            core::Point leftmost = window.NCSToViewport(clipped_x.b);
+            core::Point rightmost = window.NCSToViewport(l_x.a);
+            core::Point leftmost = window.NCSToViewport(l_x.b);
             rightmost.x += canvas_p0.x; rightmost.y += canvas_p0.y;
             leftmost.x += canvas_p0.x; leftmost.y += canvas_p0.y;
             draw_list->AddLine(ToImVec2(rightmost), ToImVec2(leftmost), IM_COL32(100, 100, 100, 255), 2.0f);
