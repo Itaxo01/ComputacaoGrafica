@@ -8,9 +8,46 @@
 
 namespace core{
     class BezierCurve: public Shape{
+        private:
+        // depois colocar em outro lugar
+        core::Point lerp(core::Point p0, core::Point p1, float t) {
+            return (p0 + (p1-p0)*t);
+        }
+
+        // data arrives in the format: {p0, p1, c0 ,c1, c2, ... cn}
+        std::vector<core::Point> construct(std::vector<core::Point> &data) {
+            // changes data to the format: {p0, c0 ,c1, c2, ... cn, p1}
+            core::Point last_point_buffer = data[1];
+            data.erase(next(data.begin()));
+            data.push_back(data[1]);
+
+            const int smoothness = 25; // number of evaluated points. number of lines will be smoothness - 1.
+            const float delta_t = 1.0f / (float) smoothness;
+
+            // memory allocation
+            std::vector<core::Point> points(smoothness);
+            std::vector<std::vector<core::Point>> control_buffer;
+            for (int vector_size = data.size(); vector_size > 0; vector_size--)
+                control_buffer.push_back(std::vector<core::Point>(vector_size));
+            control_buffer[0] = data;
+
+            // points evaluation
+            int counter = 0;
+            for (float t = 0.0f; t < 1.0f; t += delta_t, counter++) {
+                for (int buffer_depth = 0; buffer_depth < (int) control_buffer.size(); buffer_depth++) {
+                    for (int i = 0; i < (int) control_buffer[buffer_depth].size()-1; i++) {
+                        control_buffer[buffer_depth+1][i] = lerp(control_buffer[buffer_depth][i], control_buffer[buffer_depth][i+1], t);
+                    }
+                }
+                points[counter] = control_buffer[control_buffer.size()-1][0];
+            }
+            return points;
+        }
+
         public:
         std::vector<core::Point> points;
-        BezierCurve(std::vector<core::Point> &data): points(data) {
+        BezierCurve(std::vector<core::Point> &data) {
+            points = construct(data);
             type = ShapeType::BEZIER_CURVE;
         }
 
