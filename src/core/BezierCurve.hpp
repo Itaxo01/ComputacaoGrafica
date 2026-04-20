@@ -19,7 +19,7 @@ namespace core{
             // changes data to the format: {p0, c0 ,c1, c2, ... cn, p1}
             core::Point last_point_buffer = data[1];
             data.erase(next(data.begin()));
-            data.push_back(data[1]);
+            data.push_back(last_point_buffer);
 
             const int smoothness = 25; // number of evaluated points. number of lines will be smoothness - 1.
             const float delta_t = 1.0f / (float) smoothness;
