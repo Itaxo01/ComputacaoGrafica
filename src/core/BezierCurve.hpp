@@ -33,7 +33,7 @@ namespace core{
 
             // points evaluation
             int counter = 0;
-            for (float t = 0.0f; t < 1.0f; t += delta_t, counter++) {
+            for (float t = 0.0f; counter < smoothness; t += delta_t, counter++) {
                 for (int buffer_depth = 0; buffer_depth < (int) control_buffer.size(); buffer_depth++) {
                     for (int i = 0; i < (int) control_buffer[buffer_depth].size()-1; i++) {
                         control_buffer[buffer_depth+1][i] = lerp(control_buffer[buffer_depth][i], control_buffer[buffer_depth][i+1], t);

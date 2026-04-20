@@ -340,6 +340,15 @@ void Renderer::DrawObject(const core::Polygon &polygon) {
     }
 }
 
+// Redundante. Método igual ao Draw do wireframe.
+// Por algum motivo não está renderizando
+void Renderer::DrawObject(const core::BezierCurve &bezierCurve) {
+    const float width = 2.0f;
+    int size = bezierCurve.points.size();
+    for (int i = 0; i < size-1; i++) {
+        draw_list->AddLine(ToImVec2(bezierCurve.points[i]), ToImVec2(bezierCurve.points[i+1]), bezierCurve.object_color, width);
+    }
+}
 
 /* ======================== DEPRECATED ============================
 // Esse método manipula diretamente os ponteiros da drawlist para realizar a escrita em paralelo (A drawlist não possui mecanismos de acesso concorrentes).
@@ -500,6 +509,8 @@ void Renderer::ApplyClipping(){
     this->drawLineList = ClipLines(this->drawLineList, ncs_min, ncs_max, viewport.GetClippingMode());
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
     this->drawPolygonList = ClipPolygons(this->drawPolygonList, ncs_min, ncs_max);
+    this->drawBezierCurveList = ClipBezierCurves(this->bezierCurveMiddleware, ncs_min, ncs_max);
+    // TODO: clipping para curvas
 }
 
 void Renderer::ApplyNCSTransform(){
@@ -507,6 +518,7 @@ void Renderer::ApplyNCSTransform(){
     this->drawLineList  = displayFile.getLineList();
     this->wireframeMiddleware = displayFile.getWireframeList();
     this->drawPolygonList = displayFile.getPolygonList();
+    this->bezierCurveMiddleware = displayFile.getBezierCurveList();
     
     auto ncs_mat = window.GetWindowNCSMatrix();
     
@@ -514,6 +526,7 @@ void Renderer::ApplyNCSTransform(){
     TransformToNCS(this->drawLineList, ncs_mat);
     TransformToNCS(this->wireframeMiddleware, ncs_mat);
     TransformToNCS(this->drawPolygonList, ncs_mat);
+    TransformToNCS(this->bezierCurveMiddleware, ncs_mat);
 }
 
 void Renderer::ApplyViewportTransform(){
@@ -524,6 +537,7 @@ void Renderer::ApplyViewportTransform(){
     TransformToViewport(this->drawLineList, window, offset);
     TransformToViewport(this->drawWireframeList, window, offset);
     TransformToViewport(this->drawPolygonList, window, offset);
+    TransformToViewport(this->drawBezierCurveList, window, offset);
 }
 
 void Renderer::GenerateDrawList(){
@@ -553,6 +567,7 @@ void Renderer::render() {
         for (const auto &l : drawLineList)     DrawObject(l);
         for (const auto &w : drawWireframeList) DrawObject(w);
         for (const auto &p : drawPolygonList) DrawObject(p);
+        for (const auto &b : drawBezierCurveList) DrawObject(b);
     // #endif
 
     #ifndef DONT_DRAW_SHAPE_NAME
@@ -560,6 +575,7 @@ void Renderer::render() {
         for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
         for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
         for(const auto &p: displayFile.getPolygonList()) draw_name_if_visible(p);
+        for(const auto &b: displayFile.getBezierCurveList()) draw_name_if_visible(b);
     #endif
 
     DrawPreview();

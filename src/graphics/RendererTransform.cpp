@@ -27,6 +27,13 @@ void TransformToNCS(std::vector<core::Polygon> &v, const core::mat4 &mat){
     });
 }
 
+// Redundante. Igual ao wireframe.
+void TransformToNCS(std::vector<core::BezierCurve> &v, const core::mat4 &mat){
+    cg_parallel_for_each(v.begin(), v.end(), [&](core::BezierCurve &b){ 
+        for(auto &p: b.points) p = mat * p; 
+    });
+}
+
 
 void TransformToViewport(std::vector<core::Point> &v, const Window &window, const ImVec2 &offset){
     cg_parallel_for_each(v.begin(), v.end(), [&](core::Point &p){

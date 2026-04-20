@@ -245,6 +245,63 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
     return ret;
 }
 
+// Redundante. Igual ao clipping de wirframes
+std::vector<core::Line> ClipBezierCurves(const std::vector<core::BezierCurve> &v, const core::Point &wp0, const core::Point &wp1){
+    size_t max_lines = 0;
+    for(const auto &w: v){
+        if(w.points.size() > 1) {
+            max_lines += w.points.size() - 1; // n pontos = n-1 linhas.
+        }
+    }
+
+    std::vector<core::Line> ret(max_lines);
+    std::atomic<size_t> count{0};
+
+    cg_parallel_for_each(v.begin(), v.end(), [&](const core::BezierCurve &w) {
+        size_t p_count = w.points.size();
+        if (p_count < 2) return; 
+
+        // Quebramos o wireframe em segmentos de reta.
+        for (size_t i = 0; i < p_count - 1; ++i) {
+            core::Line line;
+            line.a = w.points[i];
+            line.b = w.points[i+1];
+            
+            // Reutilizamos o Liang-Barsky aqui. Poderia ser chamado ClipLines de novo, porém fazendo aqui permite popularmos o vetor diretamente.
+            float u1 = 0.0f;
+            float u2 = 1.0f;
+            float dx = line.b.x - line.a.x;
+            float dy = line.b.y - line.a.y;
+            
+            if(LineClipTest(-dx, line.a.x - wp0.x, u1, u2) && // left
+               LineClipTest(dx, wp1.x - line.a.x, u1, u2)  && // right
+               LineClipTest(-dy, line.a.y - wp0.y, u1, u2)  && // bottom
+               LineClipTest(dy, wp1.y - line.a.y, u1, u2)     // top
+            ){
+                core::Line cLine = line;
+                if(u1 > 0.0f){
+                    cLine.a.x = line.a.x + u1 * dx;
+                    cLine.a.y = line.a.y + u1 * dy;
+                }
+                if(u2 < 1.0f){
+                    cLine.b.x = line.a.x + u2 * dx;
+                    cLine.b.y = line.a.y + u2 * dy;
+                }
+                #ifndef DONT_USE_OBJECT_COLOR
+                    cLine.object_color = w.object_color;
+                #endif
+
+                size_t insert_index = count.fetch_add(1, std::memory_order_relaxed);
+                ret[insert_index] = cLine;
+            }
+        }
+    });
+
+    ret.resize(count.load(std::memory_order_relaxed));
+
+    return ret;
+}
+
 static inline bool SHClipping(std::vector<core::Point> &newP, const core::Point &wp0, const core::Point &wp1){
     for (int edge = 0; edge < 4; ++edge) {
         std::vector<core::Point> inputList = newP;
