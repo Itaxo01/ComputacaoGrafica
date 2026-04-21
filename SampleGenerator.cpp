@@ -30,11 +30,13 @@ public:
         cout << "Validating file: " << path << endl;
 
         int colorCount = 0;
+        bool pending_bezier = false;
         while(getline(file, line)){
             if (!line.empty() && line[0] == '#') {
                 istringstream css(line.substr(1));
                 string tag; css >> tag;
                 if (tag == "color") colorCount++;
+                else if (tag == "type") { string t; css >> t; pending_bezier = (t == "bezier_curve"); }
                 continue;
             }
             if (line.empty()) continue;
@@ -50,6 +52,7 @@ public:
                 file_vertices.emplace_back(x, y, z);
             } else if (type == "o" || type == "g") {
                 iss >> current_name;
+                pending_bezier = false;
             } else if (type == "p") {
                 string v_str;
                 bool valid = false;
@@ -71,7 +74,11 @@ public:
                         if (v_idx > 0 && v_idx <= (int)file_vertices.size()) resolved++;
                     } catch (...) {}
                 }
-                if (resolved >= (type == "l" ? 2 : 3)) count++;
+                if (type == "l" && pending_bezier) {
+                    if (resolved >= 4 && (resolved - 1) % 3 == 0) count++;
+                } else if (resolved >= (type == "l" ? 2 : 3)) {
+                    count++;
+                }
             }
         }
         cout << "Validation successful. Found " << file_vertices.size() << " vertices, "
@@ -120,7 +127,7 @@ void interactiveGenerator() {
         cin >> max_val;
     }
 
-    int numPoints = 0, numLines = 0, numWireframes = 0, numPolygons = 0;
+    int numPoints = 0, numLines = 0, numWireframes = 0, numPolygons = 0, numBeziers = 0;
     cout << "Enter number of point objects to generate: ";
     cin >> numPoints;
     cout << "Enter number of line objects to generate (each with 2 vertices): ";
@@ -129,6 +136,14 @@ void interactiveGenerator() {
     cin >> numWireframes;
     cout << "Enter number of polygon objects to generate (each with 3-6 vertices): ";
     cin >> numPolygons;
+    cout << "Enter number of bezier curve objects to generate: ";
+    cin >> numBeziers;
+    int numBezierSegments = 1;
+    if (numBeziers > 0) {
+        cout << "Enter number of cubic segments per bezier curve: ";
+        cin >> numBezierSegments;
+        if (numBezierSegments < 1) numBezierSegments = 1;
+    }
 
     ofstream file(filename);
     if (!file.is_open()) {
@@ -199,6 +214,25 @@ void interactiveGenerator() {
             file << " " << vertex_count + j;
         file << "\n";
         vertex_count += polySize;
+    }
+
+    // Generate Bezier Curves
+    // Format: {P0, C0, C1, P1, C2, C3, P2, ...} — anchors at indices 0,3,6,...
+    for (int i = 0; i < numBeziers; ++i) {
+        int numPts = 1 + numBezierSegments * 3; // 4 for 1 seg, 7 for 2, 10 for 3, ...
+        file << "o BezierCurve_" << i << "\n";
+        writeRandomColor(file);
+        file << "# type bezier_curve\n";
+        for (int j = 0; j < numPts; j++) {
+            file << "v " << getRandomFloat(min_val, max_val)
+                 << " "  << getRandomFloat(min_val, max_val)
+                 << " 0.0\n";
+        }
+        file << "l";
+        for (int j = 0; j < numPts; j++)
+            file << " " << vertex_count + j;
+        file << "\n";
+        vertex_count += numPts;
     }
 
     file.close();

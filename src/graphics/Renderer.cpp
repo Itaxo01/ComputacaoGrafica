@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "RendererPreview.hpp"
 #include "Shape.hpp"
 #include "Window.hpp"
 #include "imgui.h"
@@ -457,47 +458,18 @@ void Renderer::DrawPreview() {
     core::ShapeType mode = displayFile.getPreviewMode();
     if (mode == core::ShapeType::POINT) return;
 
-    if (mode == core::ShapeType::BEZIER_CURVE) return; // fazer tratamento especial depois
+    auto ncs_mat = window.GetWindowNCSMatrix();
+    ImVec2 offset = viewport.GetCanvasP().first;
 
-    auto canvas_p = viewport.GetCanvasP();
-    ImVec2 offset  = canvas_p.first;
-    auto ncs_mat   = window.GetWindowNCSMatrix();
-
-    // World → NCS → viewport → screen
-    auto to_screen = [&](float wx, float wy) -> ImVec2 {
-        core::Point ncs = ncs_mat * core::Point(wx, wy, 0.0f);
-        core::Point vp  = window.NCSToViewport(ncs);
-        return ImVec2(vp.x + offset.x, vp.y + offset.y);
-    };
-
-    constexpr ImU32 COL_EDGE   = IM_COL32(200, 200, 200, 200);
-    constexpr ImU32 COL_RUBBER = IM_COL32(200, 200, 200, 120);
-    constexpr ImU32 COL_CLOSE  = IM_COL32(100, 200, 255, 100);
-    constexpr ImU32 COL_VERTEX = IM_COL32(255, 220,  80, 220);
-
-    // Lines between placed vertices
-    for (size_t i = 1; i < pts.size(); i++) {
-        auto [x0, y0, z0] = pts[i - 1];
-        auto [x1, y1, z1] = pts[i];
-        draw_list->AddLine(to_screen(x0, y0), to_screen(x1, y1), COL_EDGE, 1.5f);
-    }
-
-    // Rubber-band from last vertex to mouse cursor
-    ImVec2 mouse = ImGui::GetMousePos();
-    {
-        auto [lx, ly, lz] = pts.back();
-        draw_list->AddLine(to_screen(lx, ly), mouse, COL_RUBBER, 1.0f);
-    }
-
-    // Polygon closing hint: mouse → first vertex
-    if (mode == core::ShapeType::POLYGON && pts.size() >= 2) {
-        auto [fx, fy, fz] = pts.front();
-        draw_list->AddLine(mouse, to_screen(fx, fy), COL_CLOSE, 1.0f);
-    }
-
-    // Vertex dots
-    for (const auto& [px, py, pz] : pts) {
-        draw_list->AddCircleFilled(to_screen(px, py), 3.5f, COL_VERTEX);
+    switch (mode) {
+        case core::ShapeType::LINE: // mesmo do wireframe
+        case core::ShapeType::WIREFRAME:
+            DrawPreviewPolyline(draw_list, pts, ncs_mat, window, offset); break;
+        case core::ShapeType::POLYGON:
+            DrawPreviewPolygon(draw_list, pts, ncs_mat, window, offset);  break;
+        case core::ShapeType::BEZIER_CURVE:
+            DrawPreviewBezier(draw_list, pts, ncs_mat, window, offset);   break;
+        default: break;
     }
 }
 
@@ -510,7 +482,6 @@ void Renderer::ApplyClipping(){
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
     this->drawPolygonList = ClipPolygons(this->drawPolygonList, ncs_min, ncs_max);
     this->drawBezierCurveList = ClipBezierCurves(this->bezierCurveMiddleware, ncs_min, ncs_max);
-    // TODO: clipping para curvas
 }
 
 void Renderer::ApplyNCSTransform(){

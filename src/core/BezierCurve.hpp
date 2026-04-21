@@ -9,44 +9,46 @@
 namespace core{
     class BezierCurve: public Shape{
         private:
-        // depois colocar em outro lugar
         core::Point lerp(core::Point p0, core::Point p1, float t) {
             return (p0 + (p1-p0)*t);
         }
 
-        // data arrives in the format: {p0, p1, c0 ,c1, c2, ... cn}
-        std::vector<core::Point> construct(std::vector<core::Point> &data) {
-            // changes data to the format: {p0, c0 ,c1, c2, ... cn, p1}
-            core::Point last_point_buffer = data[1];
-            data.erase(next(data.begin()));
-            data.push_back(last_point_buffer);
+        // data format: {P0, C0, C1, P1, C2, C3, P2, ...}
+        // anchors at indices 0, 3, 6, 9, ...; controls fill the gaps.
+        // each cubic segment uses data[s*3 .. s*3+3]; consecutive segments share endpoints.
+        std::vector<core::Point> construct(const std::vector<core::Point> &data) {
+            const int smoothness = 25;
+            std::vector<core::Point> result;
 
-            const int smoothness = 25; // number of evaluated points. number of lines will be smoothness - 1.
-            const float delta_t = 1.0f / (float) smoothness;
+            int num_segments = ((int)data.size() - 1) / 3;
+            for (int seg = 0; seg < num_segments; seg++) {
+                core::Point p[4] = {
+                    data[seg*3],
+                    data[seg*3 + 1],
+                    data[seg*3 + 2],
+                    data[seg*3 + 3],
+                };
 
-            // memory allocation
-            std::vector<core::Point> points(smoothness);
-            std::vector<std::vector<core::Point>> control_buffer;
-            for (int vector_size = data.size(); vector_size > 0; vector_size--)
-                control_buffer.push_back(std::vector<core::Point>(vector_size));
-            control_buffer[0] = data;
-
-            // points evaluation
-            int counter = 0;
-            for (float t = 0.0f; counter < smoothness; t += delta_t, counter++) {
-                for (int buffer_depth = 0; buffer_depth < (int) control_buffer.size(); buffer_depth++) {
-                    for (int i = 0; i < (int) control_buffer[buffer_depth].size()-1; i++) {
-                        control_buffer[buffer_depth+1][i] = lerp(control_buffer[buffer_depth][i], control_buffer[buffer_depth][i+1], t);
-                    }
+                // skip t=0 after the first segment — it's the shared endpoint already added
+                int start_i = (seg == 0) ? 0 : 1;
+                for (int i = start_i; i < smoothness; i++) {
+                    float t = (float)i / (float)(smoothness - 1);
+                    core::Point q[4] = {p[0], p[1], p[2], p[3]};
+                    for (int d = 3; d > 0; d--)
+                        for (int j = 0; j < d; j++)
+                            q[j] = lerp(q[j], q[j+1], t);
+                    result.push_back(q[0]);
                 }
-                points[counter] = control_buffer[control_buffer.size()-1][0];
             }
-            return points;
+            return result;
         }
 
         public:
         std::vector<core::Point> points;
-        BezierCurve(std::vector<core::Point> &data) {
+        std::vector<core::Point> control_points; // Pontos originais, para exportação e detalhes.
+
+        BezierCurve(const std::vector<core::Point> &data) {
+            control_points = data;
             points = construct(data);
             type = ShapeType::BEZIER_CURVE;
         }
@@ -78,9 +80,9 @@ namespace core{
             details.color = this->getColor();
             
             std::string pts = "[";
-            for (size_t i = 0; i < points.size(); ++i) {
-                pts += points[i].coords(p3d);
-                if (i < points.size() - 1) pts += "\n";
+            for (size_t i = 0; i < control_points.size(); ++i) {
+                pts += control_points[i].coords(p3d);
+                if (i < control_points.size() - 1) pts += "\n";
             }
             pts += "]";
             details.points = pts;
