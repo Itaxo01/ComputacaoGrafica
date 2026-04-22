@@ -33,7 +33,7 @@ class EntityManager{
                 case core::ShapeType::LINE: name = "L"; break;
                 case core::ShapeType::WIREFRAME: name = "W"; break;
                 case core::ShapeType::POLYGON: name = "POLY"; break;
-                case core::ShapeType::BEZIER_CURVE: name = "BC"; break;
+                case core::ShapeType::CURVE2D: name = "C2D"; break;
                 default: name = "Notdef"; break;
             }
             name.append(std::to_string(fake_id));
@@ -56,7 +56,7 @@ class EntityManager{
         void addLine(const std::string &name, std::tuple<float, float, float> &t1, std::tuple<float, float, float> &t2, int object_color);
         void addWireframe(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
         void addPolygon(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, bool filled, int object_color);
-        void addBezierCurve(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
+        void addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
         void add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color);
         void add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color);
 
@@ -64,7 +64,7 @@ class EntityManager{
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}
         const std::vector<core::Wireframe>& getWireframeList() const {return displayFile.getWireframeList();}
         const std::vector<core::Polygon>& getPolygonList() const {return displayFile.getPolygonList();}
-        const std::vector<core::BezierCurve>& getBezierCurveList() const {return displayFile.getBezierCurveList();}
+        const std::vector<core::Curve2D>& getCurve2DList() const {return displayFile.getCurve2DList();}
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
         const std::unordered_map<long long, std::pair<int, int>>&  getHashID() const {return displayFile.getHashID();}
         

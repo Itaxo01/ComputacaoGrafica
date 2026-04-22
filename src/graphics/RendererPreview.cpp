@@ -57,9 +57,9 @@ void DrawPreviewPolygon(ImDrawList *dl, const PreviewPts &pts, const core::mat4 
         dl->AddCircleFilled(to_screen(px, py, ncs_mat, window, offset), 3.5f, COL_VERTEX);
 }
 
-// ─── Bezier Curve ─────────────────────────────────────────────────────────────
+// ─── Curve2D ─────────────────────────────────────────────────────────────
 
-void DrawPreviewBezier(ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset) {
+void DrawPreviewCurve2D(ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset) {
     constexpr ImU32 COL_CURVE  = IM_COL32(100, 220, 255, 220);
     constexpr ImU32 COL_ANCHOR = IM_COL32(255, 220,  80, 220);
     constexpr ImU32 COL_CTRL   = IM_COL32(255, 150,  50, 200);

@@ -1,5 +1,4 @@
-#ifndef BEZIER_CURVE_H
-#define BEZIER_CURVE_H
+#pragma once
 
 #include <ostream>
 #include "Point.hpp"
@@ -7,7 +6,7 @@
 #include <vector>
 
 namespace core{
-    class BezierCurve: public Shape{
+    class Curve2D: public Shape{
         private:
         core::Point lerp(core::Point p0, core::Point p1, float t) {
             return (p0 + (p1-p0)*t);
@@ -47,10 +46,10 @@ namespace core{
         std::vector<core::Point> points;
         std::vector<core::Point> control_points; // Pontos originais, para exportação e detalhes.
 
-        BezierCurve(const std::vector<core::Point> &data) {
+        Curve2D(const std::vector<core::Point> &data) {
             control_points = data;
             points = construct(data);
-            type = ShapeType::BEZIER_CURVE;
+            type = ShapeType::CURVE2D;
         }
 
         std::tuple<float, float, float> anchorPoint() const override{
@@ -62,7 +61,7 @@ namespace core{
         }
 
 
-        friend std::ostream &operator<<(std::ostream &os, const BezierCurve &l) {
+        friend std::ostream &operator<<(std::ostream &os, const Curve2D &l) {
             os <<"[";
             for(int i = 0; i<(int)l.points.size(); i++){
                 if(i) os<<" - ";
@@ -74,7 +73,7 @@ namespace core{
 
         ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
             ObjectDetails details;
-            details.type = "Bezier Curve";
+            details.type = "Curve 2D";
             details.id = std::to_string(id);
             details.name = this->getName();
             details.color = this->getColor();
@@ -100,4 +99,3 @@ namespace core{
         }
     };
 }
-#endif // BEZIER_CURVE_H

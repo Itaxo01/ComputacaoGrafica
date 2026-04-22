@@ -30,10 +30,10 @@ void DisplayFile::add(core::Shape &k, const std::string &name, const long long i
             polygonList.push_back(polygon);
             break;
         }
-        case core::ShapeType::BEZIER_CURVE: {
-            auto &bezier_curve = static_cast<core::BezierCurve&>(k);
-            listId = bezierCurveList.size();
-            bezierCurveList.push_back(bezier_curve);
+        case core::ShapeType::CURVE2D: {
+            auto &curve2d = static_cast<core::Curve2D&>(k);
+            listId = Curve2DList.size();
+            Curve2DList.push_back(curve2d);
             break;
         }
         default:
@@ -69,8 +69,8 @@ void DisplayFile::remove(const long long id){
             erase_id(polygonList, list_id);
             break;
         }
-        case core::ShapeType::BEZIER_CURVE: {
-            erase_id(bezierCurveList, list_id);
+        case core::ShapeType::CURVE2D: {
+            erase_id(Curve2DList, list_id);
             break;
         }
         default:
@@ -89,7 +89,7 @@ core::Shape& DisplayFile::getShape(long long real_id){
         case core::ShapeType::LINE: return lineList[list_id];
         case core::ShapeType::WIREFRAME: return wireframeList[list_id];
         case core::ShapeType::POLYGON: return polygonList[list_id];
-        case core::ShapeType::BEZIER_CURVE: return bezierCurveList[list_id];
+        case core::ShapeType::CURVE2D: return Curve2DList[list_id];
         default: throw std::runtime_error("Invalid object at display file getShape");
     }
 }

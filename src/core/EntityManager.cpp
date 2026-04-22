@@ -4,7 +4,7 @@
 #include "Polygon.hpp"
 #include "Shape.hpp"
 #include "Wireframe.hpp"
-#include "BezierCurve.hpp"
+#include "Curve2D.hpp"
 #include <cassert>
 #include <stdexcept>
 
@@ -66,14 +66,14 @@ void EntityManager::addPolygon(const std::string &name, std::vector<std::tuple<f
     displayFile.add(p, name, id);
 }
 
-void EntityManager::addBezierCurve(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color) {
-    long long id = this->nextID(core::ShapeType::BEZIER_CURVE);
+void EntityManager::addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color) {
+    long long id = this->nextID(core::ShapeType::CURVE2D);
     std::vector<core::Point> core_vp;
     core_vp.reserve(vp.size()); // small optimization
     for (const auto &p : vp) {
         core_vp.emplace_back(p); 
     }
-    core::BezierCurve p(core_vp);
+    core::Curve2D p(core_vp);
     setName(p, name);
     setColor(p, object_color);
 
@@ -86,7 +86,7 @@ void EntityManager::add(const std::string &name, std::vector<std::tuple<float, f
         case core::ShapeType::LINE: return addLine(name, p[0], p[1], object_color);
         case core::ShapeType::WIREFRAME: return addWireframe(name, p, object_color);
         case core::ShapeType::POLYGON: return addPolygon(name, p, filled, object_color);
-        case core::ShapeType::BEZIER_CURVE: return addBezierCurve(name, p, object_color);
+        case core::ShapeType::CURVE2D: return addCurve2D(name, p, object_color);
         default: throw std::runtime_error("Undefined type at EntityManager add\n");
     }
 }
@@ -111,7 +111,7 @@ core::ObjectDetails EntityManager::GetObjectDetails(long long real_id, bool p3d)
         case core::ShapeType::LINE: return displayFile.getLine(list_id).GetObjectDetails(fake_id, p3d);
         case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).GetObjectDetails(fake_id, p3d);
         case core::ShapeType::POLYGON: return displayFile.getPolygon(list_id).GetObjectDetails(fake_id, p3d);
-        case core::ShapeType::BEZIER_CURVE: return displayFile.getBezierCurve(list_id).GetObjectDetails(fake_id, p3d);
+        case core::ShapeType::CURVE2D: return displayFile.getCurve2D(list_id).GetObjectDetails(fake_id, p3d);
         default: return core::ObjectDetails{"Undefined", "", "", "", ""};
     }
 }
@@ -145,9 +145,9 @@ void EntityManager::ApplyTransformation(long long real_id, const core::mat4& mat
             }
             break;
         }
-        case core::ShapeType::BEZIER_CURVE: {
-            core::BezierCurve &bezierCurve = static_cast<core::BezierCurve&>(shape);
-            for(core::Point &p: bezierCurve.points){
+        case core::ShapeType::CURVE2D: {
+            core::Curve2D &Curve2D = static_cast<core::Curve2D&>(shape);
+            for(core::Point &p: Curve2D.points){
                 p = matrix*p;
             }
             break;

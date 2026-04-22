@@ -14,7 +14,7 @@ ObjValidationResult ValidateObjFile(const std::string &path) {
     }
 
     std::vector<std::tuple<float,float,float>> vertices;
-    bool pending_bezier = false;
+    bool pending_curve2d = false;
     std::string line;
 
     while (std::getline(file, line)) {
@@ -24,7 +24,7 @@ ObjValidationResult ValidateObjFile(const std::string &path) {
             if (tag == "color") result.color_count++;
             else if (tag == "type") {
                 std::string t; css >> t;
-                pending_bezier = (t == "bezier_curve");
+                pending_curve2d = (t == "bezier_curve");
             }
             continue;
         }
@@ -38,7 +38,7 @@ ObjValidationResult ValidateObjFile(const std::string &path) {
             vertices.emplace_back(x, y, z);
             result.vertex_count++;
         } else if (type == "o" || type == "g") {
-            pending_bezier = false;
+            pending_curve2d = false;
         } else if (type == "p") {
             std::string v_str;
             while (iss >> v_str) {
@@ -58,8 +58,8 @@ ObjValidationResult ValidateObjFile(const std::string &path) {
                     if (idx > 0 && idx <= (int)vertices.size()) resolved++;
                 } catch (...) {}
             }
-            int min_pts = (type == "f") ? 3 : (pending_bezier ? 4 : 2);
-            bool valid_count = (pending_bezier && type == "l")
+            int min_pts = (type == "f") ? 3 : (pending_curve2d ? 4 : 2);
+            bool valid_count = (pending_curve2d && type == "l")
                 ? (resolved >= 4 && (resolved - 1) % 3 == 0)
                 : (resolved >= min_pts);
             if (valid_count) result.object_count++;
@@ -143,7 +143,7 @@ void ExportPolygons(std::ofstream &f, const std::vector<core::Polygon> &v, int &
     }
 }
 
-void ExportBezierCurves(std::ofstream &f, const std::vector<core::BezierCurve> &v, int &vi) {
+void ExportCurve2Ds(std::ofstream &f, const std::vector<core::Curve2D> &v, int &vi) {
     for (const auto &bc : v) {
         int r, g, b, a;
         unpack_color(bc.object_color, r, g, b, a);
@@ -183,10 +183,10 @@ void ImportPolygon(const std::string &name, const RawPts &pts, int color, bool f
     em.add(name, copy, mode, filled, color);
 }
 
-void ImportBezierCurve(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
+void ImportCurve2D(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
     int n = (int)pts.size();
     if (n < 4 || (n - 1) % 3 != 0) return;
-    auto mode = core::ShapeType::BEZIER_CURVE;
+    auto mode = core::ShapeType::CURVE2D;
     RawPts copy = pts;
     em.add(name, copy, mode, false, color);
 }

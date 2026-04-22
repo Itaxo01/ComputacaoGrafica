@@ -29,7 +29,7 @@ static const char* polygon_instruction(int n) {
     return "Click to add vertices.\nPress Enter or double-click to close.\nEsc to cancel.";
 }
 
-static const char* bezier_curve_instruction(int n) {
+static const char* curve_2d_instruction(int n) {
     // Input order: P0, C0, C1, P1, C2, C3, P2, ...
     // n%3==0 → next is anchor; n%3==1 → ctrl1; n%3==2 → ctrl2
     // A complete segment exists when n>=4 and (n-1)%3==0
@@ -88,9 +88,9 @@ void ObjectCreator::DrawWindow(){
             ImGui::Checkbox("Filled", &filled);
         }
 
-        if (ImGui::RadioButton("Bezier Curve", &e, 4)) {
-            log.AddLog("Mode changed to BEZIER_CURVE\n");
-            mode = core::ShapeType::BEZIER_CURVE;
+        if (ImGui::RadioButton("2D Curve", &e, 4)) {
+            log.AddLog("Mode changed to CURVE2D\n");
+            mode = core::ShapeType::CURVE2D;
             points.clear();
         }
 
@@ -113,7 +113,7 @@ void ObjectCreator::DrawWindow(){
             case 1: ImGui::TextWrapped("%s", line_instruction(n)); break;
             case 2: ImGui::TextWrapped("%s", wireframe_instruction(n)); break;
             case 3: ImGui::TextWrapped("%s", polygon_instruction(n)); break;
-            case 4: ImGui::TextWrapped("%s", bezier_curve_instruction(n)); break;
+            case 4: ImGui::TextWrapped("%s", curve_2d_instruction(n)); break;
         }
 
         ImGui::NextColumn();
@@ -162,10 +162,10 @@ void ObjectCreator::CloseShape(){
             log.AddLog("[error] Wireframe needs at least 2 vertices.\n");
             return;
         }
-    } else if (mode == core::ShapeType::BEZIER_CURVE){
+    } else if (mode == core::ShapeType::CURVE2D){
         int n = (int)points.size();
         if (n < 4 || (n - 1) % 3 != 0) {
-            log.AddLog("[error] Bezier curve needs 4, 7, 10, ... points (anchor, ctrl, ctrl, anchor, ...).\n");
+            log.AddLog("[error] Curve 2D needs 4, 7, 10, ... points (anchor, ctrl, ctrl, anchor, ...).\n");
             return;
         }
     } else {
@@ -217,7 +217,7 @@ void ObjectCreator::ImportFromFile(const char* file_path){
     std::string current_name;
     int  pending_color  = IM_COL32_WHITE;
     bool pending_filled = false;
-    bool pending_bezier = false;
+    bool pending_curve = false;
 
     auto resolve_indices = [&](std::istringstream &iss) {
         RawPts pts;
@@ -245,7 +245,7 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             } else if (tag == "filled") {
                 int f = 0; css >> f; pending_filled = (f != 0);
             } else if (tag == "type") {
-                std::string t; css >> t; pending_bezier = (t == "bezier_curve");
+                std::string t; css >> t; pending_curve = (t == "bezier_curve");
             }
             continue;
         }
@@ -263,15 +263,15 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             iss >> current_name;
             pending_color  = IM_COL32_WHITE;
             pending_filled = false;
-            pending_bezier = false;
+            pending_curve = false;
         } else if (type == "p") {
             auto pts = resolve_indices(iss);
             ImportPoint(current_name, pts, pending_color, entityManager);
             if (!pts.empty()) count++;
         } else if (type == "l") {
             auto pts = resolve_indices(iss);
-            if (pending_bezier) {
-                ImportBezierCurve(current_name, pts, pending_color, entityManager);
+            if (pending_curve) {
+                ImportCurve2D(current_name, pts, pending_color, entityManager);
                 if ((int)pts.size() >= 4 && ((int)pts.size() - 1) % 3 == 0) count++;
             } else {
                 ImportWireframe(current_name, pts, pending_color, entityManager);
@@ -304,7 +304,7 @@ void ObjectCreator::ExportToFile(const char* file_path){
     ExportLines       (file, entityManager.getLineList(),        vi);
     ExportWireframes  (file, entityManager.getWireframeList(),   vi);
     ExportPolygons    (file, entityManager.getPolygonList(),     vi);
-    ExportBezierCurves(file, entityManager.getBezierCurveList(), vi);
+    ExportCurve2Ds(file, entityManager.getCurve2DList(), vi);
 
     log.AddLog("Exported objects to %s\n", path.c_str());
 }

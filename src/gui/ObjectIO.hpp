@@ -7,7 +7,7 @@
 #include "Line.hpp"
 #include "Wireframe.hpp"
 #include "Polygon.hpp"
-#include "BezierCurve.hpp"
+#include "Curve2D.hpp"
 #include "EntityManager.hpp"
 
 using RawPts = std::vector<std::tuple<float, float, float>>;
@@ -29,10 +29,10 @@ void ExportPoints      (std::ofstream &f, const std::vector<core::Point>       &
 void ExportLines       (std::ofstream &f, const std::vector<core::Line>        &v, int &vi);
 void ExportWireframes  (std::ofstream &f, const std::vector<core::Wireframe>   &v, int &vi);
 void ExportPolygons    (std::ofstream &f, const std::vector<core::Polygon>     &v, int &vi);
-void ExportBezierCurves(std::ofstream &f, const std::vector<core::BezierCurve> &v, int &vi);
+void ExportCurve2Ds(std::ofstream &f, const std::vector<core::Curve2D> &v, int &vi);
 
 // ─── Import ───────────────────────────────────────────────────────────────────
 void ImportPoint      (const std::string &name, const RawPts &pts, int color, EntityManager &em);
 void ImportWireframe  (const std::string &name, const RawPts &pts, int color, EntityManager &em);
 void ImportPolygon    (const std::string &name, const RawPts &pts, int color, bool filled, EntityManager &em);
-void ImportBezierCurve(const std::string &name, const RawPts &pts, int color, EntityManager &em);
+void ImportCurve2D(const std::string &name, const RawPts &pts, int color, EntityManager &em);

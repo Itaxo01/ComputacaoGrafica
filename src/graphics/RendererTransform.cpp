@@ -28,8 +28,8 @@ void TransformToNCS(std::vector<core::Polygon> &v, const core::mat4 &mat){
 }
 
 // Redundante. Igual ao wireframe.
-void TransformToNCS(std::vector<core::BezierCurve> &v, const core::mat4 &mat){
-    cg_parallel_for_each(v.begin(), v.end(), [&](core::BezierCurve &b){ 
+void TransformToNCS(std::vector<core::Curve2D> &v, const core::mat4 &mat){
+    cg_parallel_for_each(v.begin(), v.end(), [&](core::Curve2D &b){ 
         for(auto &p: b.points) p = mat * p; 
     });
 }

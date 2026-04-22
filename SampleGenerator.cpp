@@ -220,7 +220,7 @@ void interactiveGenerator() {
     // Format: {P0, C0, C1, P1, C2, C3, P2, ...} — anchors at indices 0,3,6,...
     for (int i = 0; i < numBeziers; ++i) {
         int numPts = 1 + numBezierSegments * 3; // 4 for 1 seg, 7 for 2, 10 for 3, ...
-        file << "o BezierCurve_" << i << "\n";
+        file << "o Curve2D_" << i << "\n";
         writeRandomColor(file);
         file << "# type bezier_curve\n";
         for (int j = 0; j < numPts; j++) {

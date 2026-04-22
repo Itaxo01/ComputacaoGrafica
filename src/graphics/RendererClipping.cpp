@@ -246,7 +246,7 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
 }
 
 // Redundante. Igual ao clipping de wirframes
-std::vector<core::Line> ClipBezierCurves(const std::vector<core::BezierCurve> &v, const core::Point &wp0, const core::Point &wp1){
+std::vector<core::Line> ClipCurve2Ds(const std::vector<core::Curve2D> &v, const core::Point &wp0, const core::Point &wp1){
     size_t max_lines = 0;
     for(const auto &w: v){
         if(w.points.size() > 1) {
@@ -257,7 +257,7 @@ std::vector<core::Line> ClipBezierCurves(const std::vector<core::BezierCurve> &v
     std::vector<core::Line> ret(max_lines);
     std::atomic<size_t> count{0};
 
-    cg_parallel_for_each(v.begin(), v.end(), [&](const core::BezierCurve &w) {
+    cg_parallel_for_each(v.begin(), v.end(), [&](const core::Curve2D &w) {
         size_t p_count = w.points.size();
         if (p_count < 2) return; 
 
@@ -298,6 +298,42 @@ std::vector<core::Line> ClipBezierCurves(const std::vector<core::BezierCurve> &v
     });
 
     ret.resize(count.load(std::memory_order_relaxed));
+
+    return ret;
+}
+
+// Método descrito nas slides (5.6): verifica cada ponto gerado pela curva individualmente.
+// Só conecta dois pontos consecutivos se ambos estiverem dentro da window.
+// Não interpola a fronteira — a curva simplesmente para no último ponto visível.
+std::vector<core::Line> ClipCurve2DsByPoint(const std::vector<core::Curve2D> &v, const core::Point &wp0, const core::Point &wp1) {
+    std::vector<core::Line> ret;
+
+    auto inside = [&](const core::Point &p) {
+        return p.x >= wp0.x && p.x <= wp1.x && p.y >= wp0.y && p.y <= wp1.y;
+    };
+
+    for (const auto &curve : v) {
+        const auto &pts = curve.points;
+        if (pts.size() < 2) continue;
+
+        const core::Point *prev = nullptr;
+        bool prev_inside = false;
+
+        for (const auto &cur : pts) {
+            bool cur_inside = inside(cur);
+            if (prev && prev_inside && cur_inside) {
+                core::Line line;
+                line.a = *prev;
+                line.b = cur;
+                #ifndef DONT_USE_OBJECT_COLOR
+                    line.object_color = curve.object_color;
+                #endif
+                ret.push_back(line);
+            }
+            prev = &cur;
+            prev_inside = cur_inside;
+        }
+    }
 
     return ret;
 }

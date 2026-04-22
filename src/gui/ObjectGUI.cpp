@@ -12,7 +12,7 @@ const char* ObjectGUI::GetTypeName(core::ShapeType type) {
         case core::ShapeType::LINE:         return "Line";
         case core::ShapeType::WIREFRAME:    return "Wireframe";
         case core::ShapeType::POLYGON:      return "Polygon";
-        case core::ShapeType::BEZIER_CURVE: return "Bezier Curve";
+        case core::ShapeType::CURVE2D:      return "Curve2D";
         default:                            return "Unknown";
     }
 }

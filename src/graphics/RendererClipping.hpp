@@ -4,7 +4,7 @@
 #include "Point.hpp"
 #include "Polygon.hpp"
 #include "Wireframe.hpp"
-#include "BezierCurve.hpp"
+#include "Curve2D.hpp"
 
 // Clip de pontos usual usando os limites da window (-1.0f e 1.0f com NCS)
 std::vector<core::Point> ClipPoints(const std::vector<core::Point> &v, const core::Point &wp0, const core::Point &wp1);
@@ -19,5 +19,7 @@ std::vector<core::Line> ClipLines(const std::vector<core::Line> &v, const core::
 std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, const core::Point &wp0, const core::Point &wp1);
 /* Sutherland–Hodgman clipping*/
 std::vector<core::Polygon> ClipPolygons(const std::vector<core::Polygon> &v, const core::Point &wp0, const core::Point &wp1);
-/*Redundante. Igual o clipping de wireframes*/
-std::vector<core::Line> ClipBezierCurves(const std::vector<core::BezierCurve> &v, const core::Point &wp0, const core::Point &wp1);
+/* Liang-Barsky on each evaluated segment (original method) */
+std::vector<core::Line> ClipCurve2Ds(const std::vector<core::Curve2D> &v, const core::Point &wp0, const core::Point &wp1);
+/* Point clipping: only draw segments between consecutive inside points (método descrito nas slides) */
+std::vector<core::Line> ClipCurve2DsByPoint(const std::vector<core::Curve2D> &v, const core::Point &wp0, const core::Point &wp1);

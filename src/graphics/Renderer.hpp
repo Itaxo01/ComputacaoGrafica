@@ -27,8 +27,8 @@ private:
     std::vector<core::Wireframe> wireframeMiddleware;
     std::vector<core::Line> drawWireframeList;
     std::vector<core::Polygon> drawPolygonList;
-    std::vector<core::BezierCurve> bezierCurveMiddleware;
-    std::vector<core::Line> drawBezierCurveList;
+    std::vector<core::Curve2D> Curve2DMiddleware;
+    std::vector<core::Line> drawCurve2DList;
 
     void RenderBackground();
     void DrawAllParallel();
@@ -37,7 +37,7 @@ private:
     void DrawObject(const core::Line &line);
     void DrawObject(const core::Wireframe &wireframe);
     void DrawObject(const core::Polygon &polygon);
-    void DrawObject(const core::BezierCurve &bezierCurve);
+    void DrawObject(const core::Curve2D &Curve2D);
 
     #ifndef DONT_DRAW_SHAPE_NAME
         void draw_name_if_visible(const core::Shape &shape);

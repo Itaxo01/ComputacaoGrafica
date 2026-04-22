@@ -343,11 +343,11 @@ void Renderer::DrawObject(const core::Polygon &polygon) {
 
 // Redundante. Método igual ao Draw do wireframe.
 // Por algum motivo não está renderizando
-void Renderer::DrawObject(const core::BezierCurve &bezierCurve) {
+void Renderer::DrawObject(const core::Curve2D &Curve2D) {
     const float width = 2.0f;
-    int size = bezierCurve.points.size();
+    int size = Curve2D.points.size();
     for (int i = 0; i < size-1; i++) {
-        draw_list->AddLine(ToImVec2(bezierCurve.points[i]), ToImVec2(bezierCurve.points[i+1]), bezierCurve.object_color, width);
+        draw_list->AddLine(ToImVec2(Curve2D.points[i]), ToImVec2(Curve2D.points[i+1]), Curve2D.object_color, width);
     }
 }
 
@@ -467,8 +467,8 @@ void Renderer::DrawPreview() {
             DrawPreviewPolyline(draw_list, pts, ncs_mat, window, offset); break;
         case core::ShapeType::POLYGON:
             DrawPreviewPolygon(draw_list, pts, ncs_mat, window, offset);  break;
-        case core::ShapeType::BEZIER_CURVE:
-            DrawPreviewBezier(draw_list, pts, ncs_mat, window, offset);   break;
+        case core::ShapeType::CURVE2D:
+            DrawPreviewCurve2D(draw_list, pts, ncs_mat, window, offset);  break;
         default: break;
     }
 }
@@ -481,7 +481,9 @@ void Renderer::ApplyClipping(){
     this->drawLineList = ClipLines(this->drawLineList, ncs_min, ncs_max, viewport.GetClippingMode());
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
     this->drawPolygonList = ClipPolygons(this->drawPolygonList, ncs_min, ncs_max);
-    this->drawBezierCurveList = ClipBezierCurves(this->bezierCurveMiddleware, ncs_min, ncs_max);
+    // To test point clipping (método descrito), swap to: ClipCurve2DsByPoint(...)
+    this->drawCurve2DList = ClipCurve2Ds(this->Curve2DMiddleware, ncs_min, ncs_max);
+    // this->drawCurve2DList = ClipCurve2DsByPoint(this->Curve2DMiddleware, ncs_min, ncs_max);
 }
 
 void Renderer::ApplyNCSTransform(){
@@ -489,7 +491,7 @@ void Renderer::ApplyNCSTransform(){
     this->drawLineList  = displayFile.getLineList();
     this->wireframeMiddleware = displayFile.getWireframeList();
     this->drawPolygonList = displayFile.getPolygonList();
-    this->bezierCurveMiddleware = displayFile.getBezierCurveList();
+    this->Curve2DMiddleware = displayFile.getCurve2DList();
     
     auto ncs_mat = window.GetWindowNCSMatrix();
     
@@ -497,7 +499,7 @@ void Renderer::ApplyNCSTransform(){
     TransformToNCS(this->drawLineList, ncs_mat);
     TransformToNCS(this->wireframeMiddleware, ncs_mat);
     TransformToNCS(this->drawPolygonList, ncs_mat);
-    TransformToNCS(this->bezierCurveMiddleware, ncs_mat);
+    TransformToNCS(this->Curve2DMiddleware, ncs_mat);
 }
 
 void Renderer::ApplyViewportTransform(){
@@ -508,7 +510,7 @@ void Renderer::ApplyViewportTransform(){
     TransformToViewport(this->drawLineList, window, offset);
     TransformToViewport(this->drawWireframeList, window, offset);
     TransformToViewport(this->drawPolygonList, window, offset);
-    TransformToViewport(this->drawBezierCurveList, window, offset);
+    TransformToViewport(this->drawCurve2DList, window, offset);
 }
 
 void Renderer::GenerateDrawList(){
@@ -538,7 +540,7 @@ void Renderer::render() {
         for (const auto &l : drawLineList)     DrawObject(l);
         for (const auto &w : drawWireframeList) DrawObject(w);
         for (const auto &p : drawPolygonList) DrawObject(p);
-        for (const auto &b : drawBezierCurveList) DrawObject(b);
+        for (const auto &b : drawCurve2DList) DrawObject(b);
     // #endif
 
     #ifndef DONT_DRAW_SHAPE_NAME
@@ -546,7 +548,7 @@ void Renderer::render() {
         for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
         for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
         for(const auto &p: displayFile.getPolygonList()) draw_name_if_visible(p);
-        for(const auto &b: displayFile.getBezierCurveList()) draw_name_if_visible(b);
+        for(const auto &b: displayFile.getCurve2DList()) draw_name_if_visible(b);
     #endif
 
     DrawPreview();
