@@ -9,7 +9,8 @@ class ObjectCreator{
     private:
         core::ShapeType mode = core::ShapeType::POINT;
         std::vector<std::tuple<float, float, float>> points;
-        bool filled = false;       // only meaningful in polygon_mode; wired up when Polygon class is ready
+        bool filled = false;       // only meaningful in polygon mode
+        int curve_smoothness = 50; // points per segment for Curve2D
         int e = 0;                 // radio button state: 0=Point 1=Line 2=Wireframe 3=Polygon
         char obj_name[64] = "";    // empty = auto-generate
         float color_f[3] = {1.0f, 1.0f, 1.0f};

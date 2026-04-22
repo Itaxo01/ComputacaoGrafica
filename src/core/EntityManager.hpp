@@ -56,9 +56,9 @@ class EntityManager{
         void addLine(const std::string &name, std::tuple<float, float, float> &t1, std::tuple<float, float, float> &t2, int object_color);
         void addWireframe(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
         void addPolygon(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, bool filled, int object_color);
-        void addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color);
-        void add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color);
-        void add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color);
+        void addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color, int smoothness = 50);
+        void add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color, int smoothness = 50);
+        void add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color, int smoothness = 50);
 
         const std::vector<core::Point>& getPointList() const {return displayFile.getPointList();}
         const std::vector<core::Line>& getLineList() const {return displayFile.getLineList();}

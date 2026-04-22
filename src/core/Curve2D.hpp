@@ -15,10 +15,9 @@ namespace core{
         // data format: {P0, C0, C1, P1, C2, C3, P2, ...}
         // anchors at indices 0, 3, 6, 9, ...; controls fill the gaps.
         // each cubic segment uses data[s*3 .. s*3+3]; consecutive segments share endpoints.
-        std::vector<core::Point> construct(const std::vector<core::Point> &data) {
-            const int smoothness = 25;
+        std::vector<core::Point> construct(const std::vector<core::Point> &data, int steps) {
             std::vector<core::Point> result;
-
+            // steps = smoothness
             int num_segments = ((int)data.size() - 1) / 3;
             for (int seg = 0; seg < num_segments; seg++) {
                 core::Point p[4] = {
@@ -30,8 +29,8 @@ namespace core{
 
                 // skip t=0 after the first segment — it's the shared endpoint already added
                 int start_i = (seg == 0) ? 0 : 1;
-                for (int i = start_i; i < smoothness; i++) {
-                    float t = (float)i / (float)(smoothness - 1);
+                for (int i = start_i; i < steps; i++) {
+                    float t = (float)i / (float)(steps - 1);
                     core::Point q[4] = {p[0], p[1], p[2], p[3]};
                     for (int d = 3; d > 0; d--)
                         for (int j = 0; j < d; j++)
@@ -43,12 +42,13 @@ namespace core{
         }
 
         public:
+        int smoothness;
         std::vector<core::Point> points;
         std::vector<core::Point> control_points; // Pontos originais, para exportação e detalhes.
 
-        Curve2D(const std::vector<core::Point> &data) {
+        Curve2D(const std::vector<core::Point> &data, int smoothness = 50) : smoothness(smoothness) {
             control_points = data;
-            points = construct(data);
+            points = construct(data, smoothness);
             type = ShapeType::CURVE2D;
         }
 

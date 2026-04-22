@@ -66,35 +66,35 @@ void EntityManager::addPolygon(const std::string &name, std::vector<std::tuple<f
     displayFile.add(p, name, id);
 }
 
-void EntityManager::addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color) {
+void EntityManager::addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color, int smoothness) {
     long long id = this->nextID(core::ShapeType::CURVE2D);
     std::vector<core::Point> core_vp;
-    core_vp.reserve(vp.size()); // small optimization
+    core_vp.reserve(vp.size());
     for (const auto &p : vp) {
-        core_vp.emplace_back(p); 
+        core_vp.emplace_back(p);
     }
-    core::Curve2D p(core_vp);
+    core::Curve2D p(core_vp, smoothness);
     setName(p, name);
     setColor(p, object_color);
 
     displayFile.add(p, name, id);
 }
 
-void EntityManager::add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color) {
+void EntityManager::add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color, int smoothness) {
     switch(type){
         case core::ShapeType::POINT: return addPoint(name, p[0], object_color);
         case core::ShapeType::LINE: return addLine(name, p[0], p[1], object_color);
         case core::ShapeType::WIREFRAME: return addWireframe(name, p, object_color);
         case core::ShapeType::POLYGON: return addPolygon(name, p, filled, object_color);
-        case core::ShapeType::CURVE2D: return addCurve2D(name, p, object_color);
+        case core::ShapeType::CURVE2D: return addCurve2D(name, p, object_color, smoothness);
         default: throw std::runtime_error("Undefined type at EntityManager add\n");
     }
 }
 
-void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color){
+void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color, int smoothness){
     assert(generate_name == true);
     std::string name = getName(type, currentId);
-    return add(name, p, type, filled, object_color);
+    return add(name, p, type, filled, object_color, smoothness);
 }
 
 core::ObjectDetails EntityManager::GetObjectDetails(long long real_id, bool p3d) const {

@@ -482,8 +482,7 @@ void Renderer::ApplyClipping(){
     this->drawWireframeList = ClipWireframes(this->wireframeMiddleware, ncs_min, ncs_max);
     this->drawPolygonList = ClipPolygons(this->drawPolygonList, ncs_min, ncs_max);
     // To test point clipping (método descrito), swap to: ClipCurve2DsByPoint(...)
-    this->drawCurve2DList = ClipCurve2Ds(this->Curve2DMiddleware, ncs_min, ncs_max);
-    // this->drawCurve2DList = ClipCurve2DsByPoint(this->Curve2DMiddleware, ncs_min, ncs_max);
+    this->drawCurve2DList = ClipCurve2DsByPoint(this->Curve2DMiddleware, ncs_min, ncs_max);
 }
 
 void Renderer::ApplyNCSTransform(){

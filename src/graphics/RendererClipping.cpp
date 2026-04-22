@@ -245,66 +245,11 @@ std::vector<core::Line> ClipWireframes(const std::vector<core::Wireframe> &v, co
     return ret;
 }
 
-// Redundante. Igual ao clipping de wirframes
-std::vector<core::Line> ClipCurve2Ds(const std::vector<core::Curve2D> &v, const core::Point &wp0, const core::Point &wp1){
-    size_t max_lines = 0;
-    for(const auto &w: v){
-        if(w.points.size() > 1) {
-            max_lines += w.points.size() - 1; // n pontos = n-1 linhas.
-        }
-    }
-
-    std::vector<core::Line> ret(max_lines);
-    std::atomic<size_t> count{0};
-
-    cg_parallel_for_each(v.begin(), v.end(), [&](const core::Curve2D &w) {
-        size_t p_count = w.points.size();
-        if (p_count < 2) return; 
-
-        // Quebramos o wireframe em segmentos de reta.
-        for (size_t i = 0; i < p_count - 1; ++i) {
-            core::Line line;
-            line.a = w.points[i];
-            line.b = w.points[i+1];
-            
-            // Reutilizamos o Liang-Barsky aqui. Poderia ser chamado ClipLines de novo, porém fazendo aqui permite popularmos o vetor diretamente.
-            float u1 = 0.0f;
-            float u2 = 1.0f;
-            float dx = line.b.x - line.a.x;
-            float dy = line.b.y - line.a.y;
-            
-            if(LineClipTest(-dx, line.a.x - wp0.x, u1, u2) && // left
-               LineClipTest(dx, wp1.x - line.a.x, u1, u2)  && // right
-               LineClipTest(-dy, line.a.y - wp0.y, u1, u2)  && // bottom
-               LineClipTest(dy, wp1.y - line.a.y, u1, u2)     // top
-            ){
-                core::Line cLine = line;
-                if(u1 > 0.0f){
-                    cLine.a.x = line.a.x + u1 * dx;
-                    cLine.a.y = line.a.y + u1 * dy;
-                }
-                if(u2 < 1.0f){
-                    cLine.b.x = line.a.x + u2 * dx;
-                    cLine.b.y = line.a.y + u2 * dy;
-                }
-                #ifndef DONT_USE_OBJECT_COLOR
-                    cLine.object_color = w.object_color;
-                #endif
-
-                size_t insert_index = count.fetch_add(1, std::memory_order_relaxed);
-                ret[insert_index] = cLine;
-            }
-        }
-    });
-
-    ret.resize(count.load(std::memory_order_relaxed));
-
-    return ret;
-}
-
-// Método descrito nas slides (5.6): verifica cada ponto gerado pela curva individualmente.
-// Só conecta dois pontos consecutivos se ambos estiverem dentro da window.
-// Não interpola a fronteira — a curva simplesmente para no último ponto visível.
+// Método descrito no livro com rejeição trivial correta:
+//   - ambos dentro  → desenha diretamente
+//   - ambos fora no mesmo lado (rejeição trivial de Cohen-Sutherland) → descarta
+//   - qualquer outro caso → aplica Liang-Barsky (cobre: um dentro/um fora,
+//     e também ambos fora mas em lados opostos, onde o segmento pode atravessar a window)
 std::vector<core::Line> ClipCurve2DsByPoint(const std::vector<core::Curve2D> &v, const core::Point &wp0, const core::Point &wp1) {
     std::vector<core::Line> ret;
 
@@ -316,22 +261,35 @@ std::vector<core::Line> ClipCurve2DsByPoint(const std::vector<core::Curve2D> &v,
         const auto &pts = curve.points;
         if (pts.size() < 2) continue;
 
-        const core::Point *prev = nullptr;
-        bool prev_inside = false;
+        for (size_t i = 0; i < pts.size() - 1; ++i) {
+            bool a_in = inside(pts[i]);
+            bool b_in = inside(pts[i + 1]);
 
-        for (const auto &cur : pts) {
-            bool cur_inside = inside(cur);
-            if (prev && prev_inside && cur_inside) {
+            if (a_in && b_in) {
+                // Ambos dentro: emite diretamente sem cálculo extra
                 core::Line line;
-                line.a = *prev;
-                line.b = cur;
+                line.a = pts[i];
+                line.b = pts[i + 1];
                 #ifndef DONT_USE_OBJECT_COLOR
                     line.object_color = curve.object_color;
                 #endif
                 ret.push_back(line);
+            } else {
+                // Rejeição trivial: ambos fora do mesmo lado da window
+                OUT oa = ComputeOut(pts[i],     wp0, wp1);
+                OUT ob = ComputeOut(pts[i + 1], wp0, wp1);
+                if (oa & ob) continue; // mesmo lado → segmento completamente fora
+
+                // Qualquer outro caso: aplica Liang-Barsky
+                core::Line line;
+                line.a = pts[i];
+                line.b = pts[i + 1];
+                #ifndef DONT_USE_OBJECT_COLOR
+                    line.object_color = curve.object_color;
+                #endif
+                if (ClipLineLiangBarsky(line, wp0, wp1))
+                    ret.push_back(line);
             }
-            prev = &cur;
-            prev_inside = cur_inside;
         }
     }
 

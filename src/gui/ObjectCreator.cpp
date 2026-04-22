@@ -88,10 +88,20 @@ void ObjectCreator::DrawWindow(){
             ImGui::Checkbox("Filled", &filled);
         }
 
+        float curve_x = ImGui::GetCursorPosX();
         if (ImGui::RadioButton("2D Curve", &e, 4)) {
             log.AddLog("Mode changed to CURVE2D\n");
             mode = core::ShapeType::CURVE2D;
             points.clear();
+        }
+
+        // ── Smoothness (curve only) ──
+        if (mode == core::ShapeType::CURVE2D) {
+            ImGui::SetCursorPosX(curve_x);
+            ImGui::Text("Smoothness:"); ImGui::SameLine();
+            ImGui::PushItemWidth(80);
+            ImGui::SliderInt("##smoothness", &curve_smoothness, 4, 300);
+            ImGui::PopItemWidth();
         }
 
         // ── Object name ──
@@ -185,8 +195,8 @@ void ObjectCreator::AddGraphicObject(){
     std::string name(obj_name);
     bool auto_name = name.empty();
 
-    if (auto_name) entityManager.add(true, points, mode, filled,  object_color);
-    else           entityManager.add(name, points, mode, filled, object_color);
+    if (auto_name) entityManager.add(true, points, mode, filled, object_color, curve_smoothness);
+    else           entityManager.add(name, points, mode, filled, object_color, curve_smoothness);
     points.clear();
 }
 
