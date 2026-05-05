@@ -9,4 +9,5 @@ using PreviewPts = std::vector<std::tuple<float, float, float>>;
 
 void DrawPreviewPolyline(ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset);
 void DrawPreviewPolygon (ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset);
-void DrawPreviewCurve2D  (ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset);
+void DrawPreviewCurve2DBezier(ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset);
+void DrawPreviewCurve2DBSpline(ImDrawList *dl, const PreviewPts &pts, const core::mat4 &ncs_mat, const Window &window, ImVec2 offset);

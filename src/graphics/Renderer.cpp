@@ -467,8 +467,14 @@ void Renderer::DrawPreview() {
             DrawPreviewPolyline(draw_list, pts, ncs_mat, window, offset); break;
         case core::ShapeType::POLYGON:
             DrawPreviewPolygon(draw_list, pts, ncs_mat, window, offset);  break;
-        case core::ShapeType::CURVE2D:
-            DrawPreviewCurve2D(draw_list, pts, ncs_mat, window, offset);  break;
+        case core::ShapeType::CURVE2D: {
+            int method = displayFile.getPreviewMethod();
+            switch(method){
+                case 0: DrawPreviewCurve2DBezier(draw_list, pts, ncs_mat, window, offset); break;
+                case 1: DrawPreviewCurve2DBSpline(draw_list, pts, ncs_mat, window, offset); break;
+                default: DrawPreviewCurve2DBezier(draw_list, pts, ncs_mat, window, offset); break;
+            }
+        }
         default: break;
     }
 }

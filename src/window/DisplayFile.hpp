@@ -54,19 +54,21 @@ private:
     // Preview state: in-progress object being created by the user
     std::vector<std::tuple<float, float, float>> preview_points;
     core::ShapeType preview_mode = core::ShapeType::NONE;
+    int preview_method = 0; // for Curve2D: 0=Bezier, 1=B-Spline
 
 public:
     unsigned long object_count = 0;
     void add(core::Shape &k, const std::string &name, const long long id);
     void remove(const long long id);
 
-    void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts, core::ShapeType mode) {
+    void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts, core::ShapeType mode, int method = 0) {
         preview_points = pts;
         preview_mode   = mode;
+        preview_method = method;
     }
     const std::vector<std::tuple<float, float, float>>& getPreviewPoints() const { return preview_points; }
     core::ShapeType getPreviewMode() const { return preview_mode; }
-    
+    int getPreviewMethod() const { return preview_method; }
     /* Não desenhamos essas, apenas armazenamos os valores */
     const std::vector<core::Point>& getPointList() const {return pointList;}
     const std::vector<core::Line>& getLineList() const {return lineList;}

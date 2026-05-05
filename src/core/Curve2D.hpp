@@ -5,6 +5,9 @@
 #include "Shape.hpp"
 #include <vector>
 
+#define BEZIER 0
+#define BSPLINE 1
+
 namespace core{
     class Curve2D: public Shape{
         private:
@@ -15,7 +18,7 @@ namespace core{
         // data format: {P0, C0, C1, P1, C2, C3, P2, ...}
         // anchors at indices 0, 3, 6, 9, ...; controls fill the gaps.
         // each cubic segment uses data[s*3 .. s*3+3]; consecutive segments share endpoints.
-        std::vector<core::Point> construct(const std::vector<core::Point> &data, int steps) {
+        inline std::vector<core::Point> construct_bezier(const std::vector<core::Point> &data, int steps) {
             std::vector<core::Point> result;
             // steps = smoothness
             int num_segments = ((int)data.size() - 1) / 3;
@@ -41,14 +44,74 @@ namespace core{
             return result;
         }
 
+        inline std::vector<core::Point> construct_bspline(const std::vector<core::Point> &data, int steps) {
+            std::vector<core::Point> result;
+            
+            // A B-spline requires at least 4 control points to form a single cubic segment
+            if (data.size() < 4) return result;
+
+            // B-Splines use a sliding window, so the number of segments is N - 3
+            int num_segments = data.size() - 3;
+            
+            // delta is the parametric step size (t goes from 0 to 1)
+            float delta = 1.0f / (float)(steps - 1);
+            float d2 = delta * delta;
+            float d3 = d2 * delta;
+
+            for (int seg = 0; seg < num_segments; seg++) {
+                // 1. Sliding window of 4 consecutive points
+                core::Point p0 = data[seg];
+                core::Point p1 = data[seg + 1];
+                core::Point p2 = data[seg + 2];
+                core::Point p3 = data[seg + 3];
+
+                // 2. Calculate polynomial coefficients (A, B, C, D) using the B-Spline Basis Matrix
+                // Note: The 1/6 scalar is standard to keep the curve within the convex hull
+                core::Point A = (p0 * -1.0f + p1 *  3.0f + p2 * -3.0f + p3 * 1.0f) * (1.0f / 6.0f);
+                core::Point B = (p0 *  3.0f + p1 * -6.0f + p2 *  3.0f + p3 * 0.0f) * (1.0f / 6.0f);
+                core::Point C = (p0 * -3.0f + p1 *  0.0f + p2 *  3.0f + p3 * 0.0f) * (1.0f / 6.0f);
+                core::Point D = (p0 *  1.0f + p1 *  4.0f + p2 *  1.0f + p3 * 0.0f) * (1.0f / 6.0f);
+
+                // 3. Initialize the Forward Differences for t = 0
+                core::Point f   = D;
+                core::Point df  = A * d3 + B * d2 + C * delta;
+                core::Point d2f = A * (6.0f * d3) + B * (2.0f * d2);
+                core::Point d3f = A * (6.0f * d3);
+
+                // 4. The Iterative Addition Loop
+                for (int i = 0; i < steps; i++) {
+                    // B-splines have C2 continuity, so the end of segment N is exactly the start of segment N+1
+                    // We skip pushing i=0 for segments after the first to avoid duplicate points
+                    if (seg == 0 || i > 0) {
+                        result.push_back(f);
+                    }
+                    
+                    // Advance to the next coordinate using only additions
+                    f   = f + df;
+                    df  = df + d2f;
+                    d2f = d2f + d3f;
+                }
+            }
+            return result;
+        }
+
         public:
         int smoothness;
         std::vector<core::Point> points;
         std::vector<core::Point> control_points; // Pontos originais, para exportação e detalhes.
 
-        Curve2D(const std::vector<core::Point> &data, int smoothness = 50) : smoothness(smoothness) {
+        Curve2D(const std::vector<core::Point> &data, int smoothness = 50, int method = BEZIER) : smoothness(smoothness) {
             control_points = data;
-            points = construct(data, smoothness);
+            switch(method) {
+                case BEZIER:
+                    points = construct_bezier(data, smoothness);
+                    break;
+                case BSPLINE:
+                    points = construct_bspline(data, smoothness);
+                    break;
+                default:
+                    points = construct_bezier(data, smoothness);
+                }
             type = ShapeType::CURVE2D;
         }
 

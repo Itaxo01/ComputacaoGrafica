@@ -29,7 +29,7 @@ static const char* polygon_instruction(int n) {
     return "Click to add vertices.\nPress Enter or double-click to close.\nEsc to cancel.";
 }
 
-static const char* curve_2d_instruction(int n) {
+static const char* curve_2d_bezier_instruction(int n) {
     // Input order: P0, C0, C1, P1, C2, C3, P2, ...
     // n%3==0 → next is anchor; n%3==1 → ctrl1; n%3==2 → ctrl2
     // A complete segment exists when n>=4 and (n-1)%3==0
@@ -42,6 +42,16 @@ static const char* curve_2d_instruction(int n) {
     if (can_close)
         return "Segment complete! Press Enter to finish.\nOr click to add control point 1 of the next segment.\nEsc to cancel.";
     return "Click to place control point 1.";
+}
+
+static const char* curve_2d_bspline_instruction(int n) {
+    // Input order: P0, P1, P2, ...
+    // A complete segment exists when n>=4
+    if (n == 0) return "Click to place the first control point.";
+    if (n == 1) return "Click to place the second control point.";
+    if (n == 2) return "Click to place the third control point.";
+    if (n == 3) return "Click to place the fourth control point.";
+    return "Click to add more control points.\nPress Enter or double-click to finish.\nEsc to cancel.";
 }
 
 // ─── DrawWindow ──────────────────────────────────────────────────────────────
@@ -96,6 +106,12 @@ void ObjectCreator::DrawWindow(){
         }
 
         // ── Smoothness (curve only) ──
+        if (mode == core::ShapeType::CURVE2D){
+            ImGui::SetCursorPosX(curve_x);
+            ImGui::RadioButton("Bezier", &method, 0); ImGui::SameLine();
+            ImGui::RadioButton("B-Spline", &method, 1);
+        }
+
         if (mode == core::ShapeType::CURVE2D) {
             ImGui::SetCursorPosX(curve_x);
             ImGui::Text("Smoothness:"); ImGui::SameLine();
@@ -103,6 +119,7 @@ void ObjectCreator::DrawWindow(){
             ImGui::SliderInt("##smoothness", &curve_smoothness, 4, 300);
             ImGui::PopItemWidth();
         }
+
 
         // ── Object name ──
         ImGui::Text("Name (empty = auto):"); ImGui::SameLine();
@@ -123,7 +140,11 @@ void ObjectCreator::DrawWindow(){
             case 1: ImGui::TextWrapped("%s", line_instruction(n)); break;
             case 2: ImGui::TextWrapped("%s", wireframe_instruction(n)); break;
             case 3: ImGui::TextWrapped("%s", polygon_instruction(n)); break;
-            case 4: ImGui::TextWrapped("%s", curve_2d_instruction(n)); break;
+            case 4: {
+                if(method == 0) ImGui::TextWrapped("%s", curve_2d_bezier_instruction(n));
+                else ImGui::TextWrapped("%s", curve_2d_bspline_instruction(n));
+                break;
+            }
         }
 
         ImGui::NextColumn();
@@ -146,7 +167,7 @@ void ObjectCreator::DrawWindow(){
     ImGui::End();
 
     // Push current in-progress state so Renderer can draw the creation preview.
-    entityManager.setPreviewState(points, mode);
+    entityManager.setPreviewState(points, mode, method);
 }
 
 // ─── Input handling ──────────────────────────────────────────────────────────
@@ -173,11 +194,28 @@ void ObjectCreator::CloseShape(){
             return;
         }
     } else if (mode == core::ShapeType::CURVE2D){
-        int n = (int)points.size();
-        if (n < 4 || (n - 1) % 3 != 0) {
-            log.AddLog("[error] Curve 2D needs 4, 7, 10, ... points (anchor, ctrl, ctrl, anchor, ...).\n");
-            return;
+        switch(method){
+            case 0:{ // Bezier
+                int n = (int)points.size();
+                if (n < 4 || (n - 1) % 3 != 0) {
+                    log.AddLog("[error] Bezier Curve needs 4, 7, 10, ... points (anchor, ctrl, ctrl, anchor, ...).\n");
+                    return;
+                }
+                break;
+            }
+            case 1: {
+                if (points.size() < 4) {
+                    log.AddLog("[error] B-Spline Curve needs at least 4 control points.\n");
+                    return;
+                }
+                break;
+            }
+            default: {
+                log.AddLog("[error] Invalid curve method.\n");
+                return;
+            }
         }
+        
     } else {
         return; // Point and Line auto-finish in RegisterLeftClick
     }
@@ -195,8 +233,8 @@ void ObjectCreator::AddGraphicObject(){
     std::string name(obj_name);
     bool auto_name = name.empty();
 
-    if (auto_name) entityManager.add(true, points, mode, filled, object_color, curve_smoothness);
-    else           entityManager.add(name, points, mode, filled, object_color, curve_smoothness);
+    if (auto_name) entityManager.add(true, points, mode, filled, object_color, curve_smoothness, method);
+    else           entityManager.add(name, points, mode, filled, object_color, curve_smoothness, method);
     points.clear();
 }
 
