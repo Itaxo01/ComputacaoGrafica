@@ -8,16 +8,19 @@
 // ─── Dynamic instruction text ────────────────────────────────────────────────
 
 static const char* point_instruction() {
-    return "Click on the canvas to place a point.";
+    return "Click on the canvas to place a point.\n"
+           "Or insert text in the Points box in the format: (x1,y1,z1):\n";
 }
 
 static const char* line_instruction(int n) {
-    if (n == 0) return "Click to place the first endpoint.";
+    if (n == 0) return "Click to place the first endpoint.\n"
+                       "Or insert text in the Points box in the format: (x1,y1,z1),(x2,y2,z2)\n";
     return "Click to place the second endpoint.";
 }
 
 static const char* wireframe_instruction(int n) {
-    if (n == 0) return "Click to place the first vertex.";
+    if (n == 0) return "Click to place the first vertex.\n"
+                       "Or insert text in the Points box in the format: (x1,y1,z1),(x2,y2,z2),(x3,y3,z3)...\n";
     if (n == 1) return "Click to place more vertices.\nPress Enter or double-click to finish.";
     return "Click to add vertices.\nPress Enter or double-click to finish.\nEsc to cancel.";
 }
@@ -131,6 +134,26 @@ void ObjectCreator::DrawWindow(){
             set_color(color_f[0], color_f[1], color_f[2]);
         }
 
+        // ── Object creation by text ──
+        if (mode == core::ShapeType::POINT || mode == core::ShapeType::LINE || mode == core::ShapeType::WIREFRAME) {
+            ImGui::Text("Points: ");  ImGui::SameLine();
+            ImGui::InputText("##points", obj_points, IM_COUNTOF(obj_points));
+            if (ImGui::Button("New object")) {
+                bool valid_input = ParsePoints();
+                if (!valid_input || points.empty()
+                    || (mode == core::ShapeType::POINT && points.size() != 1)
+                    || (mode == core::ShapeType::LINE && points.size() != 2)
+                    || (mode == core::ShapeType::WIREFRAME && points.size() != 3)) {
+                    points.clear(); // handle invalid input
+                    log.AddLog("Invalid input: {%s}\n", obj_points);
+                    }
+                else {
+                    AddGraphicObject();
+                    memset(obj_points, 0, sizeof(obj_points));
+                }
+            }
+        }
+
         // ── Dynamic instructions ──
         ImGui::Spacing();
         ImGui::TextDisabled("=== Instructions ===");
@@ -236,6 +259,71 @@ void ObjectCreator::AddGraphicObject(){
     if (auto_name) entityManager.add(true, points, mode, filled, object_color, curve_smoothness, method);
     else           entityManager.add(name, points, mode, filled, object_color, curve_smoothness, method);
     points.clear();
+}
+
+bool ObjectCreator::ParsePoints() {
+    points.clear();
+    std::vector<std::tuple<float, float, float>> temp;
+    const char* p = obj_points;
+
+    // Helper: skip whitespace (using unsigned char to avoid UB)
+    auto skipSpace = [&]() {
+        while (std::isspace(static_cast<unsigned char>(*p))) ++p;
+    };
+
+    // Initial whitespace skip
+    skipSpace();
+    if (*p == '\0') return false;   // empty string
+
+    while (*p != '\0') {
+        log.AddLog("Parsing char {%c}\n", *p);
+        if (*p != '(') return false;
+        ++p;
+
+        // ----- parse x -----
+        skipSpace();
+        char* end;
+        float x = std::strtof(p, &end);
+        if (end == p) return false;          // no conversion
+        p = end;
+        skipSpace();
+        if (*p != ',') return false;         // missing comma after x
+        ++p;
+
+        // ----- parse y -----
+        skipSpace();
+        float y = std::strtof(p, &end);
+        if (end == p) return false;
+        p = end;
+        skipSpace();
+        if (*p != ',') return false;
+        ++p;
+
+        // ----- parse z -----
+        skipSpace();
+        float z = std::strtof(p, &end);
+        if (end == p) return false;
+        p = end;
+        skipSpace();
+        if (*p != ')') return false;         // missing closing parenthesis
+        ++p;
+
+        temp.emplace_back(x, y, z);
+
+        // after the point, skip whitespace and decide what follows
+        skipSpace();
+        if (*p == '\0') break;               // end of string – valid
+        if (*p == ',') {
+            ++p;                             // move past the comma
+            skipSpace();                     // skip any whitespace before next '('
+            continue;                        // parse next point
+        }
+        return false;                        // unexpected character after a point
+    }
+
+    if (temp.empty()) return false;          // at least one point required
+    points.swap(temp);
+    return true;
 }
 
 // ─── File I/O ────────────────────────────────────────────────────────────────

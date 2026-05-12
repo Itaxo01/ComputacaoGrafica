@@ -14,6 +14,7 @@ class ObjectCreator{
         int method = 0;              // 0=Bezier, 1=B-Spline (Curve2D only for now)
         int e = 0;                 // radio button state: 0=Point 1=Line 2=Wireframe 3=Polygon
         char obj_name[64] = "";    // empty = auto-generate
+        char obj_points[128] = "";    // used for object creation using text
         float color_f[3] = {1.0f, 1.0f, 1.0f};
         int object_color = IM_COL32_WHITE;
         ExampleAppLog &log;
@@ -36,6 +37,7 @@ class ObjectCreator{
         const std::vector<std::tuple<float, float, float>>& getInProgressPoints() const { return points; }
         core::ShapeType getMode() const { return mode; }
 
+        bool ParsePoints();
         void ImportFromFile(const char* file_path);
         void ExportToFile(const char* file_path);
 };
