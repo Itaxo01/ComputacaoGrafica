@@ -1,4 +1,5 @@
 #include "Viewport.hpp"
+#include "AppConfig.hpp"
 
 void Viewport::DrawWindow() {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -39,7 +40,9 @@ void Viewport::DrawWindow() {
             if(ImGui::RadioButton("Cohen Sutherland Clipping", &clipping_mode, 1)){
                 log.AddLog("Clipping mode changed to Cohen Sutherland Clipping\n");
             }
-            // ImGui::Checkbox("Enable 3D visualization", &is3d);
+            if(ImGui::Checkbox("Enable 3D", &AppConfig::is3d)){
+                log.AddLog("3D mode %s\n", AppConfig::is3d ? "enabled" : "disabled");
+            }
         ImGui::EndChild();
  
     ImGui::End();

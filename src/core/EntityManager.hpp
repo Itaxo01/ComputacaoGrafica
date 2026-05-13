@@ -68,7 +68,7 @@ class EntityManager{
         const std::vector<ManifestEntry>& GetManifest() const { return displayFile.getManifest(); }
         const std::unordered_map<long long, std::pair<int, int>>&  getHashID() const {return displayFile.getHashID();}
         
-        core::ObjectDetails GetObjectDetails(long long real_id, bool p3d = false) const;
+        core::ObjectDetails GetObjectDetails(long long real_id) const;
 
         std::vector<std::string> GetObjectNames() const {
             std::vector<std::string> names;

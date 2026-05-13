@@ -43,16 +43,16 @@ namespace core {
             return std::make_tuple(sx / n, sy / n, sz / n);
         }
 
-        ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+        ObjectDetails GetObjectDetails(long long id) const {
             ObjectDetails details;
             details.type = "Polygon";
             details.id = std::to_string(id);
             details.name = this->getName();
             details.color = this->getColor();
-            
+
             std::string pts = "[";
             for (size_t i = 0; i < points.size(); ++i) {
-                pts += points[i].coords(p3d);
+                pts += points[i].coords();
                 if (i < points.size() - 1) pts += "\n";
             }
             pts += "]";

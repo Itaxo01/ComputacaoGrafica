@@ -1,8 +1,11 @@
 #include "Window.hpp"
 #include "Transformations.hpp"
 #include "Viewport.hpp"
+#include "AppConfig.hpp"
 
 Window::Window(Viewport &vp) : viewport(vp), center(0.0f, 0.0f, 0.0f), width(20.0f), height(20.0f), angle(0.0f) {
+    camera.view_width  = width;
+    camera.view_height = height;
     UpdateNCSMatrix();
 }
 
@@ -15,23 +18,48 @@ void Window::setWindowBounds(const core::Point &bottomLeft, const core::Point &t
     UpdateNCSMatrix();
 }
 
-/* 
-    - Centraliza na window
-    - Rotaciona de acordo com o angulo atual da window
-    - Escalona para ficar no range [-1, 1] (dividindo por tamanho/2, o que é igual a multiplicar por 2/tamanho.)
-    
-    - é chamada internamente toda vez que a window for atualizada.
+/*
+    2D: centraliza, rotaciona e escala para [-1,1].
+    3D: aplica VRC (câmera) e escala para [-1,1] (projeção paralela ortogonal).
+    Chamada internamente toda vez que a window for atualizada.
 */
 void Window::UpdateNCSMatrix(){
-    this->NCSTransformMatrix = \
-                        core::getScalingMatrix(2.0f / width, 2.0f / height) *\
-                        core::getRotationMatrixZ(-angle) * \
-                        core::getTranslationMatrix(-center.x, -center.y);
+    if (AppConfig::is3d) {
+        // 3D pipeline: Scale(2/vw, 2/vh) * VRC
+        core::mat4 scale = core::getScalingMatrix(2.0f / camera.view_width, 2.0f / camera.view_height);
+        this->NCSTransformMatrix = scale * camera.GetVRCMatrix();
 
-    this->InverseNCSTransformMatrix = \
-                        core::getTranslationMatrix(center.x, center.y, 0.0f) *\
-                        core::getRotationMatrixZ(angle) * \
-                        core::getScalingMatrix(width / 2.0f, height / 2.0f, 1.0f);
+        // Inverse: VRC^-1 * Scale^-1
+        core::mat4 inv_scale = core::getScalingMatrix(camera.view_width / 2.0f, camera.view_height / 2.0f, 1.0f);
+        this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix() * inv_scale;
+    } else {
+        this->NCSTransformMatrix = \
+                            core::getScalingMatrix(2.0f / width, 2.0f / height) *\
+                            core::getRotationMatrixZ(-angle) * \
+                            core::getTranslationMatrix(-center.x, -center.y);
+
+        this->InverseNCSTransformMatrix = \
+                            core::getTranslationMatrix(center.x, center.y, 0.0f) *\
+                            core::getRotationMatrixZ(angle) * \
+                            core::getScalingMatrix(width / 2.0f, height / 2.0f, 1.0f);
+    }
+}
+
+WindowAttributes Window::getWindowAttributes() const {
+    WindowAttributes w;
+    if (AppConfig::is3d) {
+        w.center = camera.vrp;
+        w.width  = camera.view_width;
+        w.height = camera.view_height;
+        w.angle  = 0.0f;
+        w.vpn    = camera.vpn;
+    } else {
+        w.center = center;
+        w.width  = width;
+        w.height = height;
+        w.angle  = angle;
+    }
+    return w;
 }
 
 core::Point Window::NCSToViewport(const core::Point &p) const{
@@ -75,7 +103,12 @@ core::Point Window::ViewportToWindow(const ImVec2 &vp) const {
 
 
 void Window::zoom(const float zoom_factor, const ImVec2 &mouse_pos){
-    // 1. Get the current World Coordinate the mouse is hovering over
+    if (AppConfig::is3d) {
+        camera.zoom(zoom_factor);
+        UpdateNCSMatrix();
+        return;
+    }
+
     core::Point old_window_anchor = ViewportToWindow(mouse_pos);
 
     width *= zoom_factor;
@@ -92,9 +125,34 @@ void Window::zoom(const float zoom_factor, const ImVec2 &mouse_pos){
 }
 
 void Window::moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz){
+    if (AppConfig::is3d) {
+        // Convert pixel delta to world-space delta via the inverse NCS matrix.
+        core::Point p1 = ViewportToWindow(ImVec2(0.0f, 0.0f));
+        core::Point p2 = ViewportToWindow(ImVec2(dx, dy));
+        camera.vrp.x -= (p2.x - p1.x);
+        camera.vrp.y -= (p2.y - p1.y);
+        camera.vrp.z -= (p2.z - p1.z);
+        UpdateNCSMatrix();
+        return;
+    }
+
     core::Point p1 = ViewportToWindow(ImVec2(0, 0));
     core::Point p2 = ViewportToWindow(ImVec2(dx, dy));
     center.x -= (p2.x - p1.x);
     center.y -= (p2.y - p1.y);
+    UpdateNCSMatrix();
+}
+
+void Window::rotate(float degrees) {
+    if (AppConfig::is3d) {
+        camera.orbit(degrees, 0.0f);
+    } else {
+        angle += degrees;
+    }
+    UpdateNCSMatrix();
+}
+
+void Window::orbitPitch(float degrees) {
+    camera.orbit(0.0f, degrees);
     UpdateNCSMatrix();
 }

@@ -27,7 +27,6 @@ public:
     bool show_axes = true;
     bool show_grid = true;
     bool show_axis_coordinates = true;
-    bool is3d = false;
     int  clipping_mode = 0;
     
     void DrawWindow();
@@ -35,7 +34,7 @@ public:
     bool IsActive() const {return is_active;}
 
     ImVec2 GetCanvasSize() {return canvas_sz;};
-    std::pair<ImVec2, ImVec2> GetCanvasP() {return std::make_pair(canvas_p0, canvas_p1);}
+    std::pair<ImVec2, ImVec2> GetCanvasP() const {return std::make_pair(canvas_p0, canvas_p1);}
     ImDrawList* GetDrawList() {return draw_list;}
 
     // 0 Liang Barsky, 1 South alguma coisa

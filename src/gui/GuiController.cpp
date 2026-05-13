@@ -1,4 +1,5 @@
 #include "GuiController.hpp"
+#include "AppConfig.hpp"
 #include "imgui.h"
 
 void GuiController::run(){
@@ -53,12 +54,24 @@ void GuiController::HandleKeyboard(){
 
     if (io.KeyCtrl && io.KeyShift) {
         if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, true)) {
-            log.AddLog("Rotated window 1 degree counter-clockwise\n");
+            if (AppConfig::is3d) { log.AddLog("Camera orbit yaw -1 degree\n"); }
+            else                 { log.AddLog("Rotated window 1 degree counter-clockwise\n"); }
             window.rotate(-1.0f);
         }
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, true)) {
-            log.AddLog("Rotated window 1 degree clockwise\n");
+            if (AppConfig::is3d) { log.AddLog("Camera orbit yaw +1 degree\n"); }
+            else                 { log.AddLog("Rotated window 1 degree clockwise\n"); }
             window.rotate(1.0f);
+        }
+        if (AppConfig::is3d) {
+            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow, true)) {
+                log.AddLog("Camera orbit pitch -1 degree\n");
+                window.orbitPitch(-1.0f);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)) {
+                log.AddLog("Camera orbit pitch +1 degree\n");
+                window.orbitPitch(1.0f);
+            }
         }
     }
     else if(io.KeyShift){

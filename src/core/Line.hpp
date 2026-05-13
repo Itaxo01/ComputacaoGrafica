@@ -25,13 +25,13 @@ namespace core{
             os <<"["<< l.a << " -- " << l.b<<"]";
             return os;
         }
-        ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+        ObjectDetails GetObjectDetails(long long id) const {
             ObjectDetails details;
             details.type = "Line";
             details.id = std::to_string(id);
             details.name = this->getName();
             details.color = this->getColor();
-            details.points = "[" + a.coords(p3d) + '\n' + b.coords(p3d) + "]";
+            details.points = "[" + a.coords() + '\n' + b.coords() + "]";
             return details;
         }
         std::tuple<float, float, float> centerPoint() const override {

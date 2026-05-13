@@ -20,7 +20,9 @@ A interface contém atualmente 4 componentes:
                 * linha são dois clicks;
                 * wireframe são n clicks, double click efetua a criação.
                 * Poligono são n clicks, double click efetua a criação (Primeiro ponto é duplicado e o último se conecta a este). É possível selecionar se o polígono é preenchido ou não
-                * Curva 2D são n clicks, utilizando o método de Bézier cada ponto múltiplo de 3 é uma ancora, os demais são pontos de controle (0A, 1C, 2C, 3A, 4C, 5C, 6A...). Precisa terminar em um ponto âncora. É possível selecionar a quantidade de steps da continuidade.
+                * Curva 2D existem dois métodos de criação: Bézier e BSplines. Para ambos é possível selecionar a quantidade de steps da continuidade.
+                    - **Bezier**: Para bezier são n clicks, cada ponto múltiplo de 3 é uma âncora e os demais são pontos de controle (0A, 1C, 2C, 3A, 4C, 5C, 6A...). É necessário terminar em um ponto âncora para criar o objeto.
+                    - **BSplines**: Para BSplines são n clicks, cada ponto é um ponto de controle. É necessário ter pelo menos 4 pontos para criar o objeto.
             * Para cada um dos objetos é possível cancelar sua criação apertando esc, ou confirmar a criação apertando enter ou double click (só faz sentido para aqueles que possuem n pontos).
     * Também é possível habilitar e desabilitar a renderização da grid do viewport.
 

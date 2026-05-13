@@ -134,16 +134,16 @@ namespace core{
             return os;
         }
 
-        ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+        ObjectDetails GetObjectDetails(long long id) const {
             ObjectDetails details;
             details.type = "Curve 2D";
             details.id = std::to_string(id);
             details.name = this->getName();
             details.color = this->getColor();
-            
+
             std::string pts = "[";
             for (size_t i = 0; i < control_points.size(); ++i) {
-                pts += control_points[i].coords(p3d);
+                pts += control_points[i].coords();
                 if (i < control_points.size() - 1) pts += "\n";
             }
             pts += "]";

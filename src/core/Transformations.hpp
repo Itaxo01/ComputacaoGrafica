@@ -77,4 +77,24 @@ namespace core {
                 getRotationMatrixZ(degrees) *
                 getTranslationMatrix(-p.x, -p.y);
     }
+
+    // Rodrigues' rotation formula: rotate by degrees around an arbitrary unit axis.
+    inline mat4 getRotationMatrixAroundAxis(float degrees, const core::Point &axis) {
+        float rad = toRadians(degrees);
+        float c = std::cos(rad), s = std::sin(rad), ic = 1.0f - c;
+        float ax = axis.x, ay = axis.y, az = axis.z;
+
+        mat4 m(true);
+        m[0][0] = c + ax*ax*ic;       m[0][1] = ax*ay*ic - az*s;   m[0][2] = ax*az*ic + ay*s;
+        m[1][0] = ay*ax*ic + az*s;    m[1][1] = c + ay*ay*ic;      m[1][2] = ay*az*ic - ax*s;
+        m[2][0] = az*ax*ic - ay*s;    m[2][1] = az*ay*ic + ax*s;   m[2][2] = c + az*az*ic;
+        return m;
+    }
+
+    // Rotation around an arbitrary axis centered at point p.
+    inline mat4 getRotationMatrixAroundAxisCenteredAt(float degrees, const core::Point &axis, const core::Point &p) {
+        return getTranslationMatrix(p.x, p.y, p.z) *
+               getRotationMatrixAroundAxis(degrees, axis) *
+               getTranslationMatrix(-p.x, -p.y, -p.z);
+    }
 }

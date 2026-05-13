@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "Point.hpp"
 #include "Mat4.hpp"
+#include "Camera.hpp"
 
 class Viewport; // Forward declaration
 
@@ -12,10 +13,11 @@ struct WindowAttributes {
     core::Point center;
     float width, height;
     float angle;
+    core::Point vpn{0.0f, 0.0f, 1.0f}; // tracks camera orientation for cache invalidation in 3D
     WindowAttributes(){}
     WindowAttributes(const core::Point& center, float w, float h, float a): center(center), width(w), height(h), angle(a) {};
     friend bool operator==(const WindowAttributes &a, const WindowAttributes &b){
-        return a.center == b.center && a.width == b.width && a.height == b.height && a.angle == b.angle;
+        return a.center == b.center && a.width == b.width && a.height == b.height && a.angle == b.angle && a.vpn == b.vpn;
     }
     friend bool operator!=(const WindowAttributes &a, const WindowAttributes &b){
         return !(a==b);
@@ -39,12 +41,14 @@ private:
     void UpdateNCSMatrix();
 
 public:
+    Camera camera; // 3D camera (VRC)
+
     Window(Viewport &vp);
 
     void setWindowBounds(const core::Point &p0, const core::Point &p1);
     void moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz);
-    
-    WindowAttributes getWindowAttributes() const { return WindowAttributes(center, width, height, angle);}
+
+    WindowAttributes getWindowAttributes() const;
 
     core::Point GetWindowMin() const {return core::Point(center.x - width/2, center.y - height/2);}
     core::Point GetWindowMax() const {return core::Point(center.x + width/2, center.y + height/2);}
@@ -57,10 +61,11 @@ public:
     core::Point NCSToViewport(const core::Point &p) const;
     core::Point ViewportToNCS(const core::Point &p) const;
 
-    void rotate(float degrees){
-        angle += degrees;
-        UpdateNCSMatrix();
-    }
+    // 2D: rotate the window plane; 3D: orbit camera yaw.
+    void rotate(float degrees);
+
+    // 3D only: orbit camera pitch (look up/down).
+    void orbitPitch(float degrees);
 
     void ApplyTransformation(const core::mat4 &m) {
         this->NCSTransformMatrix *= m;

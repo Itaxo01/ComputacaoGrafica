@@ -97,7 +97,7 @@ void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, 
     return add(name, p, type, filled, object_color, smoothness, method);
 }
 
-core::ObjectDetails EntityManager::GetObjectDetails(long long real_id, bool p3d) const {
+core::ObjectDetails EntityManager::GetObjectDetails(long long real_id) const {
     const auto& hash_id = getHashID();
     auto p_it = hash_id.find(real_id);
     if(p_it == hash_id.end()) return core::ObjectDetails{"Not found", "", "", "", ""};
@@ -107,11 +107,11 @@ core::ObjectDetails EntityManager::GetObjectDetails(long long real_id, bool p3d)
     int list_id = idpair.first;
     long long fake_id = real_id/10;
     switch(type){
-        case core::ShapeType::POINT: return displayFile.getPoint(list_id).GetObjectDetails(fake_id, p3d);
-        case core::ShapeType::LINE: return displayFile.getLine(list_id).GetObjectDetails(fake_id, p3d);
-        case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).GetObjectDetails(fake_id, p3d);
-        case core::ShapeType::POLYGON: return displayFile.getPolygon(list_id).GetObjectDetails(fake_id, p3d);
-        case core::ShapeType::CURVE2D: return displayFile.getCurve2D(list_id).GetObjectDetails(fake_id, p3d);
+        case core::ShapeType::POINT: return displayFile.getPoint(list_id).GetObjectDetails(fake_id);
+        case core::ShapeType::LINE: return displayFile.getLine(list_id).GetObjectDetails(fake_id);
+        case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).GetObjectDetails(fake_id);
+        case core::ShapeType::POLYGON: return displayFile.getPolygon(list_id).GetObjectDetails(fake_id);
+        case core::ShapeType::CURVE2D: return displayFile.getCurve2D(list_id).GetObjectDetails(fake_id);
         default: return core::ObjectDetails{"Undefined", "", "", "", ""};
     }
 }

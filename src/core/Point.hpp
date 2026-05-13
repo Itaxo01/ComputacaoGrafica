@@ -4,6 +4,7 @@
 #include <ostream>
 #include <cmath>
 #include "Shape.hpp"
+#include "AppConfig.hpp"
 
 
 
@@ -115,20 +116,20 @@ namespace core{
             }
 
 
-            std::string coords(bool p3d) const {
+            std::string coords() const {
                 std::string r = "(" + format(x, 2) + ", " + format(y, 2);
-                if(p3d) r += + ", " + format(z, 2);
+                if(AppConfig::is3d) r += + ", " + format(z, 2);
                 r +=  ")";
                 return r;
             }
 
-            ObjectDetails GetObjectDetails(long long id, bool p3d = false) const {
+            ObjectDetails GetObjectDetails(long long id) const {
                 ObjectDetails details;
                 details.type = "Point";
                 details.id = std::to_string(id);
                 details.name = this->getName();
                 details.color = this->getColor();
-                details.points = "[" + coords(p3d) + "]";
+                details.points = "[" + coords() + "]";
                 return details;
             }
 
