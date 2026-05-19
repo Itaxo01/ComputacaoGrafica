@@ -70,49 +70,78 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
     float max_r = std::sqrt(w_attr.width * w_attr.width + w_attr.height * w_attr.height) / 2.0f;
 
     if (AppConfig::is3d) {
-        // ── 3D: XZ-plane grid (y = 0) ──────────────────────────────────────────────
+        // B proportional to view_width — box appears at fixed screen size regardless of zoom.
+        // Box centered at VRP so panning doesn't move the box on screen.
+        const float B  = w_attr.width * 0.31f;
+        const float cx = w_attr.center.x;  // VRP.x
+        const float cy = w_attr.center.y;  // VRP.y
+        const float cz = w_attr.center.z;  // VRP.z
+
+        // ── Bounding box (12 edges) centered at VRP ───────────────────────────────
+        // Z-up: "bottom" = low Z, "top" = high Z, side edges run along Z.
+        auto box_edge = [&](core::Point a, core::Point b) {
+            core::Point sa, sb;
+            if (project_line(a, b, sa, sb))
+                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(200, 200, 220, 255), 1.5f);
+        };
+        // bottom face (z = cz-B) — XY square at low Z
+        box_edge({cx-B,cy-B,cz-B},{cx+B,cy-B,cz-B}); box_edge({cx+B,cy-B,cz-B},{cx+B,cy+B,cz-B});
+        box_edge({cx+B,cy+B,cz-B},{cx-B,cy+B,cz-B}); box_edge({cx-B,cy+B,cz-B},{cx-B,cy-B,cz-B});
+        // top face (z = cz+B)
+        box_edge({cx-B,cy-B,cz+B},{cx+B,cy-B,cz+B}); box_edge({cx+B,cy-B,cz+B},{cx+B,cy+B,cz+B});
+        box_edge({cx+B,cy+B,cz+B},{cx-B,cy+B,cz+B}); box_edge({cx-B,cy+B,cz+B},{cx-B,cy-B,cz+B});
+        // vertical edges along Z
+        box_edge({cx-B,cy-B,cz-B},{cx-B,cy-B,cz+B}); box_edge({cx+B,cy-B,cz-B},{cx+B,cy-B,cz+B});
+        box_edge({cx+B,cy+B,cz-B},{cx+B,cy+B,cz+B}); box_edge({cx-B,cy+B,cz-B},{cx-B,cy+B,cz+B});
+
+        // ── XY floor grid (z = 0), spanning VRP±B in X and Y ─────────────────────
         if (viewport.show_grid) {
             float step = calculate_step(w_attr.width);
             char label[32];
 
-            // w_attr.center == VRP in 3D; use its x and z for the visible range.
-            float cx = w_attr.center.x, cz = w_attr.center.z;
-            float x0 = std::floor((cx - max_r) / step) * step, x1 = cx + max_r;
-            float z0 = std::floor((cz - max_r) / step) * step, z1 = cz + max_r;
+            float gx0 = cx - B, gx1 = cx + B;
+            float gy0 = cy - B, gy1 = cy + B;
+            float start_x = std::ceil(gx0 / step) * step;
+            float start_y = std::ceil(gy0 / step) * step;
 
-            // Lines parallel to X axis (constant z, y = 0)
-            for (float z = z0; z <= z1; z += step) {
+            // Lines parallel to X (constant y, z=0) — label at the left endpoint (gx0 side)
+            for (float y = start_y; y <= gy1 + step * 0.01f; y += step) {
                 core::Point sa, sb;
-                core::Point wa(x0, 0.0f, z), wb(x1, 0.0f, z);
-                if (!project_line(wa, wb, sa, sb)) continue;
-                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(100, 100, 100, 255));
-                if (viewport.show_axis_coordinates && std::abs(z) > step * 0.1f) {
-                    snprintf(label, sizeof(label), "z=%g", z);
-                    core::Point ncs_a = ncs_mat * wa, ncs_b = ncs_mat * wb;
-                    core::Point sp = label_pos(core::Point(0, 0, z), ncs_a, ncs_b);
+                if (!project_line({gx0, y, 0}, {gx1, y, 0}, sa, sb)) continue;
+                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(80, 80, 80, 255));
+                float dy = y - cy;
+                if (viewport.show_axis_coordinates && std::abs(dy) > step * 0.1f) {
+                    snprintf(label, sizeof(label), "y=%.2f", dy);
                     draw_list->AddText(
-                        ImVec2(std::clamp(sp.x + 4, canvas_p0.x + 2.0f, canvas_p1.x - 40.0f),
-                               std::clamp(sp.y - 14, canvas_p0.y + 2.0f, canvas_p1.y - 15.0f)),
+                        ImVec2(std::clamp(sa.x + 4, canvas_p0.x + 2.0f, canvas_p1.x - 40.0f),
+                               std::clamp(sa.y - 14, canvas_p0.y + 2.0f, canvas_p1.y - 15.0f)),
                         IM_COL32(200, 200, 200, 255), label);
                 }
             }
 
-            // Lines parallel to Z axis (constant x, y = 0)
-            for (float x = x0; x <= x1; x += step) {
+            // Lines parallel to Y (constant x, z=0) — label at the bottom endpoint (gy0 side)
+            for (float x = start_x; x <= gx1 + step * 0.01f; x += step) {
                 core::Point sa, sb;
-                core::Point wa(x, 0.0f, z0), wb(x, 0.0f, z1);
-                if (!project_line(wa, wb, sa, sb)) continue;
-                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(100, 100, 100, 255));
-                if (viewport.show_axis_coordinates && std::abs(x) > step * 0.1f) {
-                    snprintf(label, sizeof(label), "x=%g", x);
-                    core::Point ncs_a = ncs_mat * wa, ncs_b = ncs_mat * wb;
-                    core::Point sp = label_pos(core::Point(x, 0, 0), ncs_a, ncs_b);
+                if (!project_line({x, gy0, 0}, {x, gy1, 0}, sa, sb)) continue;
+                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(80, 80, 80, 255));
+                float dx = x - cx;
+                if (viewport.show_axis_coordinates && std::abs(dx) > step * 0.1f) {
+                    snprintf(label, sizeof(label), "x=%.2f", dx);
                     draw_list->AddText(
-                        ImVec2(std::clamp(sp.x + 4, canvas_p0.x + 2.0f, canvas_p1.x - 40.0f),
-                               std::clamp(sp.y + 4, canvas_p0.y + 2.0f, canvas_p1.y - 15.0f)),
+                        ImVec2(std::clamp(sa.x + 4, canvas_p0.x + 2.0f, canvas_p1.x - 40.0f),
+                               std::clamp(sa.y + 4, canvas_p0.y + 2.0f, canvas_p1.y - 15.0f)),
                         IM_COL32(200, 200, 200, 255), label);
                 }
             }
+
+            // Bounding square of the floor grid
+            auto floor_edge_sq = [&](core::Point a, core::Point b) {
+                core::Point sa, sb;
+                if (project_line(a, b, sa, sb))
+                    draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(160, 160, 185, 240), 1.5f);
+            };
+            floor_edge_sq({gx0,gy0,0},{gx1,gy0,0}); floor_edge_sq({gx1,gy0,0},{gx1,gy1,0});
+            floor_edge_sq({gx1,gy1,0},{gx0,gy1,0}); floor_edge_sq({gx0,gy1,0},{gx0,gy0,0});
 
             if (viewport.show_axis_coordinates) {
                 core::Point on = ncs_mat * core::Point(0, 0, 0);
@@ -124,15 +153,28 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
             }
         }
 
-        // ── 3D axes: X (red), Y (green), Z (blue) ──────────────────────────────────
+        // ── Axes centered at VRP: X (red), Y (green), Z (blue = up) ─────────────
         if (viewport.show_axes) {
             core::Point sa, sb;
-            if (project_line({-max_r, 0, 0}, {max_r, 0, 0}, sa, sb))
-                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(220,  60,  60, 255), 2.0f);
-            if (project_line({0, -max_r, 0}, {0, max_r, 0}, sa, sb))
-                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32( 60, 220,  60, 255), 2.0f);
-            if (project_line({0, 0, -max_r}, {0, 0, max_r}, sa, sb))
-                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32( 60, 100, 220, 255), 2.0f);
+            auto axis_label = [&](core::Point tip_world, const char* lbl, ImU32 col) {
+                core::Point tip = ncs_mat * tip_world;
+                if (tip.x >= -1.0f && tip.x <= 1.0f && tip.y >= -1.0f && tip.y <= 1.0f) {
+                    core::Point ts = window.NCSToViewport(tip);
+                    draw_list->AddText(ImVec2(ts.x + canvas_p0.x + 4, ts.y + canvas_p0.y - 8), col, lbl);
+                }
+            };
+            if (project_line({cx-B,cy,cz},{cx+B,cy,cz}, sa, sb)) {
+                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(220, 60, 60, 255), 2.0f);
+                axis_label({cx+B, cy, cz}, "X", IM_COL32(220, 60, 60, 255));
+            }
+            if (project_line({cx,cy-B,cz},{cx,cy+B,cz}, sa, sb)) {
+                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(60, 220, 60, 255), 2.0f);
+                axis_label({cx, cy+B, cz}, "Y", IM_COL32(60, 220, 60, 255));
+            }
+            if (project_line({cx,cy,cz-B},{cx,cy,cz+B}, sa, sb)) {
+                draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(60, 100, 220, 255), 2.0f);
+                axis_label({cx, cy, cz+B}, "Z", IM_COL32(60, 100, 220, 255));
+            }
         }
 
     } else {
@@ -158,7 +200,7 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
                 draw_list->AddLine(ToImVec2(ts), ToImVec2(bs), IM_COL32(100, 100, 100, 255));
 
                 if (viewport.show_axis_coordinates && std::abs(x) > step * 0.1f) {
-                    snprintf(label, sizeof(label), "%g", x);
+                    snprintf(label, sizeof(label), "%.2f", x);
                     core::Point sp = label_pos(core::Point(x, 0, 0), l.a, l.b);
                     draw_list->AddText(
                         ImVec2(std::clamp(sp.x + 6, canvas_p0.x + 2.0f, canvas_p1.x - 30.0f),
@@ -180,7 +222,7 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
                 draw_list->AddLine(ToImVec2(rs), ToImVec2(ls), IM_COL32(100, 100, 100, 255));
 
                 if (viewport.show_axis_coordinates && std::abs(y) > step * 0.1f) {
-                    snprintf(label, sizeof(label), "%g", y);
+                    snprintf(label, sizeof(label), "%.2f", y);
                     core::Point sp = label_pos(core::Point(0, y, 0), l.a, l.b);
                     draw_list->AddText(
                         ImVec2(std::clamp(sp.x + 6,  canvas_p0.x + 2.0f,  canvas_p1.x - 30.0f),

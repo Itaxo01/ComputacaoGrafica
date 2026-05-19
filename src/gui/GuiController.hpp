@@ -19,6 +19,8 @@ class GuiController {
         //ObjectListener& listener;
         ObjectGUI& objGUI;
 
+        bool prev_is3d = false;
+
         void HandleCanvasInteractions();
         void HandleLeftClick();
         void HandleRightDragging();

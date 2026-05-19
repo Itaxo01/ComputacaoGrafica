@@ -97,10 +97,11 @@ namespace core{
 
         public:
         int smoothness;
+        int method;
         std::vector<core::Point> points;
         std::vector<core::Point> control_points; // Pontos originais, para exportação e detalhes.
 
-        Curve2D(const std::vector<core::Point> &data, int smoothness = 50, int method = BEZIER) : smoothness(smoothness) {
+        Curve2D(const std::vector<core::Point> &data, int smoothness = 50, int method = BEZIER) : smoothness(smoothness), method(method) {
             control_points = data;
             switch(method) {
                 case BEZIER:

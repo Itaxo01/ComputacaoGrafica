@@ -116,6 +116,44 @@ core::ObjectDetails EntityManager::GetObjectDetails(long long real_id) const {
     }
 }
 
+std::vector<std::tuple<float,float,float>> EntityManager::GetObjectRawPoints(long long real_id) const {
+    const auto& hmap = getHashID();
+    auto it = hmap.find(real_id);
+    if (it == hmap.end()) return {};
+    int list_id = it->second.first;
+    core::ShapeType type = (core::ShapeType)(real_id % 10);
+
+    std::vector<std::tuple<float,float,float>> result;
+    auto push = [&](const core::Point& p) { result.emplace_back(p.x, p.y, p.z); };
+
+    switch (type) {
+        case core::ShapeType::POINT:     push(displayFile.getPoint(list_id)); break;
+        case core::ShapeType::LINE:      { auto& l = displayFile.getLine(list_id); push(l.a); push(l.b); break; }
+        case core::ShapeType::WIREFRAME: for (auto& p : displayFile.getWireframe(list_id).points)        push(p); break;
+        case core::ShapeType::POLYGON:   for (auto& p : displayFile.getPolygon(list_id).points)          push(p); break;
+        case core::ShapeType::CURVE2D:   for (auto& p : displayFile.getCurve2D(list_id).control_points)  push(p); break;
+        default: break;
+    }
+    return result;
+}
+
+void EntityManager::UpdateObjectPoints(long long real_id,
+                                        const std::vector<std::tuple<float,float,float>>& new_pts,
+                                        core::ShapeType new_type, int new_method, bool new_filled) {
+    if (getHashID().find(real_id) == getHashID().end()) return;
+
+    core::Shape& shape = displayFile.getShape(real_id);
+    std::string name  = shape.name;
+    int color         = shape.object_color;
+    int smoothness    = 50;
+    if (shape.type == core::ShapeType::CURVE2D)
+        smoothness = static_cast<core::Curve2D&>(shape).smoothness;
+
+    displayFile.remove(real_id);
+    auto pts = new_pts;
+    add(name, pts, new_type, new_filled, color, smoothness, new_method);
+}
+
 void EntityManager::ApplyTransformation(long long real_id, const core::mat4& matrix){
     core::Shape &shape = displayFile.getShape(real_id);
     switch(shape.type){

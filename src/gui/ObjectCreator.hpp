@@ -1,6 +1,7 @@
 #ifndef OBJECT_CREATOR_HPP
 #define OBJECT_CREATOR_HPP
 #include "EntityManager.hpp"
+#include "ObjectCreatorText.hpp"
 #include "Shape.hpp"
 #include "imgui.h"
 #include "log_app.h"
@@ -11,21 +12,22 @@ class ObjectCreator{
         std::vector<std::tuple<float, float, float>> points;
         bool filled = false;       // only meaningful in polygon mode
         int curve_smoothness = 50; // points per segment for Curve2D
-        int method = 0;              // 0=Bezier, 1=B-Spline (Curve2D only for now)
-        int e = 0;                 // radio button state: 0=Point 1=Line 2=Wireframe 3=Polygon
+        int method = 0;            // 0=Bezier, 1=B-Spline (Curve2D only for now)
+        int e = 0;                 // radio button state: 0=Point 1=Line 2=Wireframe 3=Polygon 4=Curve2D
         char obj_name[64] = "";    // empty = auto-generate
-        char obj_points[128] = "";    // used for object creation using text
         float color_f[3] = {1.0f, 1.0f, 1.0f};
         int object_color = IM_COL32_WHITE;
         ExampleAppLog &log;
         EntityManager &entityManager;
+        ObjectCreatorText text_creator;
 
         void set_color(float r, float g, float b){
             object_color = IM_COL32((int)(r*255), (int)(g*255), (int)(b*255), 255);
         }
 
     public:
-        ObjectCreator(ExampleAppLog &log, EntityManager &em): log(log), entityManager(em){}
+        ObjectCreator(ExampleAppLog &log, EntityManager &em)
+            : log(log), entityManager(em), text_creator(log) {}
 
         void DrawWindow();
         void RegisterLeftClick(float x, float y, float z = 0.0f);
@@ -37,7 +39,6 @@ class ObjectCreator{
         const std::vector<std::tuple<float, float, float>>& getInProgressPoints() const { return points; }
         core::ShapeType getMode() const { return mode; }
 
-        bool ParsePoints();
         void ImportFromFile(const char* file_path);
         void ExportToFile(const char* file_path);
 };

@@ -48,7 +48,7 @@ int main(int, char**) {
     */
 
     ObjectController objectController(entityManager);
-    ObjectGUI objectGUI(entityManager, objectController);
+    ObjectGUI objectGUI(entityManager, objectController, log);
     GuiController guiController(entityManager, programWindow, viewport, objectCreator, log, objectGUI);
 
     // Main loop

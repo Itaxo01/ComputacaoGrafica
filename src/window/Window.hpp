@@ -67,6 +67,9 @@ public:
     // 3D only: orbit camera pitch (look up/down).
     void orbitPitch(float degrees);
 
+    // Call when AppConfig::is3d changes — resets camera to default 3D angle and rebuilds matrix.
+    void OnModeChanged();
+
     void ApplyTransformation(const core::mat4 &m) {
         this->NCSTransformMatrix *= m;
     };

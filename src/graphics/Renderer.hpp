@@ -39,9 +39,7 @@ private:
     void DrawObject(const core::Polygon &polygon);
     void DrawObject(const core::Curve2D &Curve2D);
 
-    #ifndef DONT_DRAW_SHAPE_NAME
-        void draw_name_if_visible(const core::Shape &shape);
-    #endif
+    void draw_name_if_visible(const core::Shape &shape);
 
     void ApplyClipping();
     void ApplyViewportTransform();

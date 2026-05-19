@@ -26,8 +26,14 @@ A interface contém atualmente 4 componentes:
             * Para cada um dos objetos é possível cancelar sua criação apertando esc, ou confirmar a criação apertando enter ou double click (só faz sentido para aqueles que possuem n pontos).
     * Também é possível habilitar e desabilitar a renderização da grid do viewport.
 
+* **3D:**
+  * A implementação em 3D é feita utilizando a mesma interface, e pode ser habilitada ou desabilitada a vontade por um checkbox no menu do viewport.    
+  * Seu uso se permanece parecido com a interface 2D, com os mesmos controles para panning, zoom e rotação.
+  * Para a criação de objetos recomenda-se utilizar a criação por texto, clicar na interface não funciona como o esperado.
+
 * **Menu de Criação de Objetos:**
     * Menu básico para criação de objetos. Desabilitar a criação faz com que ao clicar no viewport não se crie objetos.
+    * Há a opção de abrir um menu de criação por texto, onde é possível criar os objetos digitando suas coordenadas.
     * Importação de arquivos:
         * No momento, a importação e exportação de arquivos não segue o .obj, e é feita de forma customizada (Será modificado em futuras entregas)
 

@@ -3,6 +3,7 @@
 #include "RendererPreview.hpp"
 #include "Shape.hpp"
 #include "Window.hpp"
+#include "AppConfig.hpp"
 #include "imgui.h"
 #include <string>
 #include "RendererClipping.hpp"
@@ -12,27 +13,25 @@ inline ImVec2 ToImVec2(const core::Point &p) {
     return ImVec2(p.x, p.y);
 }
 
-#ifndef DONT_DRAW_SHAPE_NAME
-    void Renderer::draw_name_if_visible(const core::Shape &shape){
-        core::Point anchor(shape.anchorPoint());
-            
-        // Map anchor to NCS to see if it is visible on screen
-        core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
-        
-        if (ncs_anchor.x >= -1.0f && ncs_anchor.x <= 1.0f && 
-            ncs_anchor.y >= -1.0f && ncs_anchor.y <= 1.0f) {
-            
-            core::Point p = window.NCSToViewport(ncs_anchor);
-            auto cp = viewport.GetCanvasP();
-            p.x += cp.first.x;
-            p.y += cp.first.y;
+void Renderer::draw_name_if_visible(const core::Shape &shape){
+    core::Point anchor(shape.anchorPoint());
 
-            const int magic_number = 15;
-            ImVec2 pos(p.x, p.y - magic_number);
-            draw_list->AddText(pos, IM_COL32_WHITE, shape.name.c_str());
-        }
+    // Map anchor to NCS to see if it is visible on screen
+    core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
+
+    if (ncs_anchor.x >= -1.0f && ncs_anchor.x <= 1.0f &&
+        ncs_anchor.y >= -1.0f && ncs_anchor.y <= 1.0f) {
+
+        core::Point p = window.NCSToViewport(ncs_anchor);
+        auto cp = viewport.GetCanvasP();
+        p.x += cp.first.x;
+        p.y += cp.first.y;
+
+        const int magic_number = 15;
+        ImVec2 pos(p.x, p.y - magic_number);
+        draw_list->AddText(pos, IM_COL32_WHITE, shape.name.c_str());
     }
-#endif
+}
 
 void Renderer::RenderBackground() {
     ::RenderBackground(draw_list, window, viewport);
@@ -381,13 +380,13 @@ void Renderer::render() {
         for (const auto &b : drawCurve2DList) DrawObject(b);
     // #endif
 
-    #ifndef DONT_DRAW_SHAPE_NAME
+    if (AppConfig::render_names) {
         for(const auto &p: displayFile.getPointList()) draw_name_if_visible(p);
         for(const auto &l: displayFile.getLineList()) draw_name_if_visible(l);
         for(const auto &w: displayFile.getWireframeList()) draw_name_if_visible(w);
         for(const auto &p: displayFile.getPolygonList()) draw_name_if_visible(p);
         for(const auto &b: displayFile.getCurve2DList()) draw_name_if_visible(b);
-    #endif
+    }
 
     DrawPreview();
 }

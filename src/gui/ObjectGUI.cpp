@@ -1,4 +1,6 @@
 #include "ObjectGUI.hpp"
+#include "Curve2D.hpp"
+#include "Polygon.hpp"
 #include <string>
 #include <algorithm>
 //#include "Util.hpp"
@@ -42,6 +44,22 @@ void ObjectGUI::DrawObjectList() {
         selected_ids.insert(manifest[i].id);
     }
     objectController.SetSelectedIDs(selected_ids); // Redundante?
+
+    // Open the edit modal when a single item is plain-clicked
+    int just_clicked = multipleSelectionList.GetJustClicked();
+    if (just_clicked >= 0 && just_clicked < (int)manifest.size() && selected_ids.size() == 1) {
+        long long clicked_id = manifest[just_clicked].id;
+        core::Shape& shape = entityManager.getObject(clicked_id);
+        int  edit_method = 0;
+        bool edit_filled = false;
+        if (shape.type == core::ShapeType::CURVE2D)
+            edit_method = static_cast<core::Curve2D&>(shape).method;
+        if (shape.type == core::ShapeType::POLYGON)
+            edit_filled = static_cast<core::Polygon&>(shape).filled;
+        auto pts = entityManager.GetObjectRawPoints(clicked_id);
+        editing_id = clicked_id;
+        point_editor.OpenForEdit(shape.type, edit_method, edit_filled, pts);
+    }
 
     // Captura operação selecionada com o botão direito e direciona tratamento para o controller
     int selected_context_item = multipleSelectionList.GetSelectedContextItem();
@@ -320,5 +338,19 @@ void ObjectGUI::DrawWindow() {
     ImGui::EndChild();
     ImGui::EndGroup();
     ImGui::End();
+
+    // Edit-points modal — must be called every frame (outside the window block)
+    {
+        std::vector<std::tuple<float,float,float>> new_pts;
+        core::ShapeType new_type   = core::ShapeType::POINT;
+        int             new_method = 0;
+        bool            new_filled = false;
+        if (point_editor.DrawModal(new_pts, new_type, new_method, new_filled) && editing_id != -1) {
+            entityManager.UpdateObjectPoints(editing_id, new_pts, new_type, new_method, new_filled);
+            editing_id = -1;
+            selected_ids.clear();
+            multipleSelectionList.clear();
+        }
+    }
 }
 

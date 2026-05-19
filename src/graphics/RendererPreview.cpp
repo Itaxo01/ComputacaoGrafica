@@ -116,7 +116,7 @@ void DrawPreviewCurve2DBezier(ImDrawList *dl, const PreviewPts &pts, const core:
         else
             dl->AddCircleFilled(to_screen(px, py, ncs_mat, window, offset), 2.5f, COL_CTRL);
     }
-
+    
     // Rubber-band from last placed point to mouse
     ImVec2 mouse = ImGui::GetMousePos();
     auto [lx, ly, lz] = pts.back();

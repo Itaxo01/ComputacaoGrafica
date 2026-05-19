@@ -59,6 +59,7 @@ void MultipleSelectionList::Draw() {
                 selected_indexes.clear();
                 selected_indexes.insert(index);
                 last_selected_index = index;
+                just_clicked = index;
             }
         }
 

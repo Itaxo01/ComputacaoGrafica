@@ -27,10 +27,10 @@ void Viewport::DrawWindow() {
         this->is_hovered = ImGui::IsItemHovered(); // Hovered
         this->is_active = ImGui::IsItemActive();   // Held
         
-        ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 210, canvas_p0.y + 5));
+        ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 230, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
        
-        ImGui::BeginChild("Viewport Options", ImVec2(200, 115), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::BeginChild("Viewport Options", ImVec2(215, 415), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
             ImGui::Checkbox("Show Axes", &show_axes);
             ImGui::Checkbox("Show Grid", &show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
@@ -43,6 +43,7 @@ void Viewport::DrawWindow() {
             if(ImGui::Checkbox("Enable 3D", &AppConfig::is3d)){
                 log.AddLog("3D mode %s\n", AppConfig::is3d ? "enabled" : "disabled");
             }
+            ImGui::Checkbox("Render Names", &AppConfig::render_names);
         ImGui::EndChild();
  
     ImGui::End();

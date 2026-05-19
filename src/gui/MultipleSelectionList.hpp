@@ -19,6 +19,8 @@ private:
     int current_page = 0;
     const int items_per_page = 20;
 
+    int just_clicked = -1; // index of the last item plain-clicked (no modifiers), reset after read
+
     std::function<std::string(int)> get_name; // Função recebida em SetData
 
 public:
@@ -41,7 +43,14 @@ public:
     }
     void clear() {
         selected_indexes.clear();
-        last_selected_index = -1;    
+        last_selected_index = -1;
+    }
+
+    // Returns the index of the last plain left-clicked item, then resets to -1.
+    int GetJustClicked() {
+        int tmp = just_clicked;
+        just_clicked = -1;
+        return tmp;
     }
 };
 

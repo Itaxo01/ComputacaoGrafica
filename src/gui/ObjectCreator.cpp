@@ -4,23 +4,24 @@
 #include "imgui.h"
 #include <fstream>
 #include <sstream>
+#include <cstring>
 
 // ─── Dynamic instruction text ────────────────────────────────────────────────
 
 static const char* point_instruction() {
     return "Click on the canvas to place a point.\n"
-           "Or insert text in the Points box in the format: (x1,y1,z1):\n";
+           "Or open the Create by Text modal\n";
 }
 
 static const char* line_instruction(int n) {
     if (n == 0) return "Click to place the first endpoint.\n"
-                       "Or insert text in the Points box in the format: (x1,y1,z1),(x2,y2,z2)\n";
+                       "Or open the Create by Text modal\n";
     return "Click to place the second endpoint.";
 }
 
 static const char* wireframe_instruction(int n) {
     if (n == 0) return "Click to place the first vertex.\n"
-                       "Or insert text in the Points box in the format: (x1,y1,z1),(x2,y2,z2),(x3,y3,z3)...\n";
+                       "Or open the Create by Text modal\n";
     if (n == 1) return "Click to place more vertices.\nPress Enter or double-click to finish.";
     return "Click to add vertices.\nPress Enter or double-click to finish.\nEsc to cancel.";
 }
@@ -135,22 +136,28 @@ void ObjectCreator::DrawWindow(){
         }
 
         // ── Object creation by text ──
-        if (mode == core::ShapeType::POINT || mode == core::ShapeType::LINE || mode == core::ShapeType::WIREFRAME) {
-            ImGui::Text("Points: ");  ImGui::SameLine();
-            ImGui::InputText("##points", obj_points, IM_COUNTOF(obj_points));
-            if (ImGui::Button("New object")) {
-                bool valid_input = ParsePoints();
-                if (!valid_input || points.empty()
-                    || (mode == core::ShapeType::POINT && points.size() != 1)
-                    || (mode == core::ShapeType::LINE && points.size() != 2)
-                    || (mode == core::ShapeType::WIREFRAME && points.size() != 3)) {
-                    points.clear(); // handle invalid input
-                    log.AddLog("Invalid input: {%s}\n", obj_points);
-                    }
-                else {
-                    AddGraphicObject();
-                    memset(obj_points, 0, sizeof(obj_points));
+        if (ImGui::Button("Create by text...")) {
+            text_creator.Open(mode, method, filled);
+        }
+        {
+            std::vector<std::tuple<float, float, float>> text_pts;
+            core::ShapeType text_mode   = mode;
+            int             text_method = method;
+            bool            text_filled = filled;
+            if (text_creator.DrawModal(text_pts, text_mode, text_method, text_filled)) {
+                points = text_pts;
+                mode   = text_mode;
+                method = text_method;
+                filled = text_filled;
+                // sync radio index
+                switch (mode) {
+                    case core::ShapeType::LINE:      e = 1; break;
+                    case core::ShapeType::WIREFRAME: e = 2; break;
+                    case core::ShapeType::POLYGON:   e = 3; break;
+                    case core::ShapeType::CURVE2D:   e = 4; break;
+                    default:                         e = 0; break;
                 }
+                AddGraphicObject();
             }
         }
 
@@ -261,70 +268,6 @@ void ObjectCreator::AddGraphicObject(){
     points.clear();
 }
 
-bool ObjectCreator::ParsePoints() {
-    points.clear();
-    std::vector<std::tuple<float, float, float>> temp;
-    const char* p = obj_points;
-
-    // Helper: skip whitespace (using unsigned char to avoid UB)
-    auto skipSpace = [&]() {
-        while (std::isspace(static_cast<unsigned char>(*p))) ++p;
-    };
-
-    // Initial whitespace skip
-    skipSpace();
-    if (*p == '\0') return false;   // empty string
-
-    while (*p != '\0') {
-        log.AddLog("Parsing char {%c}\n", *p);
-        if (*p != '(') return false;
-        ++p;
-
-        // ----- parse x -----
-        skipSpace();
-        char* end;
-        float x = std::strtof(p, &end);
-        if (end == p) return false;          // no conversion
-        p = end;
-        skipSpace();
-        if (*p != ',') return false;         // missing comma after x
-        ++p;
-
-        // ----- parse y -----
-        skipSpace();
-        float y = std::strtof(p, &end);
-        if (end == p) return false;
-        p = end;
-        skipSpace();
-        if (*p != ',') return false;
-        ++p;
-
-        // ----- parse z -----
-        skipSpace();
-        float z = std::strtof(p, &end);
-        if (end == p) return false;
-        p = end;
-        skipSpace();
-        if (*p != ')') return false;         // missing closing parenthesis
-        ++p;
-
-        temp.emplace_back(x, y, z);
-
-        // after the point, skip whitespace and decide what follows
-        skipSpace();
-        if (*p == '\0') break;               // end of string – valid
-        if (*p == ',') {
-            ++p;                             // move past the comma
-            skipSpace();                     // skip any whitespace before next '('
-            continue;                        // parse next point
-        }
-        return false;                        // unexpected character after a point
-    }
-
-    if (temp.empty()) return false;          // at least one point required
-    points.swap(temp);
-    return true;
-}
 
 // ─── File I/O ────────────────────────────────────────────────────────────────
 
@@ -355,11 +298,28 @@ void ObjectCreator::ImportFromFile(const char* file_path){
     bool pending_filled = false;
     bool pending_curve = false;
 
+    // Accumulated face edges for the current g/o group.
+    // Each face [v0,v1,...,vn] is appended as [v0,v1,...,vn,v0] (closed loop).
+    // Multiple faces share the same flat list; the renderer draws consecutive
+    // pairs, so connecting lines appear between faces — acceptable for mesh display.
+    RawPts face_accum;
+    int    face_color = IM_COL32_WHITE;
+    std::string face_name;
+
+    auto flush_faces = [&]() {
+        if (face_accum.size() >= 2) {
+            ImportWireframe(face_name, face_accum, face_color, entityManager);
+            count++;
+        }
+        face_accum.clear();
+    };
+
     auto resolve_indices = [&](std::istringstream &iss) {
         RawPts pts;
         std::string v_str;
         while (iss >> v_str) {
             try {
+                // OBJ supports v/vt/vn — take only the vertex index before '/'
                 int idx = std::stoi(v_str);
                 if (idx < 0) idx = (int)file_vertices.size() + idx + 1;
                 if (idx > 0 && idx <= (int)file_vertices.size())
@@ -396,15 +356,20 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             iss >> x >> y >> z;
             file_vertices.emplace_back(x, y, z);
         } else if (type == "o" || type == "g") {
+            flush_faces();
             iss >> current_name;
+            face_name  = current_name;
+            face_color = pending_color;
             pending_color  = IM_COL32_WHITE;
             pending_filled = false;
-            pending_curve = false;
+            pending_curve  = false;
         } else if (type == "p") {
+            flush_faces();
             auto pts = resolve_indices(iss);
             ImportPoint(current_name, pts, pending_color, entityManager);
             if (!pts.empty()) count++;
         } else if (type == "l") {
+            flush_faces();
             auto pts = resolve_indices(iss);
             if (pending_curve) {
                 ImportCurve2D(current_name, pts, pending_color, entityManager);
@@ -415,10 +380,14 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             }
         } else if (type == "f") {
             auto pts = resolve_indices(iss);
-            ImportPolygon(current_name, pts, pending_color, pending_filled, entityManager);
-            if (pts.size() >= 3) count++;
+            if (pts.size() >= 3) {
+                // Append closed face loop to accumulator
+                for (const auto &p : pts) face_accum.push_back(p);
+                face_accum.push_back(pts[0]); // close the polygon
+            }
         }
     }
+    flush_faces(); // flush any remaining faces from the last group
 
     log.AddLog("Imported %d objects from %s\n", count, path.c_str());
 }

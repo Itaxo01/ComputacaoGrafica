@@ -8,6 +8,12 @@ void GuiController::run(){
     objGUI.DrawWindow();
     log.Draw("Log");
 
+    if (AppConfig::is3d != prev_is3d) {
+        prev_is3d = AppConfig::is3d;
+        window.OnModeChanged();
+        log.AddLog("Switched to %s mode\n", AppConfig::is3d ? "3D" : "2D");
+    }
+
     HandleCanvasInteractions();
 }
 
@@ -41,16 +47,6 @@ void GuiController::HandleScroll(){
 
 void GuiController::HandleKeyboard(){
     ImGuiIO& io = ImGui::GetIO();
-
-    // ── Enter: finish wireframe / close polygon ──
-    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) {
-        creator.CloseShape();
-    }
-
-    // ── Escape: discard in-progress points ──
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        creator.CancelCreation();
-    }
 
     if (io.KeyCtrl && io.KeyShift) {
         if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, true)) {
@@ -112,6 +108,12 @@ void GuiController::HandleKeyboard(){
 void GuiController::HandleCanvasInteractions(){
     bool is_active  = viewport.IsActive();
     bool is_hovered = viewport.IsHovered();
+
+    // Shape-finishing keys fire even if the cursor drifted slightly off the canvas.
+    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
+        creator.CloseShape();
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+        creator.CancelCreation();
 
     if(is_hovered){
         // Double-click closes wireframe/polygon without adding an extra vertex.

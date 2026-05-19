@@ -94,6 +94,16 @@ class EntityManager{
             displayFile.remove(id);
         }
 
+        // Returns the original control/vertex points of an object as raw tuples.
+        // For Curve2D, returns control_points (not the interpolated curve points).
+        std::vector<std::tuple<float,float,float>> GetObjectRawPoints(long long real_id) const;
+
+        // Replace an object's points in-place: removes the old object and re-adds it
+        // with the same name/color but new points, type, method, and filled flag.
+        void UpdateObjectPoints(long long real_id,
+                                const std::vector<std::tuple<float,float,float>>& new_pts,
+                                core::ShapeType new_type, int new_method, bool new_filled);
+
         void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts, core::ShapeType mode, int method = 0) {
             displayFile.setPreviewState(pts, mode, method);
         }

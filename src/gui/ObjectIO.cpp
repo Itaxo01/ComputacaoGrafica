@@ -86,7 +86,7 @@ void ExportPoints(std::ofstream &f, const std::vector<core::Point> &v, int &vi) 
         unpack_color(pt.object_color, r, g, b, a);
         f << "o " << pt.getName() << "\n";
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "v " << pt.x << " " << pt.y << " 0.0\n";
+        f << "v " << pt.x << " " << pt.y << " " << pt.z << "\n";
         f << "p " << vi << "\n";
         vi++;
     }
@@ -98,8 +98,8 @@ void ExportLines(std::ofstream &f, const std::vector<core::Line> &v, int &vi) {
         unpack_color(ln.object_color, r, g, b, a);
         f << "o " << ln.getName() << "\n";
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "v " << ln.a.x << " " << ln.a.y << " 0.0\n";
-        f << "v " << ln.b.x << " " << ln.b.y << " 0.0\n";
+        f << "v " << ln.a.x << " " << ln.a.y << " " << ln.a.z << "\n";
+        f << "v " << ln.b.x << " " << ln.b.y << " " << ln.b.z << "\n";
         f << "l " << vi << " " << vi + 1 << "\n";
         vi += 2;
     }
@@ -112,7 +112,7 @@ void ExportWireframes(std::ofstream &f, const std::vector<core::Wireframe> &v, i
         f << "o " << w.getName() << "\n";
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
         for (const auto &p : w.points)
-            f << "v " << p.x << " " << p.y << " 0.0\n";
+            f << "v " << p.x << " " << p.y << " " << p.z << "\n";
         f << "l";
         for (size_t i = 0; i < w.points.size(); ++i)
             f << " " << vi + i;
@@ -134,7 +134,7 @@ void ExportPolygons(std::ofstream &f, const std::vector<core::Polygon> &v, int &
                      poly.points.front().y == poly.points.back().y)
             n--;
         for (size_t i = 0; i < n; ++i)
-            f << "v " << poly.points[i].x << " " << poly.points[i].y << " 0.0\n";
+            f << "v " << poly.points[i].x << " " << poly.points[i].y << " " << poly.points[i].z << "\n";
         f << "f";
         for (size_t i = 0; i < n; ++i)
             f << " " << vi + i;
@@ -151,7 +151,7 @@ void ExportCurve2Ds(std::ofstream &f, const std::vector<core::Curve2D> &v, int &
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
         f << "# type bezier_curve\n";
         for (const auto &p : bc.control_points)
-            f << "v " << p.x << " " << p.y << " 0.0\n";
+            f << "v " << p.x << " " << p.y << " " << p.z << "\n";
         f << "l";
         for (size_t i = 0; i < bc.control_points.size(); ++i)
             f << " " << vi + i;
