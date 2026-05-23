@@ -30,7 +30,7 @@ void Viewport::DrawWindow() {
         ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 230, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
        
-        ImGui::BeginChild("Viewport Options", ImVec2(215, 415), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::BeginChild("Viewport Options", ImVec2(215, 170), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
             ImGui::Checkbox("Show Axes", &show_axes);
             ImGui::Checkbox("Show Grid", &show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
