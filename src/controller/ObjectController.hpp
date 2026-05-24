@@ -45,10 +45,9 @@ public:
 
     std::tuple<float, float, float> GetSelectedObjectsCenter() {
         for (long long id : selected_ids) {
-            auto &obj = entityManager.getObject(id);
-            return obj.centerPoint(); // Por enquanto retorna o centro de apenas um objeto...
+            return entityManager.getObject(id).centerPoint().expand();
         }
-        return std::make_tuple(0.0f, 0.0f, 0.0f); // Default return if no objects are selected
+        return std::make_tuple(0.0f, 0.0f, 0.0f);
     }
     
     void HandleAddScaling(float x, float y);

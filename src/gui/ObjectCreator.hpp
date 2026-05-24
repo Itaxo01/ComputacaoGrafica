@@ -2,13 +2,13 @@
 #define OBJECT_CREATOR_HPP
 #include "EntityManager.hpp"
 #include "ObjectCreatorText.hpp"
-#include "Shape.hpp"
+#include "Object.hpp"
 #include "imgui.h"
 #include "log_app.h"
 
 class ObjectCreator{
     private:
-        core::ShapeType mode = core::ShapeType::POINT;
+        core::ObjectType mode = core::ObjectType::POINT;
         std::vector<std::tuple<float, float, float>> points;
         bool filled = false;       // only meaningful in polygon mode
         int curve_smoothness = 50; // points per segment for Curve2D
@@ -37,7 +37,7 @@ class ObjectCreator{
 
         // Read-only state for GuiController to draw the in-progress preview
         const std::vector<std::tuple<float, float, float>>& getInProgressPoints() const { return points; }
-        core::ShapeType getMode() const { return mode; }
+        core::ObjectType getMode() const { return mode; }
 
         void ImportFromFile(const char* file_path);
         void ExportToFile(const char* file_path);

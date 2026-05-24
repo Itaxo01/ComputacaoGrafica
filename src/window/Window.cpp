@@ -130,8 +130,8 @@ void Window::moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz)
         core::Point p1 = ViewportToWindow(ImVec2(0.0f, 0.0f));
         core::Point p2 = ViewportToWindow(ImVec2(dx, dy));
         camera.vrp.x -= (p2.x - p1.x);
-        camera.vrp.y -= (p2.y - p1.y);
-        // Z (world up) is intentionally locked — panning only moves in the XY floor plane.
+        camera.vrp.z -= (p2.z - p1.z);
+        // Y (world up) is intentionally locked — panning only moves in the XZ floor plane.
         UpdateNCSMatrix();
         return;
     }
@@ -159,11 +159,11 @@ void Window::orbitPitch(float degrees) {
 
 void Window::OnModeChanged() {
     if (AppConfig::is3d) {
-        // Z-up convention: vpn = normalize(1,-1,1) puts camera at 315° azimuth, 35° elevation.
-        // Result: X goes right-down, Y goes right-up, Z goes straight up on screen.
+        // Y-up convention: vpn = normalize(1,1,1) gives standard isometric view.
+        // Result: X goes right, Y goes up on screen, Z goes left-down (depth).
         camera.vrp        = {0.0f, 0.0f, 0.0f};
-        camera.vpn        = {0.5774f, -0.5774f, 0.5774f};
-        camera.vup        = {0.0f, 0.0f, 1.0f};
+        camera.vpn        = {0.5774f, 0.5774f, 0.5774f};
+        camera.vup        = {0.0f, 1.0f, 0.0f};
         camera.view_width  = 20.0f;
         camera.view_height = 20.0f;
     }

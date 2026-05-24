@@ -1,196 +1,129 @@
 #include "EntityManager.hpp"
-#include "Point.hpp"
-#include "Mat4.hpp"
-#include "Polygon.hpp"
-#include "Shape.hpp"
-#include "Wireframe.hpp"
-#include "Curve2D.hpp"
-#include <cassert>
-#include <stdexcept>
+#include "ObjectFactories/PointFactory.hpp"
+#include "ObjectFactories/LineFactory.hpp"
+#include "ObjectFactories/WireframeFactory.hpp"
+#include "ObjectFactories/PolygonFactory.hpp"
+#include "ObjectFactories/Curve2DFactory.hpp"
 
-void setName(core::Shape &s, const std::string &name){
-    #ifndef DONT_DRAW_SHAPE_NAME
-        s.name = name;
-    #endif
+static std::string colorStr(ImU32 col) {
+    unsigned int uc = (unsigned int)col;
+    int r = (uc >> 0)  & 0xFF;
+    int g = (uc >> 8)  & 0xFF;
+    int b = (uc >> 16) & 0xFF;
+    return "[" + std::to_string(r) + ", " + std::to_string(g) + ", " + std::to_string(b) + "]";
 }
 
-void setColor(core::Shape &s, int object_color){
-    #ifndef DONT_USE_OBJECT_COLOR
-        s.object_color = object_color;
-    #endif
+void EntityManager::add(core::ObjectFactory& factory) {
+    long long id = nextID();
+    core::Object obj = factory.build();
+    if (obj.name.empty())
+        obj.name = autoName(obj.type, id);
+    obj.id = id;
+    displayFile.add(std::move(obj));
+    auto meta = factory.takeMetadata();
+    if (meta) displayFile.setMetadata(id, std::move(meta));
+    renderer.notifyTransformation();
 }
 
-void EntityManager::addPoint(const std::string &name, std::tuple<float, float, float> &t, int object_color){
-    long long id = this->nextID(core::ShapeType::POINT);
-    core::Point p(t);
-    setName(p, name);
-    setColor(p, object_color);
-    displayFile.add(p, name, id);
-}
+core::ObjectDetails EntityManager::GetObjectDetails(long long id) const {
+    if (displayFile.getHashID().find(id) == displayFile.getHashID().end())
+        return core::ObjectDetails{"Not found", "", "", "", ""};
 
-void EntityManager::addLine(const std::string &name, std::tuple<float, float, float> &t1, std::tuple<float, float, float> &t2, int object_color){
-    long long id = this->nextID(core::ShapeType::LINE);
-    core::Point p1(t1); core::Point p2(t2);
-    core::Line l(p1, p2);
-    setName(l, name);
-    setColor(l, object_color);
-    
-    displayFile.add(l, name, id);
-}
+    const core::Object& obj = displayFile.getObject(id);
+    core::ObjectDetails d;
+    d.type  = core::getTypeName(obj.type);
+    d.id    = std::to_string(id);
+    d.name  = obj.name;
+    d.color = colorStr(obj.material.color);
 
-void EntityManager::addWireframe(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color) {
-    long long id = this->nextID(core::ShapeType::WIREFRAME);
-    std::vector<core::Point> core_vp;
-    core_vp.reserve(vp.size()); // small optimization
-    for (const auto &p : vp) {
-        core_vp.emplace_back(p); 
+    if (obj.type == core::ObjectType::CURVE2D) {
+        const CurveMetadata* meta = displayFile.getMetadata<CurveMetadata>(id);
+        if (meta) {
+            std::string pts = "[";
+            for (size_t i = 0; i < meta->control_points.size(); ++i) {
+                pts += (obj.transform * meta->control_points[i]).coords();
+                if (i + 1 < meta->control_points.size()) pts += "\n";
+            }
+            pts += "]";
+            d.points = pts;
+            return d;
+        }
     }
-    core::Wireframe w(core_vp);
-    setName(w, name);
-    setColor(w, object_color);
-
-    displayFile.add(w, name, id);
-}
-
-void EntityManager::addPolygon(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, bool filled, int object_color){
-    long long id = this->nextID(core::ShapeType::POLYGON);
-    std::vector<core::Point> core_vp;
-    core_vp.reserve(vp.size()); // small optimization
-    for (const auto &p : vp) {
-        core_vp.emplace_back(p); 
+    // All other types: use mesh vertices
+    std::string pts = "[";
+    for (size_t i = 0; i < obj.mesh->vertices.size(); ++i) {
+        pts += obj.mesh->vertices[i].coords();
+        if (i + 1 < obj.mesh->vertices.size()) pts += "\n";
     }
-    core::Polygon p(core_vp, filled);
-    setName(p, name);
-    setColor(p, object_color);
-
-    displayFile.add(p, name, id);
+    pts += "]";
+    if (obj.type == core::ObjectType::POLYGON)
+        pts += obj.material.filled ? " (filled)" : " (outline)";
+    d.points = pts;
+    return d;
 }
 
-void EntityManager::addCurve2D(const std::string &name, std::vector<std::tuple<float, float, float>> &vp, int object_color, int smoothness, int method) {
-    long long id = this->nextID(core::ShapeType::CURVE2D);
-    std::vector<core::Point> core_vp;
-    core_vp.reserve(vp.size());
-    for (const auto &p : vp) {
-        core_vp.emplace_back(p);
+std::vector<std::tuple<float,float,float>> EntityManager::GetObjectRawPoints(long long id) const {
+    if (displayFile.getHashID().find(id) == displayFile.getHashID().end()) return {};
+    const core::Object& obj = displayFile.getObject(id);
+
+    if (obj.type == core::ObjectType::CURVE2D) {
+        const CurveMetadata* meta = displayFile.getMetadata<CurveMetadata>(id);
+        if (meta) {
+            std::vector<std::tuple<float,float,float>> result;
+            for (const auto& p : meta->control_points) {
+                core::Point w = obj.transform * p;
+                result.emplace_back(w.x, w.y, w.z);
+            }
+            return result;
+        }
     }
-    core::Curve2D p(core_vp, smoothness, method);
-    setName(p, name);
-    setColor(p, object_color);
-
-    displayFile.add(p, name, id);
+    return obj.GetRawPoints();
 }
 
-void EntityManager::add(const std::string &name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color, int smoothness, int method) {
-    switch(type){
-        case core::ShapeType::POINT: return addPoint(name, p[0], object_color);
-        case core::ShapeType::LINE: return addLine(name, p[0], p[1], object_color);
-        case core::ShapeType::WIREFRAME: return addWireframe(name, p, object_color);
-        case core::ShapeType::POLYGON: return addPolygon(name, p, filled, object_color);
-        case core::ShapeType::CURVE2D: return addCurve2D(name, p, object_color, smoothness, method);
-        default: throw std::runtime_error("Undefined type at EntityManager add\n");
-    }
-}
+void EntityManager::UpdateObjectPoints(long long id,
+                                        const std::vector<std::tuple<float,float,float>>& new_pts,
+                                        core::ObjectType new_type, int new_method, bool new_filled) {
+    if (displayFile.getHashID().find(id) == displayFile.getHashID().end()) return;
 
-void EntityManager::add(const bool generate_name, std::vector<std::tuple<float, float, float>> &p, core::ShapeType &type, bool filled, int object_color, int smoothness, int method){
-    assert(generate_name == true);
-    std::string name = getName(type, currentId);
-    return add(name, p, type, filled, object_color, smoothness, method);
-}
+    const core::Object& old = displayFile.getObject(id);
+    std::string name  = old.name;
+    ImU32       color = old.material.color;
+    int smoothness = 50;
+    const CurveMetadata* meta = displayFile.getMetadata<CurveMetadata>(id);
+    if (meta) smoothness = meta->smoothness;
 
-core::ObjectDetails EntityManager::GetObjectDetails(long long real_id) const {
-    const auto& hash_id = getHashID();
-    auto p_it = hash_id.find(real_id);
-    if(p_it == hash_id.end()) return core::ObjectDetails{"Not found", "", "", "", ""};
+    displayFile.remove(id);
 
-    core::ShapeType type = (core::ShapeType)(real_id%10);
-    auto &[hash_key, idpair] = *p_it;
-    int list_id = idpair.first;
-    long long fake_id = real_id/10;
-    switch(type){
-        case core::ShapeType::POINT: return displayFile.getPoint(list_id).GetObjectDetails(fake_id);
-        case core::ShapeType::LINE: return displayFile.getLine(list_id).GetObjectDetails(fake_id);
-        case core::ShapeType::WIREFRAME: return displayFile.getWireframe(list_id).GetObjectDetails(fake_id);
-        case core::ShapeType::POLYGON: return displayFile.getPolygon(list_id).GetObjectDetails(fake_id);
-        case core::ShapeType::CURVE2D: return displayFile.getCurve2D(list_id).GetObjectDetails(fake_id);
-        default: return core::ObjectDetails{"Undefined", "", "", "", ""};
-    }
-}
+    std::vector<core::Point> pts;
+    pts.reserve(new_pts.size());
+    for (const auto& t : new_pts) pts.emplace_back(t);
 
-std::vector<std::tuple<float,float,float>> EntityManager::GetObjectRawPoints(long long real_id) const {
-    const auto& hmap = getHashID();
-    auto it = hmap.find(real_id);
-    if (it == hmap.end()) return {};
-    int list_id = it->second.first;
-    core::ShapeType type = (core::ShapeType)(real_id % 10);
-
-    std::vector<std::tuple<float,float,float>> result;
-    auto push = [&](const core::Point& p) { result.emplace_back(p.x, p.y, p.z); };
-
-    switch (type) {
-        case core::ShapeType::POINT:     push(displayFile.getPoint(list_id)); break;
-        case core::ShapeType::LINE:      { auto& l = displayFile.getLine(list_id); push(l.a); push(l.b); break; }
-        case core::ShapeType::WIREFRAME: for (auto& p : displayFile.getWireframe(list_id).points)        push(p); break;
-        case core::ShapeType::POLYGON:   for (auto& p : displayFile.getPolygon(list_id).points)          push(p); break;
-        case core::ShapeType::CURVE2D:   for (auto& p : displayFile.getCurve2D(list_id).control_points)  push(p); break;
+    switch (new_type) {
+        case core::ObjectType::POINT: {
+            core::PointFactory f(name, pts[0].x, pts[0].y, pts[0].z, color);
+            add(f); break;
+        }
+        case core::ObjectType::LINE: {
+            core::LineFactory f(name, pts[0], pts[1], color);
+            add(f); break;
+        }
+        case core::ObjectType::WIREFRAME: {
+            core::WireframeFactory f(name, pts, color);
+            add(f); break;
+        }
+        case core::ObjectType::POLYGON: {
+            core::PolygonFactory f(name, pts, new_filled, color);
+            add(f); break;
+        }
+        case core::ObjectType::CURVE2D: {
+            core::Curve2DFactory f(name, pts, smoothness, new_method, color);
+            add(f); break;
+        }
         default: break;
     }
-    return result;
 }
 
-void EntityManager::UpdateObjectPoints(long long real_id,
-                                        const std::vector<std::tuple<float,float,float>>& new_pts,
-                                        core::ShapeType new_type, int new_method, bool new_filled) {
-    if (getHashID().find(real_id) == getHashID().end()) return;
-
-    core::Shape& shape = displayFile.getShape(real_id);
-    std::string name  = shape.name;
-    int color         = shape.object_color;
-    int smoothness    = 50;
-    if (shape.type == core::ShapeType::CURVE2D)
-        smoothness = static_cast<core::Curve2D&>(shape).smoothness;
-
-    displayFile.remove(real_id);
-    auto pts = new_pts;
-    add(name, pts, new_type, new_filled, color, smoothness, new_method);
-}
-
-void EntityManager::ApplyTransformation(long long real_id, const core::mat4& matrix){
-    core::Shape &shape = displayFile.getShape(real_id);
-    switch(shape.type){
-        case core::ShapeType::POINT: {
-            core::Point &p = static_cast<core::Point&>(shape);
-            core::Point k = matrix*p;
-            p.x = k.x, p.y = k.y, p.z = k.z; // Para não modificar os outros atributos do ponto.
-            break;
-        }
-        case core::ShapeType::LINE: {
-            core::Line &line = static_cast<core::Line&>(shape);
-            line.a = matrix*line.a;
-            line.b = matrix*line.b;
-            break;
-        }
-        case core::ShapeType::WIREFRAME: {
-            core::Wireframe &wireframe = static_cast<core::Wireframe&>(shape);
-            for(core::Point &p: wireframe.points){
-                p = matrix*p;
-            }
-            break;
-        }
-        case core::ShapeType::POLYGON: {
-            core::Polygon &polygon = static_cast<core::Polygon&>(shape);
-            for(core::Point &p: polygon.points){
-                p = matrix*p;
-            }
-            break;
-        }
-        case core::ShapeType::CURVE2D: {
-            core::Curve2D &Curve2D = static_cast<core::Curve2D&>(shape);
-            for(core::Point &p: Curve2D.points){
-                p = matrix*p;
-            }
-            break;
-        }
-        default: throw std::runtime_error("Invalid object at Entity Manager ApplyTransformation\n");
-    }
+void EntityManager::ApplyTransformation(long long id, const core::mat4& matrix) {
+    displayFile.getObject(id).ApplyTransformation(matrix);
     renderer.notifyTransformation();
 }

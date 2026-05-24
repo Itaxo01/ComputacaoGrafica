@@ -2,7 +2,7 @@
 
 package "src/core" {
     class Shape {
-        + ShapeType type
+        + ObjectType type
         + std::string name
         + {abstract} std::pair<float, float> anchorPoint()
     }
@@ -79,7 +79,7 @@ package "src/gui" {
     }
 
     class ObjectCreator {
-        - ShapeType mode
+        - ObjectType mode
         - std::vector<std::pair<float, float>> points
         - bool enable_object_creation
         - char obj_name[16]
@@ -134,7 +134,7 @@ package "src/window" {
     class ManifestEntry {
         + long long id
         + long long fake_id
-        + ShapeType type
+        + ObjectType type
         + std::string name
     }
 

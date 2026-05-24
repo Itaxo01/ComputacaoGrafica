@@ -1,17 +1,17 @@
 #include "ObjectIO.hpp"
 #include "imgui.h"
+#include "ObjectFactories/PointFactory.hpp"
+#include "ObjectFactories/WireframeFactory.hpp"
+#include "ObjectFactories/PolygonFactory.hpp"
+#include "ObjectFactories/Curve2DFactory.hpp"
 #include <sstream>
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
-ObjValidationResult ValidateObjFile(const std::string &path) {
+ObjValidationResult ValidateObjFile(const std::string& path) {
     ObjValidationResult result;
-
     std::ifstream file(path);
-    if (!file.is_open()) {
-        result.error = "Cannot open file: " + path;
-        return result;
-    }
+    if (!file.is_open()) { result.error = "Cannot open file: " + path; return result; }
 
     std::vector<std::tuple<float,float,float>> vertices;
     bool pending_curve2d = false;
@@ -22,21 +22,15 @@ ObjValidationResult ValidateObjFile(const std::string &path) {
             std::istringstream css(line.substr(1));
             std::string tag; css >> tag;
             if (tag == "color") result.color_count++;
-            else if (tag == "type") {
-                std::string t; css >> t;
-                pending_curve2d = (t == "bezier_curve");
-            }
+            else if (tag == "type") { std::string t; css >> t; pending_curve2d = (t == "bezier_curve"); }
             continue;
         }
         if (line.empty()) continue;
-
         std::istringstream iss(line);
         std::string type; iss >> type;
-
         if (type == "v") {
             float x, y, z = 0.0f; iss >> x >> y >> z;
-            vertices.emplace_back(x, y, z);
-            result.vertex_count++;
+            vertices.emplace_back(x, y, z); result.vertex_count++;
         } else if (type == "o" || type == "g") {
             pending_curve2d = false;
         } else if (type == "p") {
@@ -65,12 +59,13 @@ ObjValidationResult ValidateObjFile(const std::string &path) {
             if (valid_count) result.object_count++;
         }
     }
-
     result.valid = true;
     return result;
 }
 
-static void unpack_color(int col, int &r, int &g, int &b, int &a) {
+// ─── Export helpers ───────────────────────────────────────────────────────────
+
+static void unpack_color(ImU32 col, int& r, int& g, int& b, int& a) {
     unsigned int uc = (unsigned int)col;
     r = (uc >>  0) & 0xFF;
     g = (uc >>  8) & 0xFF;
@@ -80,113 +75,109 @@ static void unpack_color(int col, int &r, int &g, int &b, int &a) {
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 
-void ExportPoints(std::ofstream &f, const std::vector<core::Point> &v, int &vi) {
-    for (const auto &pt : v) {
+void ExportObjects(std::ofstream& f, const std::vector<core::Object>& objects,
+                   EntityManager& em, int& vi) {
+    for (const auto& obj : objects) {
         int r, g, b, a;
-        unpack_color(pt.object_color, r, g, b, a);
-        f << "o " << pt.getName() << "\n";
+        unpack_color(obj.material.color, r, g, b, a);
+        f << "o " << obj.name << "\n";
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "v " << pt.x << " " << pt.y << " " << pt.z << "\n";
-        f << "p " << vi << "\n";
-        vi++;
-    }
-}
 
-void ExportLines(std::ofstream &f, const std::vector<core::Line> &v, int &vi) {
-    for (const auto &ln : v) {
-        int r, g, b, a;
-        unpack_color(ln.object_color, r, g, b, a);
-        f << "o " << ln.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "v " << ln.a.x << " " << ln.a.y << " " << ln.a.z << "\n";
-        f << "v " << ln.b.x << " " << ln.b.y << " " << ln.b.z << "\n";
-        f << "l " << vi << " " << vi + 1 << "\n";
-        vi += 2;
-    }
-}
+        // World-space vertices: apply obj.transform (mesh stores object-space geometry)
+        std::vector<core::Point> wv;
+        wv.reserve(obj.mesh->vertices.size());
+        for (const auto& v : obj.mesh->vertices) wv.push_back(obj.transform * v);
 
-void ExportWireframes(std::ofstream &f, const std::vector<core::Wireframe> &v, int &vi) {
-    for (const auto &w : v) {
-        int r, g, b, a;
-        unpack_color(w.object_color, r, g, b, a);
-        f << "o " << w.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        for (const auto &p : w.points)
-            f << "v " << p.x << " " << p.y << " " << p.z << "\n";
-        f << "l";
-        for (size_t i = 0; i < w.points.size(); ++i)
-            f << " " << vi + i;
-        f << "\n";
-        vi += (int)w.points.size();
-    }
-}
-
-void ExportPolygons(std::ofstream &f, const std::vector<core::Polygon> &v, int &vi) {
-    for (const auto &poly : v) {
-        int r, g, b, a;
-        unpack_color(poly.object_color, r, g, b, a);
-        f << "o " << poly.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "# filled " << (poly.filled ? 1 : 0) << "\n";
-        // polygons store a closing duplicate of the first vertex — skip it on export
-        size_t n = poly.points.size();
-        if (n > 1 && poly.points.front().x == poly.points.back().x &&
-                     poly.points.front().y == poly.points.back().y)
-            n--;
-        for (size_t i = 0; i < n; ++i)
-            f << "v " << poly.points[i].x << " " << poly.points[i].y << " " << poly.points[i].z << "\n";
-        f << "f";
-        for (size_t i = 0; i < n; ++i)
-            f << " " << vi + i;
-        f << "\n";
-        vi += (int)n;
-    }
-}
-
-void ExportCurve2Ds(std::ofstream &f, const std::vector<core::Curve2D> &v, int &vi) {
-    for (const auto &bc : v) {
-        int r, g, b, a;
-        unpack_color(bc.object_color, r, g, b, a);
-        f << "o " << bc.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "# type bezier_curve\n";
-        for (const auto &p : bc.control_points)
-            f << "v " << p.x << " " << p.y << " " << p.z << "\n";
-        f << "l";
-        for (size_t i = 0; i < bc.control_points.size(); ++i)
-            f << " " << vi + i;
-        f << "\n";
-        vi += (int)bc.control_points.size();
+        switch (obj.type) {
+            case core::ObjectType::POINT: {
+                if (wv.empty()) break;
+                f << "v " << wv[0].x << " " << wv[0].y << " " << wv[0].z << "\n";
+                f << "p " << vi << "\n";
+                vi++;
+                break;
+            }
+            case core::ObjectType::LINE: {
+                if (wv.size() < 2) break;
+                f << "v " << wv[0].x << " " << wv[0].y << " " << wv[0].z << "\n";
+                f << "v " << wv[1].x << " " << wv[1].y << " " << wv[1].z << "\n";
+                f << "l " << vi << " " << vi+1 << "\n";
+                vi += 2;
+                break;
+            }
+            case core::ObjectType::WIREFRAME: {
+                for (const auto& v : wv)
+                    f << "v " << v.x << " " << v.y << " " << v.z << "\n";
+                f << "l";
+                for (size_t i = 0; i < wv.size(); ++i) f << " " << vi + i;
+                f << "\n";
+                vi += (int)wv.size();
+                break;
+            }
+            case core::ObjectType::POLYGON: {
+                f << "# filled " << (obj.material.filled ? 1 : 0) << "\n";
+                // Skip closing duplicate (first == last) if present
+                size_t n = wv.size();
+                if (n > 1 && wv.front().x == wv.back().x && wv.front().y == wv.back().y) n--;
+                for (size_t i = 0; i < n; ++i)
+                    f << "v " << wv[i].x << " " << wv[i].y << " " << wv[i].z << "\n";
+                f << "f";
+                for (size_t i = 0; i < n; ++i) f << " " << vi + i;
+                f << "\n";
+                vi += (int)n;
+                break;
+            }
+            case core::ObjectType::CURVE2D: {
+                f << "# type bezier_curve\n";
+                const CurveMetadata* meta = em.getCurveMetadata(obj.id);
+                if (meta) {
+                    // Export world-space control points
+                    for (const auto& p : meta->control_points) {
+                        core::Point w = obj.transform * p;
+                        f << "v " << w.x << " " << w.y << " " << w.z << "\n";
+                    }
+                    f << "l";
+                    for (size_t i = 0; i < meta->control_points.size(); ++i) f << " " << vi + i;
+                    f << "\n";
+                    vi += (int)meta->control_points.size();
+                }
+                break;
+            }
+            default: break;
+        }
     }
 }
 
 // ─── Import ──────────────────────────────────────────────────────────────────
 
-void ImportPoint(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
+static std::vector<core::Point> toPoints(const RawPts& pts) {
+    std::vector<core::Point> result;
+    result.reserve(pts.size());
+    for (const auto& t : pts) result.emplace_back(t);
+    return result;
+}
+
+void ImportPoint(const std::string& name, const RawPts& pts, int color, EntityManager& em) {
     if (pts.empty()) return;
-    auto mode = core::ShapeType::POINT;
-    RawPts single = {pts[0]};
-    em.add(name, single, mode, false, color);
+    auto [x, y, z] = pts[0];
+    core::PointFactory f(name, x, y, z, (ImU32)color);
+    em.add(f);
 }
 
-void ImportWireframe(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
+void ImportWireframe(const std::string& name, const RawPts& pts, int color, EntityManager& em) {
     if (pts.size() < 2) return;
-    auto mode = core::ShapeType::WIREFRAME;
-    RawPts copy = pts;
-    em.add(name, copy, mode, false, color);
+    core::WireframeFactory f(name, toPoints(pts), (ImU32)color);
+    em.add(f);
 }
 
-void ImportPolygon(const std::string &name, const RawPts &pts, int color, bool filled, EntityManager &em) {
+void ImportPolygon(const std::string& name, const RawPts& pts, int color, bool filled, EntityManager& em) {
     if (pts.size() < 3) return;
-    auto mode = core::ShapeType::POLYGON;
-    RawPts copy = pts;
-    em.add(name, copy, mode, filled, color);
+    core::PolygonFactory f(name, toPoints(pts), filled, (ImU32)color);
+    em.add(f);
 }
 
-void ImportCurve2D(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
+void ImportCurve2D(const std::string& name, const RawPts& pts, int color, EntityManager& em) {
     int n = (int)pts.size();
     if (n < 4 || (n - 1) % 3 != 0) return;
-    auto mode = core::ShapeType::CURVE2D;
-    RawPts copy = pts;
-    em.add(name, copy, mode, false, color);
+    core::Curve2DFactory f(name, toPoints(pts), 50, BEZIER, (ImU32)color);
+    em.add(f);
 }

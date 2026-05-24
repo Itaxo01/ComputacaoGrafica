@@ -18,6 +18,8 @@ IMGUI_DIR = ./imgui
 GUI_DIR = ./src/gui
 CONTROLLER_DIR = ./src/controller
 CORE_DIR = ./src/core
+FACTORIES_DIR = ./src/core/ObjectFactories
+METADATAS_DIR = ./src/core/ObjectMetadatas
 WINDOW_DIR = ./src/window
 GRAPHICS_DIR = ./src/graphics
 BUILD_DIR = ./build/obj
@@ -26,6 +28,7 @@ SOURCES = $(wildcard ./src/*.cpp)
 SOURCES += $(wildcard $(GRAPHICS_DIR)/*.cpp)
 SOURCES += $(wildcard $(WINDOW_DIR)/*.cpp)
 SOURCES += $(wildcard $(CORE_DIR)/*.cpp)
+SOURCES += $(wildcard $(FACTORIES_DIR)/*.cpp)
 SOURCES += $(wildcard $(GUI_DIR)/*.cpp)
 SOURCES += $(wildcard $(CONTROLLER_DIR)/*.cpp)
 
@@ -37,7 +40,7 @@ OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
+CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(FACTORIES_DIR) -I$(METADATAS_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
 CXXFLAGS += -g -Wall -Wformat
 LIBS =
 
@@ -96,7 +99,7 @@ endif
 ## BUILD RULES
 ##---------------------------------------------------------------------
 
-vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
+vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(FACTORIES_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)

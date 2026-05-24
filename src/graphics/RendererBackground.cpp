@@ -78,40 +78,40 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
         const float cz = w_attr.center.z;  // VRP.z
 
         // ── Bounding box (12 edges) centered at VRP ───────────────────────────────
-        // Z-up: "bottom" = low Z, "top" = high Z, side edges run along Z.
+        // Y-up: "floor" = low Y, "ceiling" = high Y, side edges run along Y.
         auto box_edge = [&](core::Point a, core::Point b) {
             core::Point sa, sb;
             if (project_line(a, b, sa, sb))
                 draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(200, 200, 220, 255), 1.5f);
         };
-        // bottom face (z = cz-B) — XY square at low Z
-        box_edge({cx-B,cy-B,cz-B},{cx+B,cy-B,cz-B}); box_edge({cx+B,cy-B,cz-B},{cx+B,cy+B,cz-B});
-        box_edge({cx+B,cy+B,cz-B},{cx-B,cy+B,cz-B}); box_edge({cx-B,cy+B,cz-B},{cx-B,cy-B,cz-B});
-        // top face (z = cz+B)
-        box_edge({cx-B,cy-B,cz+B},{cx+B,cy-B,cz+B}); box_edge({cx+B,cy-B,cz+B},{cx+B,cy+B,cz+B});
-        box_edge({cx+B,cy+B,cz+B},{cx-B,cy+B,cz+B}); box_edge({cx-B,cy+B,cz+B},{cx-B,cy-B,cz+B});
-        // vertical edges along Z
-        box_edge({cx-B,cy-B,cz-B},{cx-B,cy-B,cz+B}); box_edge({cx+B,cy-B,cz-B},{cx+B,cy-B,cz+B});
-        box_edge({cx+B,cy+B,cz-B},{cx+B,cy+B,cz+B}); box_edge({cx-B,cy+B,cz-B},{cx-B,cy+B,cz+B});
+        // floor face (y = cy-B) — XZ square at low Y
+        box_edge({cx-B,cy-B,cz-B},{cx+B,cy-B,cz-B}); box_edge({cx+B,cy-B,cz-B},{cx+B,cy-B,cz+B});
+        box_edge({cx+B,cy-B,cz+B},{cx-B,cy-B,cz+B}); box_edge({cx-B,cy-B,cz+B},{cx-B,cy-B,cz-B});
+        // ceiling face (y = cy+B)
+        box_edge({cx-B,cy+B,cz-B},{cx+B,cy+B,cz-B}); box_edge({cx+B,cy+B,cz-B},{cx+B,cy+B,cz+B});
+        box_edge({cx+B,cy+B,cz+B},{cx-B,cy+B,cz+B}); box_edge({cx-B,cy+B,cz+B},{cx-B,cy+B,cz-B});
+        // vertical edges along Y
+        box_edge({cx-B,cy-B,cz-B},{cx-B,cy+B,cz-B}); box_edge({cx+B,cy-B,cz-B},{cx+B,cy+B,cz-B});
+        box_edge({cx+B,cy-B,cz+B},{cx+B,cy+B,cz+B}); box_edge({cx-B,cy-B,cz+B},{cx-B,cy+B,cz+B});
 
-        // ── XY floor grid (z = 0), spanning VRP±B in X and Y ─────────────────────
+        // ── XZ floor grid (y = 0), spanning VRP±B in X and Z ─────────────────────
         if (viewport.show_grid) {
             float step = calculate_step(w_attr.width);
             char label[32];
 
             float gx0 = cx - B, gx1 = cx + B;
-            float gy0 = cy - B, gy1 = cy + B;
+            float gz0 = cz - B, gz1 = cz + B;
             float start_x = std::ceil(gx0 / step) * step;
-            float start_y = std::ceil(gy0 / step) * step;
+            float start_z = std::ceil(gz0 / step) * step;
 
-            // Lines parallel to X (constant y, z=0) — label at the left endpoint (gx0 side)
-            for (float y = start_y; y <= gy1 + step * 0.01f; y += step) {
+            // Lines parallel to X (constant z, y=0) — label at the left endpoint (gx0 side)
+            for (float z = start_z; z <= gz1 + step * 0.01f; z += step) {
                 core::Point sa, sb;
-                if (!project_line({gx0, y, 0}, {gx1, y, 0}, sa, sb)) continue;
+                if (!project_line({gx0, 0, z}, {gx1, 0, z}, sa, sb)) continue;
                 draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(80, 80, 80, 255));
-                float dy = y - cy;
-                if (viewport.show_axis_coordinates && std::abs(dy) > step * 0.1f) {
-                    snprintf(label, sizeof(label), "y=%.2f", dy);
+                float dz = z - cz;
+                if (viewport.show_axis_coordinates && std::abs(dz) > step * 0.1f) {
+                    snprintf(label, sizeof(label), "z=%.2f", dz);
                     draw_list->AddText(
                         ImVec2(std::clamp(sa.x + 4, canvas_p0.x + 2.0f, canvas_p1.x - 40.0f),
                                std::clamp(sa.y - 14, canvas_p0.y + 2.0f, canvas_p1.y - 15.0f)),
@@ -119,10 +119,10 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
                 }
             }
 
-            // Lines parallel to Y (constant x, z=0) — label at the bottom endpoint (gy0 side)
+            // Lines parallel to Z (constant x, y=0) — label at the near endpoint (gz0 side)
             for (float x = start_x; x <= gx1 + step * 0.01f; x += step) {
                 core::Point sa, sb;
-                if (!project_line({x, gy0, 0}, {x, gy1, 0}, sa, sb)) continue;
+                if (!project_line({x, 0, gz0}, {x, 0, gz1}, sa, sb)) continue;
                 draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(80, 80, 80, 255));
                 float dx = x - cx;
                 if (viewport.show_axis_coordinates && std::abs(dx) > step * 0.1f) {
@@ -134,14 +134,14 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
                 }
             }
 
-            // Bounding square of the floor grid
+            // Bounding square of the XZ floor grid
             auto floor_edge_sq = [&](core::Point a, core::Point b) {
                 core::Point sa, sb;
                 if (project_line(a, b, sa, sb))
                     draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(160, 160, 185, 240), 1.5f);
             };
-            floor_edge_sq({gx0,gy0,0},{gx1,gy0,0}); floor_edge_sq({gx1,gy0,0},{gx1,gy1,0});
-            floor_edge_sq({gx1,gy1,0},{gx0,gy1,0}); floor_edge_sq({gx0,gy1,0},{gx0,gy0,0});
+            floor_edge_sq({gx0,0,gz0},{gx1,0,gz0}); floor_edge_sq({gx1,0,gz0},{gx1,0,gz1});
+            floor_edge_sq({gx1,0,gz1},{gx0,0,gz1}); floor_edge_sq({gx0,0,gz1},{gx0,0,gz0});
 
             if (viewport.show_axis_coordinates) {
                 core::Point on = ncs_mat * core::Point(0, 0, 0);
@@ -153,7 +153,7 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
             }
         }
 
-        // ── Axes centered at VRP: X (red), Y (green), Z (blue = up) ─────────────
+        // ── Axes centered at VRP: X (red), Y (green = up), Z (blue) ─────────────
         if (viewport.show_axes) {
             core::Point sa, sb;
             auto axis_label = [&](core::Point tip_world, const char* lbl, ImU32 col) {

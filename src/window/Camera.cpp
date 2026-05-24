@@ -63,8 +63,8 @@ void Camera::orbit(float dyaw_deg, float dpitch_deg) {
     auto basis = computeBasis();
 
     if (std::abs(dyaw_deg) > 1e-6f) {
-        // Yaw around world Z (Z-up convention used in 3D mode).
-        core::mat4 yaw = core::getRotationMatrixZ(dyaw_deg);
+        // Yaw around world Y (Y-up convention used in 3D mode).
+        core::mat4 yaw = core::getRotationMatrixY(dyaw_deg);
         vpn = yaw * vpn;
         vup = yaw * vup;
     }

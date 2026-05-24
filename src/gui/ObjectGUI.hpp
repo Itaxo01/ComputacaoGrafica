@@ -20,10 +20,10 @@ private:
     std::unordered_set<long long> selected_ids;
 
     ObjectCreatorText point_editor;
-    long long editing_id = -1; // real_id of object currently being edited (-1 = none)
+    long long editing_id = -1; // id of object currently being edited (-1 = none)
 
-    // Helper to get string name from ShapeType
-    const char* GetTypeName(core::ShapeType type);
+    // Helper to get string name from ObjectType
+    const char* GetTypeName(core::ObjectType type);
 
     bool view_matrix_popup_open = false; // State variable for popup
     core::mat4 matrix_to_view; // Matrix to display in popup

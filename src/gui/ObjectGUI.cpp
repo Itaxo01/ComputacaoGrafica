@@ -1,6 +1,6 @@
 #include "ObjectGUI.hpp"
-#include "Curve2D.hpp"
-#include "Polygon.hpp"
+#include "Object.hpp"
+#include "ObjectMetadatas/CurveMetadata.hpp"
 #include <string>
 #include <algorithm>
 //#include "Util.hpp"
@@ -8,57 +8,45 @@
 #define DFM_INPUT_BOX_SIZE 100
 #define DFM_BUTTON_SIZE ImVec2(50.0f, 20.0f)
 
-const char* ObjectGUI::GetTypeName(core::ShapeType type) {
-    switch (type) {
-        case core::ShapeType::POINT:        return "Point";
-        case core::ShapeType::LINE:         return "Line";
-        case core::ShapeType::WIREFRAME:    return "Wireframe";
-        case core::ShapeType::POLYGON:      return "Polygon";
-        case core::ShapeType::CURVE2D:      return "Curve2D";
-        default:                            return "Unknown";
-    }
+const char* ObjectGUI::GetTypeName(core::ObjectType type) {
+    return core::getTypeName(type);
 }
 
 void ObjectGUI::DrawObjectList() {
-    const auto &manifest = entityManager.GetManifest();
-    // Em vez de pegar todas as strings, mandar em tempo real as utilizadas pelo MultipleSelectionList usando uma lambda function. Dessa forma, não é necessário passar a lista inteira de nomes para o objeto.
+    const auto& objects = entityManager.getObjects();
 
-    multipleSelectionList.SetData(manifest.size(), [&](int index){
-        const auto& entry = manifest[index];
-        std::string label = "[" + std::to_string(entry.fake_id) + "] " + entry.name + " (" + GetTypeName(entry.type) + ")";
+    multipleSelectionList.SetData(objects.size(), [&](int index){
+        const auto& obj = objects[index];
+        std::string label = "[" + std::to_string(obj.id) + "] " + obj.name + " (" + GetTypeName(obj.type) + ")";
         return label;
     });
-    // Monta label para display na lista usando o nome, tipo e fake_id do objeto
-    
 
-    ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);  
-    
-    // Inicializa a lista de seleção múltipla com os nomes dos objetos e operações de right click
+    ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+
     std::vector<std::string> context_item_names = {"Delete", "Rotate (Placeholder)"};
     multipleSelectionList.SetContextItems(context_item_names);
     multipleSelectionList.Draw();
 
-    // Captura IDs do itens selecionados
     selected_ids.clear();
-    for (int i :  multipleSelectionList.GetSelectedIndexes()) {
-        selected_ids.insert(manifest[i].id);
+    for (int i : multipleSelectionList.GetSelectedIndexes()) {
+        selected_ids.insert(objects[i].id);
     }
-    objectController.SetSelectedIDs(selected_ids); // Redundante?
+    objectController.SetSelectedIDs(selected_ids);
 
     // Open the edit modal when a single item is plain-clicked
     int just_clicked = multipleSelectionList.GetJustClicked();
-    if (just_clicked >= 0 && just_clicked < (int)manifest.size() && selected_ids.size() == 1) {
-        long long clicked_id = manifest[just_clicked].id;
-        core::Shape& shape = entityManager.getObject(clicked_id);
+    if (just_clicked >= 0 && just_clicked < (int)objects.size() && selected_ids.size() == 1) {
+        long long clicked_id = objects[just_clicked].id;
+        core::Object& obj = entityManager.getObject(clicked_id);
         int  edit_method = 0;
-        bool edit_filled = false;
-        if (shape.type == core::ShapeType::CURVE2D)
-            edit_method = static_cast<core::Curve2D&>(shape).method;
-        if (shape.type == core::ShapeType::POLYGON)
-            edit_filled = static_cast<core::Polygon&>(shape).filled;
+        bool edit_filled = obj.material.filled;
+        if (obj.type == core::ObjectType::CURVE2D) {
+            const CurveMetadata* meta = entityManager.getCurveMetadata(clicked_id);
+            if (meta) edit_method = meta->method;
+        }
         auto pts = entityManager.GetObjectRawPoints(clicked_id);
         editing_id = clicked_id;
-        point_editor.OpenForEdit(shape.type, edit_method, edit_filled, pts);
+        point_editor.OpenForEdit(obj.type, edit_method, edit_filled, pts);
     }
 
     // Captura operação selecionada com o botão direito e direciona tratamento para o controller
@@ -262,7 +250,7 @@ inline std::string get_selected_idsTEMP(const std::unordered_set<long long> &ids
         for(const auto &i: ids){
             if(sep) selected_objects += ", ";
             sep = true;
-            selected_objects += std::to_string(i/10); // divide por 10 para mostrar o fake_id
+            selected_objects += std::to_string(i);
             count++;
             if(count > 20){
                 selected_objects += "...";
@@ -270,7 +258,7 @@ inline std::string get_selected_idsTEMP(const std::unordered_set<long long> &ids
             }
         }
         selected_objects += ')';
-    } else selected_objects = "Selected object ID: "+std::to_string(*ids.begin()/10);
+    } else selected_objects = "Selected object ID: "+std::to_string(*ids.begin());
     return selected_objects;
 }
 
@@ -342,7 +330,7 @@ void ObjectGUI::DrawWindow() {
     // Edit-points modal — must be called every frame (outside the window block)
     {
         std::vector<std::tuple<float,float,float>> new_pts;
-        core::ShapeType new_type   = core::ShapeType::POINT;
+        core::ObjectType new_type   = core::ObjectType::POINT;
         int             new_method = 0;
         bool            new_filled = false;
         if (point_editor.DrawModal(new_pts, new_type, new_method, new_filled) && editing_id != -1) {

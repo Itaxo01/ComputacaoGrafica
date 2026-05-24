@@ -14,8 +14,8 @@
 class Camera {
 public:
     core::Point vrp{0.0f, 0.0f, 0.0f}; // View Reference Point (camera origin)
-    core::Point vpn{0.0f, 0.0f, 1.0f}; // View Plane Normal (becomes +Z in VRC)
-    core::Point vup{0.0f, 1.0f, 0.0f}; // View Up vector
+    core::Point vpn{0.5774f, 0.5774f, 0.5774f}; // View Plane Normal (becomes +Z in VRC)
+    core::Point vup{0.0f, 1.0f, 0.0f};          // View Up vector (Y-up convention)
 
     float view_width  = 20.0f;
     float view_height = 20.0f;
@@ -34,7 +34,7 @@ public:
     // Scale view volume (zoom in/out for orthographic).
     void zoom(float factor);
 
-    // Orbit: rotate VPN around world Y axis (yaw) and local u axis (pitch).
+    // Orbit: rotate VPN around world Y axis (yaw, Y-up) and local u axis (pitch).
     void orbit(float dyaw_deg, float dpitch_deg);
 
     struct Basis { core::Point u, v, n; };

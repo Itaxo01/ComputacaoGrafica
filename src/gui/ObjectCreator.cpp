@@ -1,7 +1,11 @@
 #include "ObjectCreator.hpp"
 #include "ObjectIO.hpp"
-#include "Shape.hpp"
 #include "imgui.h"
+#include "ObjectFactories/PointFactory.hpp"
+#include "ObjectFactories/LineFactory.hpp"
+#include "ObjectFactories/WireframeFactory.hpp"
+#include "ObjectFactories/PolygonFactory.hpp"
+#include "ObjectFactories/Curve2DFactory.hpp"
 #include <fstream>
 #include <sstream>
 #include <cstring>
@@ -73,31 +77,31 @@ void ObjectCreator::DrawWindow(){
         // ── Mode radio buttons ──
         if (ImGui::RadioButton("Point", &e, 0)) {
             log.AddLog("Mode changed to POINT\n");
-            mode = core::ShapeType::POINT;
+            mode = core::ObjectType::POINT;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Line", &e, 1)) {
             log.AddLog("Mode changed to LINE\n");
-            mode = core::ShapeType::LINE;
+            mode = core::ObjectType::LINE;
             points.clear();
         }
         ImGui::SameLine();
         if (ImGui::RadioButton("Wireframe", &e, 2)) {
             log.AddLog("Mode changed to WIREFRAME\n");
-            mode = core::ShapeType::WIREFRAME;
+            mode = core::ObjectType::WIREFRAME;
             points.clear();
         }
         ImGui::SameLine();
         float polygon_x = ImGui::GetCursorPosX();
         if (ImGui::RadioButton("Polygon", &e, 3)) {
             log.AddLog("Mode changed to POLYGON\n");
-            mode = core::ShapeType::POLYGON;
+            mode = core::ObjectType::POLYGON;
             points.clear();
         }
 
         // ── Filled toggle (polygon only) ──
-        if (mode == core::ShapeType::POLYGON) {
+        if (mode == core::ObjectType::POLYGON) {
             ImGui::SetCursorPosX(polygon_x);
             ImGui::Checkbox("Filled", &filled);
         }
@@ -105,18 +109,18 @@ void ObjectCreator::DrawWindow(){
         float curve_x = ImGui::GetCursorPosX();
         if (ImGui::RadioButton("2D Curve", &e, 4)) {
             log.AddLog("Mode changed to CURVE2D\n");
-            mode = core::ShapeType::CURVE2D;
+            mode = core::ObjectType::CURVE2D;
             points.clear();
         }
 
         // ── Smoothness (curve only) ──
-        if (mode == core::ShapeType::CURVE2D){
+        if (mode == core::ObjectType::CURVE2D){
             ImGui::SetCursorPosX(curve_x);
             ImGui::RadioButton("Bezier", &method, 0); ImGui::SameLine();
             ImGui::RadioButton("B-Spline", &method, 1);
         }
 
-        if (mode == core::ShapeType::CURVE2D) {
+        if (mode == core::ObjectType::CURVE2D) {
             ImGui::SetCursorPosX(curve_x);
             ImGui::Text("Smoothness:"); ImGui::SameLine();
             ImGui::PushItemWidth(80);
@@ -141,7 +145,7 @@ void ObjectCreator::DrawWindow(){
         }
         {
             std::vector<std::tuple<float, float, float>> text_pts;
-            core::ShapeType text_mode   = mode;
+            core::ObjectType text_mode   = mode;
             int             text_method = method;
             bool            text_filled = filled;
             if (text_creator.DrawModal(text_pts, text_mode, text_method, text_filled)) {
@@ -151,10 +155,10 @@ void ObjectCreator::DrawWindow(){
                 filled = text_filled;
                 // sync radio index
                 switch (mode) {
-                    case core::ShapeType::LINE:      e = 1; break;
-                    case core::ShapeType::WIREFRAME: e = 2; break;
-                    case core::ShapeType::POLYGON:   e = 3; break;
-                    case core::ShapeType::CURVE2D:   e = 4; break;
+                    case core::ObjectType::LINE:      e = 1; break;
+                    case core::ObjectType::WIREFRAME: e = 2; break;
+                    case core::ObjectType::POLYGON:   e = 3; break;
+                    case core::ObjectType::CURVE2D:   e = 4; break;
                     default:                         e = 0; break;
                 }
                 AddGraphicObject();
@@ -204,26 +208,26 @@ void ObjectCreator::DrawWindow(){
 
 void ObjectCreator::RegisterLeftClick(float x, float y, float z){
     points.push_back(std::make_tuple(x, y, z));
-    if (mode == core::ShapeType::POINT ||
-        (mode == core::ShapeType::LINE && points.size() == 2)) {
+    if (mode == core::ObjectType::POINT ||
+        (mode == core::ObjectType::LINE && points.size() == 2)) {
         AddGraphicObject();
     }
 }
 
 void ObjectCreator::CloseShape(){
-    if (mode == core::ShapeType::POLYGON) {
+    if (mode == core::ObjectType::POLYGON) {
         if (points.size() < 3) {
             log.AddLog("[error] Polygon needs at least 3 vertices.\n");
             return;
         }
         if (points.front() != points.back())
             points.push_back(points.front());
-    } else if (mode == core::ShapeType::WIREFRAME) {
+    } else if (mode == core::ObjectType::WIREFRAME) {
         if (points.size() < 2) {
             log.AddLog("[error] Wireframe needs at least 2 vertices.\n");
             return;
         }
-    } else if (mode == core::ShapeType::CURVE2D){
+    } else if (mode == core::ObjectType::CURVE2D){
         switch(method){
             case 0:{ // Bezier
                 int n = (int)points.size();
@@ -261,10 +265,46 @@ void ObjectCreator::CancelCreation(){
 
 void ObjectCreator::AddGraphicObject(){
     std::string name(obj_name);
-    bool auto_name = name.empty();
+    ImU32 col = (ImU32)object_color;
 
-    if (auto_name) entityManager.add(true, points, mode, filled, object_color, curve_smoothness, method);
-    else           entityManager.add(name, points, mode, filled, object_color, curve_smoothness, method);
+    switch (mode) {
+        case core::ObjectType::POINT: {
+            auto [x, y, z] = points[0];
+            core::PointFactory f(name, x, y, z, col);
+            entityManager.add(f);
+            break;
+        }
+        case core::ObjectType::LINE: {
+            core::LineFactory f(name, core::Point(points[0]), core::Point(points[1]), col);
+            entityManager.add(f);
+            break;
+        }
+        case core::ObjectType::WIREFRAME: {
+            std::vector<core::Point> pts;
+            pts.reserve(points.size());
+            for (const auto& t : points) pts.emplace_back(t);
+            core::WireframeFactory f(name, pts, col);
+            entityManager.add(f);
+            break;
+        }
+        case core::ObjectType::POLYGON: {
+            std::vector<core::Point> pts;
+            pts.reserve(points.size());
+            for (const auto& t : points) pts.emplace_back(t);
+            core::PolygonFactory f(name, pts, filled, col);
+            entityManager.add(f);
+            break;
+        }
+        case core::ObjectType::CURVE2D: {
+            std::vector<core::Point> pts;
+            pts.reserve(points.size());
+            for (const auto& t : points) pts.emplace_back(t);
+            core::Curve2DFactory f(name, pts, curve_smoothness, method, col);
+            entityManager.add(f);
+            break;
+        }
+        default: break;
+    }
     points.clear();
 }
 
@@ -295,7 +335,6 @@ void ObjectCreator::ImportFromFile(const char* file_path){
     std::vector<std::tuple<float, float, float>> file_vertices;
     std::string current_name;
     int  pending_color  = IM_COL32_WHITE;
-    bool pending_filled = false;
     bool pending_curve = false;
 
     // Accumulated face edges for the current g/o group.
@@ -338,8 +377,6 @@ void ObjectCreator::ImportFromFile(const char* file_path){
                 int r, g, b, a = 255;
                 if (css >> r >> g >> b) { css >> a; }
                 pending_color = IM_COL32(r, g, b, a);
-            } else if (tag == "filled") {
-                int f = 0; css >> f; pending_filled = (f != 0);
             } else if (tag == "type") {
                 std::string t; css >> t; pending_curve = (t == "bezier_curve");
             }
@@ -361,7 +398,6 @@ void ObjectCreator::ImportFromFile(const char* file_path){
             face_name  = current_name;
             face_color = pending_color;
             pending_color  = IM_COL32_WHITE;
-            pending_filled = false;
             pending_curve  = false;
         } else if (type == "p") {
             flush_faces();
@@ -405,11 +441,7 @@ void ObjectCreator::ExportToFile(const char* file_path){
 
     int vi = 1;
     file << "# Fast OBJ Export\n";
-    ExportPoints      (file, entityManager.getPointList(),       vi);
-    ExportLines       (file, entityManager.getLineList(),        vi);
-    ExportWireframes  (file, entityManager.getWireframeList(),   vi);
-    ExportPolygons    (file, entityManager.getPolygonList(),     vi);
-    ExportCurve2Ds(file, entityManager.getCurve2DList(), vi);
+    ExportObjects(file, entityManager.getObjects(), entityManager, vi);
 
     log.AddLog("Exported objects to %s\n", path.c_str());
 }

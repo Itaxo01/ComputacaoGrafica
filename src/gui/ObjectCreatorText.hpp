@@ -1,5 +1,5 @@
 #pragma once
-#include "Shape.hpp"
+#include "Object.hpp"
 #include "imgui.h"
 #include "log_app.h"
 #include <vector>
@@ -18,7 +18,7 @@ class ObjectCreatorText {
     const char* popup_title;
 
     // Internal mode state — seeded by Open(), editable inside the modal
-    core::ShapeType mode   = core::ShapeType::POINT;
+    core::ObjectType mode   = core::ObjectType::POINT;
     int             method = 0;     // 0=Bezier, 1=B-Spline (Curve2D only)
     bool            filled = false; // Polygon only
     int             e      = 0;     // radio index mirroring mode
@@ -40,14 +40,14 @@ public:
         : popup_title(title), log(log) {}
 
     // Seed internal mode from the parent before opening.
-    void Open(core::ShapeType initial_mode, int initial_method = 0, bool initial_filled = false);
+    void Open(core::ObjectType initial_mode, int initial_method = 0, bool initial_filled = false);
 
     // Pre-fill the buffer from existing points, then open.
-    void OpenForEdit(core::ShapeType mode, int method, bool filled,
+    void OpenForEdit(core::ObjectType mode, int method, bool filled,
                      const std::vector<std::tuple<float, float, float>> &pts);
 
     // Call every frame inside the parent window. Returns true once on Confirm.
     // On confirm, out_* carry the (possibly changed) mode back to the caller.
     bool DrawModal(std::vector<std::tuple<float, float, float>> &out_points,
-                   core::ShapeType &out_mode, int &out_method, bool &out_filled);
+                   core::ObjectType &out_mode, int &out_method, bool &out_filled);
 };
