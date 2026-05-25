@@ -14,10 +14,11 @@ struct WindowAttributes {
     float width, height;
     float angle;
     core::Point vpn{0.0f, 0.0f, 1.0f}; // tracks camera orientation for cache invalidation in 3D
+    float focal_distance = 20.0f;       // tracks perspective COP distance
     WindowAttributes(){}
     WindowAttributes(const core::Point& center, float w, float h, float a): center(center), width(w), height(h), angle(a) {};
     friend bool operator==(const WindowAttributes &a, const WindowAttributes &b){
-        return a.center == b.center && a.width == b.width && a.height == b.height && a.angle == b.angle && a.vpn == b.vpn;
+        return a.center == b.center && a.width == b.width && a.height == b.height && a.angle == b.angle && a.vpn == b.vpn && a.focal_distance == b.focal_distance;
     }
     friend bool operator!=(const WindowAttributes &a, const WindowAttributes &b){
         return !(a==b);

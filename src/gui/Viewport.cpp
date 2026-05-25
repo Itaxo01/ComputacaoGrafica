@@ -43,6 +43,9 @@ void Viewport::DrawWindow() {
             if(ImGui::Checkbox("Enable 3D", &AppConfig::is3d)){
                 log.AddLog("3D mode %s\n", AppConfig::is3d ? "enabled" : "disabled");
             }
+            if(ImGui::Checkbox("Enable Perspective", &AppConfig::perspective)){
+                log.AddLog("Perspective mode %s\n", AppConfig::perspective ? "enabled" : "disabled");
+            }
             ImGui::Checkbox("Render Names", &AppConfig::render_names);
         ImGui::EndChild();
  

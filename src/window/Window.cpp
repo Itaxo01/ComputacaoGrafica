@@ -20,18 +20,33 @@ void Window::setWindowBounds(const core::Point &bottomLeft, const core::Point &t
 
 /*
     2D: centraliza, rotaciona e escala para [-1,1].
-    3D: aplica VRC (câmera) e escala para [-1,1] (projeção paralela ortogonal).
+    3D ortográfico: aplica VRC (câmera) e escala para [-1,1] (projeção paralela ortogonal).
+    3D perspectivo: aplica VRC, depois a matriz de perspectiva com divisão por w, depois escala.
     Chamada internamente toda vez que a window for atualizada.
 */
 void Window::UpdateNCSMatrix(){
     if (AppConfig::is3d) {
-        // 3D pipeline: Scale(2/vw, 2/vh) * VRC
-        core::mat4 scale = core::getScalingMatrix(2.0f / camera.view_width, 2.0f / camera.view_height);
-        this->NCSTransformMatrix = scale * camera.GetVRCMatrix();
+        if (AppConfig::perspective) {
+            core::mat4 scale    = core::getScalingMatrix(2.0f / camera.view_width,
+                                                         2.0f / camera.view_height);
+            core::mat4 persp    = camera.GetPerspectiveMatrix();
+            this->NCSTransformMatrix        = scale * persp * camera.GetVRCMatrix();
 
-        // Inverse: VRC^-1 * Scale^-1
-        core::mat4 inv_scale = core::getScalingMatrix(camera.view_width / 2.0f, camera.view_height / 2.0f, 1.0f);
-        this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix() * inv_scale;
+            // Inverse: VRC^-1 * Persp^-1 * Scale^-1
+            core::mat4 inv_scale = core::getScalingMatrix(camera.view_width  / 2.0f,
+                                                          camera.view_height / 2.0f, 1.0f);
+            this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix()
+                                             * camera.GetInversePerspectiveMatrix()
+                                             * inv_scale;
+        } else {
+            core::mat4 scale = core::getScalingMatrix(2.0f / camera.view_width,
+                                                      2.0f / camera.view_height);
+            this->NCSTransformMatrix = scale * camera.GetVRCMatrix();
+
+            core::mat4 inv_scale = core::getScalingMatrix(camera.view_width  / 2.0f,
+                                                          camera.view_height / 2.0f, 1.0f);
+            this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix() * inv_scale;
+        }
     } else {
         this->NCSTransformMatrix = \
                             core::getScalingMatrix(2.0f / width, 2.0f / height) *\
@@ -53,6 +68,7 @@ WindowAttributes Window::getWindowAttributes() const {
         w.height = camera.view_height;
         w.angle  = 0.0f;
         w.vpn    = camera.vpn;
+        w.focal_distance = camera.focal_distance;
     } else {
         w.center = center;
         w.width  = width;
@@ -161,11 +177,12 @@ void Window::OnModeChanged() {
     if (AppConfig::is3d) {
         // Y-up convention: vpn = normalize(1,1,1) gives standard isometric view.
         // Result: X goes right, Y goes up on screen, Z goes left-down (depth).
-        camera.vrp        = {0.0f, 0.0f, 0.0f};
-        camera.vpn        = {0.5774f, 0.5774f, 0.5774f};
-        camera.vup        = {0.0f, 1.0f, 0.0f};
-        camera.view_width  = 20.0f;
-        camera.view_height = 20.0f;
+        camera.vrp           = {0.0f, 0.0f, 0.0f};
+        camera.vpn           = {0.5774f, 0.5774f, 0.5774f};
+        camera.vup           = {0.0f, 1.0f, 0.0f};
+        camera.view_width    = 20.0f;
+        camera.view_height   = 20.0f;
+        camera.focal_distance = 20.0f;
     }
     UpdateNCSMatrix();
 }
