@@ -25,14 +25,13 @@ void Renderer::RenderBackground() {
     ::RenderBackground(draw_list, window, viewport);
 }
 
-void Renderer::DrawObject(const core::Object& obj) {
+void Renderer::DrawObject(const RenderedObject& obj) {
     const ImU32 col   = obj.material.color;
     const float width = 2.0f;
 
-    // Point: single vertex, no indices
     if (obj.type == core::ObjectType::POINT) {
-        if (!obj.mesh->vertices.empty()) {
-            const auto& v = obj.mesh->vertices[0];
+        if (!obj.mesh.vertices.empty()) {
+            const auto& v = obj.mesh.vertices[0];
             const float h = 1.0f;
             draw_list->AddRectFilled(ImVec2(v.x-h, v.y-h), ImVec2(v.x+h, v.y+h),
                                      col, 2.0f, ImDrawFlags_RoundCornersAll);
@@ -40,19 +39,17 @@ void Renderer::DrawObject(const core::Object& obj) {
         return;
     }
 
-    // Draw line segments
-    for (const auto& [i, j] : obj.mesh->line_indices) {
-        draw_list->AddLine(ToImVec2(obj.mesh->vertices[i]),
-                           ToImVec2(obj.mesh->vertices[j]),
+    for (const auto& [i, j] : obj.mesh.line_indices) {
+        draw_list->AddLine(ToImVec2(obj.mesh.vertices[i]),
+                           ToImVec2(obj.mesh.vertices[j]),
                            col, width);
     }
 
-    // Draw filled triangles
-    for (const auto& [ti, tj, tk] : obj.mesh->tri_indices) {
+    for (const auto& [ti, tj, tk] : obj.mesh.tri_indices) {
         draw_list->AddTriangleFilled(
-            ToImVec2(obj.mesh->vertices[ti]),
-            ToImVec2(obj.mesh->vertices[tj]),
-            ToImVec2(obj.mesh->vertices[tk]),
+            ToImVec2(obj.mesh.vertices[ti]),
+            ToImVec2(obj.mesh.vertices[tj]),
+            ToImVec2(obj.mesh.vertices[tk]),
             col);
     }
 }
@@ -86,16 +83,13 @@ void Renderer::DrawPreview() {
     }
 }
 
-void Renderer::ApplyNCSTransform() {
-    drawObjects = displayFile.getObjects(); // deep copy for transform/clip
-    auto ncs_mat = window.GetWindowNCSMatrix();
-    TransformToNCS(drawObjects, ncs_mat);
+void Renderer::ApplyObjTransformAndNCSTransform() {
+    TransformObjectAndDoNCS(drawObjects, displayFile.getObjects(), window.GetWindowNCSMatrix());
 }
 
 void Renderer::ApplyClipping() {
-    core::Point ncs_min(-1.0f, -1.0f, 0.0f);
-    core::Point ncs_max( 1.0f,  1.0f, 0.0f);
-    ClipObjects(drawObjects, ncs_min, ncs_max, viewport.GetClippingMode());
+    auto [clip_min, clip_max] = window.getClipBoundsNCS();
+    ClipObjects(drawObjects, clip_min, clip_max, viewport.GetClippingMode());
 }
 
 void Renderer::ApplyViewportTransform() {
@@ -111,7 +105,7 @@ void Renderer::GenerateDrawList() {
         log.AddLog("Scene changed, refreshing object cache\n");
         rendererCache.store_cache(w, canvas_p.first, canvas_p.second);
         refresh_cache = false;
-        ApplyNCSTransform();
+        ApplyObjTransformAndNCSTransform();
         ApplyClipping();
         ApplyViewportTransform();
     }

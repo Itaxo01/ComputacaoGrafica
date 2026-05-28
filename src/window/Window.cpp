@@ -173,6 +173,43 @@ void Window::orbitPitch(float degrees) {
     UpdateNCSMatrix();
 }
 
+float Window::getBoundingBoxHalfSize() const {
+    return camera.view_width * 0.31f;
+}
+
+std::pair<core::Point, core::Point> Window::getClipBoundsNCS() const {
+    if (!AppConfig::is3d)
+        return { core::Point(-1.0f, -1.0f, 0.0f), core::Point(1.0f, 1.0f, 0.0f) };
+
+    float B  = getBoundingBoxHalfSize();
+    float cx = camera.vrp.x, cy = camera.vrp.y, cz = camera.vrp.z;
+
+    const core::Point corners[8] = {
+        {cx-B, cy-B, cz-B}, {cx+B, cy-B, cz-B},
+        {cx-B, cy+B, cz-B}, {cx+B, cy+B, cz-B},
+        {cx-B, cy-B, cz+B}, {cx+B, cy-B, cz+B},
+        {cx-B, cy+B, cz+B}, {cx+B, cy+B, cz+B},
+    };
+
+    float x_min =  1e9f, x_max = -1e9f;
+    float y_min =  1e9f, y_max = -1e9f;
+    for (const auto& c : corners) {
+        core::Point p = NCSTransformMatrix * c;
+        if (p.x < x_min) x_min = p.x;
+        if (p.x > x_max) x_max = p.x;
+        if (p.y < y_min) y_min = p.y;
+        if (p.y > y_max) y_max = p.y;
+    }
+
+    // Clamp to viewport so clip region never exceeds screen
+    if (x_min < -1.0f) x_min = -1.0f;
+    if (x_max >  1.0f) x_max =  1.0f;
+    if (y_min < -1.0f) y_min = -1.0f;
+    if (y_max >  1.0f) y_max =  1.0f;
+
+    return { core::Point(x_min, y_min, 0.0f), core::Point(x_max, y_max, 0.0f) };
+}
+
 void Window::OnModeChanged() {
     if (AppConfig::is3d) {
         // Y-up convention: vpn = normalize(1,1,1) gives standard isometric view.

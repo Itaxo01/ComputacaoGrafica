@@ -1,5 +1,4 @@
 #include "RendererClipping.hpp"
-#include "Object.hpp"
 #include "Triangulate.hpp"
 #include "ParallelUtils.hpp"
 #include <atomic>
@@ -126,20 +125,18 @@ static bool SHClipping(std::vector<core::Point>& poly,
     return !poly.empty();
 }
 
-void ClipObjects(std::vector<core::Object>& objs,
+void ClipObjects(std::vector<RenderedObject>& objs,
                  const core::Point& wp0, const core::Point& wp1,
                  int line_clip_mode) {
-    for (auto& obj : objs) {
+    cg_parallel_for_each(objs.begin(), objs.end(), [&](auto& obj) {
         if (obj.type == core::ObjectType::POLYGON && obj.material.filled) {
-            // Save original tri_indices and vertices before line-segment clipping.
-            auto orig_verts   = obj.mesh->vertices;
-            auto orig_tri_idx = std::move(obj.mesh->tri_indices);
+            auto orig_verts   = obj.mesh.vertices;
+            auto orig_tri_idx = std::move(obj.mesh.tri_indices);
 
-            // Clip outline segments
             {
                 std::vector<core::Point> new_verts;
                 std::vector<std::pair<uint32_t,uint32_t>> new_lines;
-                for (auto& [i, j] : obj.mesh->line_indices) {
+                for (auto& [i, j] : obj.mesh.line_indices) {
                     core::Point a = orig_verts[i];
                     core::Point b = orig_verts[j];
                     if (ClipSegmentLiangBarsky(a, b, wp0, wp1)) {
@@ -148,46 +145,43 @@ void ClipObjects(std::vector<core::Object>& objs,
                         new_lines.push_back({na, nb});
                     }
                 }
-                obj.mesh->vertices     = new_verts;
-                obj.mesh->line_indices = new_lines;
+                obj.mesh.vertices     = new_verts;
+                obj.mesh.line_indices = new_lines;
             }
 
-            // Clip each triangle via SH, retriangulate, append to mesh
             std::vector<std::tuple<uint32_t,uint32_t,uint32_t>> new_tris;
-            std::vector<core::Point> tri_verts; // extra vertices from triangle clipping
+            std::vector<core::Point> tri_verts;
 
             for (auto& [ti, tj, tk] : orig_tri_idx) {
                 std::vector<core::Point> poly = {orig_verts[ti], orig_verts[tj], orig_verts[tk]};
                 if (!SHClipping(poly, wp0, wp1) || poly.size() < 3) continue;
 
-                // Triangulate the clipped polygon
                 std::vector<ImVec2> imverts;
                 for (const auto& p : poly) imverts.push_back(ImVec2(p.x, p.y));
                 auto tris = core::triangulate(imverts);
 
-                uint32_t base = (uint32_t)(obj.mesh->vertices.size() + tri_verts.size());
+                uint32_t base = (uint32_t)(obj.mesh.vertices.size() + tri_verts.size());
                 for (const auto& p : poly) tri_verts.push_back(p);
                 for (int k = 0; k + 2 < (int)tris.size(); k += 3)
                     new_tris.emplace_back(base + tris[k], base + tris[k+1], base + tris[k+2]);
             }
 
-            obj.mesh->vertices.insert(obj.mesh->vertices.end(), tri_verts.begin(), tri_verts.end());
-            obj.mesh->tri_indices = std::move(new_tris);
+            obj.mesh.vertices.insert(obj.mesh.vertices.end(), tri_verts.begin(), tri_verts.end());
+            obj.mesh.tri_indices = std::move(new_tris);
 
         } else if (obj.type == core::ObjectType::POINT) {
-            if (!obj.mesh->vertices.empty()) {
-                const auto& v = obj.mesh->vertices[0];
+            if (!obj.mesh.vertices.empty()) {
+                const auto& v = obj.mesh.vertices[0];
                 if (v.x < wp0.x || v.x > wp1.x || v.y < wp0.y || v.y > wp1.y)
-                    obj.mesh->vertices.clear();
+                    obj.mesh.vertices.clear();
             }
         } else {
-            // LINE, WIREFRAME, CURVE2D, POLYGON outline
             std::vector<core::Point> new_verts;
             std::vector<std::pair<uint32_t,uint32_t>> new_lines;
 
-            for (auto& [i, j] : obj.mesh->line_indices) {
-                core::Point a = obj.mesh->vertices[i];
-                core::Point b = obj.mesh->vertices[j];
+            for (auto& [i, j] : obj.mesh.line_indices) {
+                core::Point a = obj.mesh.vertices[i];
+                core::Point b = obj.mesh.vertices[j];
                 bool survived = (line_clip_mode == 1)
                     ? ClipSegmentCohenSutherland(a, b, wp0, wp1)
                     : ClipSegmentLiangBarsky(a, b, wp0, wp1);
@@ -197,8 +191,8 @@ void ClipObjects(std::vector<core::Object>& objs,
                     new_lines.push_back({na, nb});
                 }
             }
-            obj.mesh->vertices     = new_verts;
-            obj.mesh->line_indices = new_lines;
+            obj.mesh.vertices     = new_verts;
+            obj.mesh.line_indices = new_lines;
         }
-    }
+    });
 }

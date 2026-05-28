@@ -27,6 +27,7 @@ public:
     bool show_axes = true;
     bool show_grid = true;
     bool show_axis_coordinates = true;
+    bool show_bounding_box = true;
     int  clipping_mode = 0;
     
     void DrawWindow();

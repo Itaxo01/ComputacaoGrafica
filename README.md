@@ -31,6 +31,10 @@ A interface contém atualmente 4 componentes:
   * Seu uso se permanece parecido com a interface 2D, com os mesmos controles para panning, zoom e rotação.
   * Para a criação de objetos recomenda-se utilizar a criação por texto, clicar na interface não funciona como o esperado.
 
+* **Perspectiva:**
+  * A perspectiva é habilitada por um checkbox no menu do viewport. Ao habilitar a perspectiva, o controle de rotação da window e zoom é substituido pelos controles da perspectiva.
+  * O objeto requerido na entrega é o provido pelo professor, 'mk4.obj'. Testando localmente ele deve funcionar sem problemas (em nossas máquinas rodou a cerca de 50 fps). É interessante desabilitar o display de nome e a grid.
+
 * **Menu de Criação de Objetos:**
     * Menu básico para criação de objetos. Desabilitar a criação faz com que ao clicar no viewport não se crie objetos.
     * Há a opção de abrir um menu de criação por texto, onde é possível criar os objetos digitando suas coordenadas.

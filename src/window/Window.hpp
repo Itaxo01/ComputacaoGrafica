@@ -6,6 +6,7 @@
 #include "Point.hpp"
 #include "Mat4.hpp"
 #include "Camera.hpp"
+#include <utility>
 
 class Viewport; // Forward declaration
 
@@ -61,6 +62,15 @@ public:
     core::mat4 GetWindowInverseNCSMatrix() const {return InverseNCSTransformMatrix;}
     core::Point NCSToViewport(const core::Point &p) const;
     core::Point ViewportToNCS(const core::Point &p) const;
+
+    // Half-size of the 3D bounding box (same formula used by RendererBackground).
+    float getBoundingBoxHalfSize() const;
+
+    // Returns {clip_min, clip_max} in NCS space.
+    // 2D: always [-1,-1] / [1,1].
+    // 3D: axis-aligned rectangle enclosing all 8 projected bounding-box corners,
+    //     clamped to the viewport bounds.
+    std::pair<core::Point, core::Point> getClipBoundsNCS() const;
 
     // 2D: rotate the window plane; 3D: orbit camera yaw.
     void rotate(float degrees);

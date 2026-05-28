@@ -4,7 +4,7 @@
 #include "imgui.h"
 #include "Viewport.hpp"
 #include "DisplayFile.hpp"
-#include "Object.hpp"
+#include "RenderedObject.hpp"
 #include "log_app.h"
 #include "Window.hpp"
 #include "RendererCache.hpp"
@@ -19,15 +19,15 @@ private:
     bool refresh_cache = false;
     ExampleAppLog& log;
 
-    std::vector<core::Object> drawObjects; // working copy: transformed + clipped
+    std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
 
     void RenderBackground();
     void DrawPreview();
-    void DrawObject(const core::Object& obj);
+    void DrawObject(const RenderedObject& obj);
     void draw_name_if_visible(const std::string& name, const core::Point& anchor);
     void ApplyClipping();
     void ApplyViewportTransform();
-    void ApplyNCSTransform();
+    void ApplyObjTransformAndNCSTransform();
     void GenerateDrawList();
 
 public:
