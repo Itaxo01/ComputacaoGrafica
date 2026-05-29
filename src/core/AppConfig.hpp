@@ -8,6 +8,7 @@ namespace AppConfig {
     extern bool perspective;
     extern bool render_names;
     extern bool use_object_color;
+    extern bool show_bounding_box;
 }
 
 inline std::string format(float x, int precision) {

@@ -178,7 +178,9 @@ float Window::getBoundingBoxHalfSize() const {
 }
 
 std::pair<core::Point, core::Point> Window::getClipBoundsNCS() const {
-    if (!AppConfig::is3d)
+    // 2D, or 3D with the bounding box hidden: clip to the full viewport [-1,1].
+    // The bounding-box-derived clip region is only used while the box is visible.
+    if (!AppConfig::is3d || !AppConfig::show_bounding_box)
         return { core::Point(-1.0f, -1.0f, 0.0f), core::Point(1.0f, 1.0f, 0.0f) };
 
     float B  = getBoundingBoxHalfSize();

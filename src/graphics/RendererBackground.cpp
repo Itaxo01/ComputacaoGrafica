@@ -32,8 +32,10 @@ struct BgCtx {
     ImVec2           canvas_p0;
     ImVec2           canvas_p1;
     float            max_r;
-    float            B;          // bounding box half-size (3D)
-    float            cx, cy, cz; // bounding box center = VRP (3D)
+    float            B;           // bounding box half-size (3D)
+    float            grid_extent; // half-extent for grid/axes (3D): = B when the box is
+                                  // shown, larger when hidden so they fill the viewport
+    float            cx, cy, cz;  // bounding box center = VRP (3D)
 };
 
 static bool ProjectLine(const BgCtx& ctx,
@@ -70,7 +72,7 @@ static core::Point LabelPos(const BgCtx& ctx,
 // ── Rendering components ──────────────────────────────────────────────────────
 
 static void RenderBoundingBox(const BgCtx& ctx) {
-    if (!AppConfig::is3d || !ctx.viewport.show_bounding_box) return;
+    if (!AppConfig::is3d || !AppConfig::show_bounding_box) return;
 
     const float B = ctx.B, cx = ctx.cx, cy = ctx.cy, cz = ctx.cz;
 
@@ -103,7 +105,7 @@ static void RenderGrid(const BgCtx& ctx) {
     if (!ctx.viewport.show_grid) return;
 
     if (AppConfig::is3d) {
-        const float B = ctx.B, cx = ctx.cx, cz = ctx.cz;
+        const float B = ctx.grid_extent, cx = ctx.cx, cz = ctx.cz;
         float step = calculate_step(ctx.w_attr.width);
         char label[32];
 
@@ -207,7 +209,7 @@ static void RenderAxes(const BgCtx& ctx) {
     if (!ctx.viewport.show_axes) return;
 
     if (AppConfig::is3d) {
-        const float B = ctx.B, cx = ctx.cx, cy = ctx.cy, cz = ctx.cz;
+        const float B = ctx.grid_extent, cx = ctx.cx, cy = ctx.cy, cz = ctx.cz;
         core::Point sa, sb;
 
         auto axis_label = [&](core::Point tip_world, const char* lbl, ImU32 col) {
@@ -284,6 +286,10 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
         .canvas_p1 = canvas_p1,
         .max_r     = max_r,
         .B         = window.getBoundingBoxHalfSize(),
+        // When the box is hidden, extend grid/axes well past it so they reach the
+        // viewport edges (NCS clipping trims the overshoot).
+        .grid_extent = AppConfig::show_bounding_box ? window.getBoundingBoxHalfSize()
+                                                    : w_attr.width * 1.5f,
         .cx        = w_attr.center.x,
         .cy        = w_attr.center.y,
         .cz        = w_attr.center.z,
