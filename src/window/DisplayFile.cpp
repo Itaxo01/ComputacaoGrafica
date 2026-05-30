@@ -22,3 +22,9 @@ void DisplayFile::remove(long long id) {
 
     metadata.erase(id);
 }
+
+void DisplayFile::clear() {
+    objects.clear();
+    hash_id.clear();
+    metadata.clear();
+}

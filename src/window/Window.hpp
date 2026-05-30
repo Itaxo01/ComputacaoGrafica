@@ -15,11 +15,12 @@ struct WindowAttributes {
     float width, height;
     float angle;
     core::Point vpn{0.0f, 0.0f, 1.0f}; // tracks camera orientation for cache invalidation in 3D
-    float focal_distance = 20.0f;       // tracks perspective COP distance
+    float focal_distance = 1000.0f;     // tracks perspective COP distance
+    bool  perspective = false;          // tracks perspective on/off for cache invalidation
     WindowAttributes(){}
     WindowAttributes(const core::Point& center, float w, float h, float a): center(center), width(w), height(h), angle(a) {};
     friend bool operator==(const WindowAttributes &a, const WindowAttributes &b){
-        return a.center == b.center && a.width == b.width && a.height == b.height && a.angle == b.angle && a.vpn == b.vpn && a.focal_distance == b.focal_distance;
+        return a.center == b.center && a.width == b.width && a.height == b.height && a.angle == b.angle && a.vpn == b.vpn && a.focal_distance == b.focal_distance && a.perspective == b.perspective;
     }
     friend bool operator!=(const WindowAttributes &a, const WindowAttributes &b){
         return !(a==b);
@@ -60,6 +61,15 @@ public:
 
     core::mat4 GetWindowNCSMatrix() const {return NCSTransformMatrix;}
     core::mat4 GetWindowInverseNCSMatrix() const {return InverseNCSTransformMatrix;}
+
+    // Perspective pipeline stages (3D perspective only). The full transform is
+    // split so near-plane clipping can run in VRC space before the divide:
+    //   world --GetVRCMatrix--> VRC --(near clip)--> --GetProjectionScaleMatrix--> NCS
+    core::mat4 GetVRCMatrix() const { return camera.GetVRCMatrix(); }
+    core::mat4 GetProjectionScaleMatrix() const;
+    // Z of the near plane in VRC: just in front of the COP (at z=-focal_distance),
+    // so every surviving vertex has w = z + d > 0 (safe to divide).
+    float GetNearPlaneZ() const { return -camera.focal_distance + 0.1f; }
     core::Point NCSToViewport(const core::Point &p) const;
     core::Point ViewportToNCS(const core::Point &p) const;
 
@@ -80,6 +90,13 @@ public:
 
     // Call when AppConfig::is3d changes — resets camera to default 3D angle and rebuilds matrix.
     void OnModeChanged();
+
+    // Call when AppConfig::perspective is toggled — rebuilds the NCS matrix
+    // (used by names/picking/clip-bounds) without resetting the camera.
+    void OnPerspectiveChanged() { UpdateNCSMatrix(); }
+
+    // Perspective only: move the COP (focal distance) for wide-angle/telephoto.
+    void adjustPerspective(float factor);
 
     void ApplyTransformation(const core::mat4 &m) {
         this->NCSTransformMatrix *= m;

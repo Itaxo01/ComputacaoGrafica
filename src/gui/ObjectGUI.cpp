@@ -23,8 +23,9 @@ void ObjectGUI::DrawObjectList() {
 
     ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
 
-    std::vector<std::string> context_item_names = {"Delete", "Rotate (Placeholder)"};
-    multipleSelectionList.SetContextItems(context_item_names);
+    std::vector<std::string> context_item_names = {"Edit", "Delete", "Rotate (Placeholder)"};
+    std::vector<bool>        context_single_only = {true,   false,    false};
+    multipleSelectionList.SetContextItems(context_item_names, context_single_only);
     multipleSelectionList.Draw();
 
     selected_ids.clear();
@@ -33,38 +34,49 @@ void ObjectGUI::DrawObjectList() {
     }
     objectController.SetSelectedIDs(selected_ids);
 
-    // Open the edit modal when a single item is plain-clicked
-    int just_clicked = multipleSelectionList.GetJustClicked();
-    if (just_clicked >= 0 && just_clicked < (int)objects.size() && selected_ids.size() == 1) {
-        long long clicked_id = objects[just_clicked].id;
-        core::Object& obj = entityManager.getObject(clicked_id);
-        int  edit_method = 0;
-        bool edit_filled = obj.material.filled;
-        if (obj.type == core::ObjectType::CURVE2D) {
-            const CurveMetadata* meta = entityManager.getCurveMetadata(clicked_id);
-            if (meta) edit_method = meta->method;
-        }
-        auto pts = entityManager.GetObjectRawPoints(clicked_id);
-        editing_id = clicked_id;
-        point_editor.OpenForEdit(obj.type, edit_method, edit_filled, pts);
-    }
-
     // Captura operação selecionada com o botão direito e direciona tratamento para o controller
     int selected_context_item = multipleSelectionList.GetSelectedContextItem();
     switch (selected_context_item) {
-        case 0: // Delete
+        case 0: // Edit — single selection only (enforced as disabled in the menu)
+            if (selected_ids.size() == 1) {
+                long long edit_id = *selected_ids.begin();
+                core::Object& obj = entityManager.getObject(edit_id);
+                int  edit_method = 0;
+                bool edit_filled = obj.material.filled;
+                if (obj.type == core::ObjectType::CURVE2D) {
+                    const CurveMetadata* meta = entityManager.getCurveMetadata(edit_id);
+                    if (meta) edit_method = meta->method;
+                }
+                auto pts = entityManager.GetObjectRawPoints(edit_id);
+                editing_id = edit_id;
+                point_editor.OpenForEdit(obj.type, edit_method, edit_filled, pts);
+            }
+            break;
+        case 1: // Delete
             for (const auto& id : selected_ids) {
                 entityManager.remove(id);
             }
             selected_ids.clear(); // Ver se é realmente necessário, já que o clear acontecerá denovo na próxima captura de IDs.
             multipleSelectionList.clear();
             break;
-        case 1: // Rotate (Placeholder)
+        case 2: // Rotate (Placeholder)
             // Implement rotation logic here, possibly by opening another window or applying a default rotation
             break;
         default:
             break;
     }
+
+    ImGui::Separator();
+    bool has_objects = !objects.empty();
+    if (!has_objects) ImGui::BeginDisabled();
+    if (ImGui::Button("Delete All")) {
+        size_t n = objects.size();
+        entityManager.removeAll();
+        selected_ids.clear();
+        multipleSelectionList.clear();
+        log.AddLog("Deleted all objects (%zu)\n", n);
+    }
+    if (!has_objects) ImGui::EndDisabled();
 
     ImGui::EndChild();
 }

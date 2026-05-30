@@ -125,11 +125,72 @@ static bool SHClipping(std::vector<core::Point>& poly,
     return !poly.empty();
 }
 
+// ── Near-plane clip (VRC space, before the perspective divide) ────────────────
+
+// Clip segment a→b against the plane z = near_z, keeping the z >= near_z side.
+// Returns false if the whole segment is behind the plane.
+static bool ClipSegmentNear(core::Point& a, core::Point& b, float near_z) {
+    float da = a.z - near_z;
+    float db = b.z - near_z;
+    if (da < 0.0f && db < 0.0f) return false;   // both behind the COP
+    if (da >= 0.0f && db >= 0.0f) return true;  // both in front
+    // Crossing: move the behind endpoint to the intersection point.
+    float t = da / (da - db);
+    core::Point hit = { a.x + t * (b.x - a.x),
+                        a.y + t * (b.y - a.y),
+                        a.z + t * (b.z - a.z) };
+    if (da < 0.0f) a = hit;
+    else           b = hit;
+    return true;
+}
+
+void ClipNearPlane(std::vector<RenderedObject>& objs, float near_z) {
+    cg_parallel_for_each(objs.begin(), objs.end(), [&](RenderedObject& obj) {
+        if (obj.type == core::ObjectType::POINT) {
+            if (!obj.mesh.vertices.empty() && obj.mesh.vertices[0].z < near_z)
+                obj.mesh.vertices.clear();
+            return;
+        }
+
+        std::vector<core::Point> new_verts;
+        std::vector<std::pair<uint32_t,uint32_t>> new_lines;
+        for (auto& [i, j] : obj.mesh.line_indices) {
+            core::Point a = obj.mesh.vertices[i];
+            core::Point b = obj.mesh.vertices[j];
+            if (ClipSegmentNear(a, b, near_z)) {
+                uint32_t na = (uint32_t)new_verts.size(); new_verts.push_back(a);
+                uint32_t nb = (uint32_t)new_verts.size(); new_verts.push_back(b);
+                new_lines.push_back({na, nb});
+            }
+        }
+
+        // Filled triangles: conservative — keep only those fully in front of the
+        // near plane (rare in wireframe scenes; avoids re-triangulating here).
+        std::vector<std::tuple<uint32_t,uint32_t,uint32_t>> new_tris;
+        for (auto& [ti, tj, tk] : obj.mesh.tri_indices) {
+            const core::Point& A = obj.mesh.vertices[ti];
+            const core::Point& B = obj.mesh.vertices[tj];
+            const core::Point& C = obj.mesh.vertices[tk];
+            if (A.z >= near_z && B.z >= near_z && C.z >= near_z) {
+                uint32_t base = (uint32_t)new_verts.size();
+                new_verts.push_back(A);
+                new_verts.push_back(B);
+                new_verts.push_back(C);
+                new_tris.emplace_back(base, base + 1, base + 2);
+            }
+        }
+
+        obj.mesh.vertices     = std::move(new_verts);
+        obj.mesh.line_indices = std::move(new_lines);
+        obj.mesh.tri_indices  = std::move(new_tris);
+    });
+}
+
 void ClipObjects(std::vector<RenderedObject>& objs,
                  const core::Point& wp0, const core::Point& wp1,
                  int line_clip_mode) {
     cg_parallel_for_each(objs.begin(), objs.end(), [&](auto& obj) {
-        if (obj.type == core::ObjectType::POLYGON && obj.material.filled) {
+        if ((obj.type == core::ObjectType::POLYGON || obj.type == core::ObjectType::MESH) && obj.filled) {
             auto orig_verts   = obj.mesh.vertices;
             auto orig_tri_idx = std::move(obj.mesh.tri_indices);
 

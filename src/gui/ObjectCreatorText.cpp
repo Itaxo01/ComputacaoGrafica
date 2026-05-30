@@ -182,13 +182,17 @@ void ObjectCreatorText::OpenForEdit(core::ObjectType initial_mode, int initial_m
                                      const std::vector<std::tuple<float, float, float>> &pts) {
     char tmp[BUF_SIZE]; tmp[0] = '\0';
     size_t off = 0;
+    // One point per line: ImGui's multiline input doesn't wrap long lines, so we
+    // break each point onto its own line to keep large point lists readable.
     for (const auto& [x, y, z] : pts) {
         int w;
-        if (z != 0.0f) w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g,%g),", x, y, z);
-        else           w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g),",     x, y);
+        if (z != 0.0f) w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g,%g),\n", x, y, z);
+        else           w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g),\n",     x, y);
         if (w > 0 && off + (size_t)w < sizeof(tmp)) off += (size_t)w;
     }
-    if (off > 0 && tmp[off - 1] == ',') tmp[off - 1] = '\0';
+    // Strip the trailing separator (",\n").
+    while (off > 0 && (tmp[off - 1] == '\n' || tmp[off - 1] == ',' || tmp[off - 1] == ' '))
+        tmp[--off] = '\0';
     memcpy(buffer, tmp, sizeof(buffer));
     Open(initial_mode, initial_method, initial_filled);
 }

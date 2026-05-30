@@ -13,7 +13,7 @@ static std::string colorStr(ImU32 col) {
     return "[" + std::to_string(r) + ", " + std::to_string(g) + ", " + std::to_string(b) + "]";
 }
 
-void EntityManager::add(core::ObjectFactory& factory) {
+long long EntityManager::add(core::ObjectFactory& factory) {
     long long id = nextID();
     core::Object obj = factory.build();
     if (obj.name.empty())
@@ -23,6 +23,7 @@ void EntityManager::add(core::ObjectFactory& factory) {
     auto meta = factory.takeMetadata();
     if (meta) displayFile.setMetadata(id, std::move(meta));
     renderer.notifyTransformation();
+    return id;
 }
 
 core::ObjectDetails EntityManager::GetObjectDetails(long long id) const {

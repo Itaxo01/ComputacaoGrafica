@@ -20,6 +20,7 @@ class GuiController {
         ObjectGUI& objGUI;
 
         bool prev_is3d = false;
+        bool prev_perspective = false;
 
         void HandleCanvasInteractions();
         void HandleLeftClick();

@@ -28,7 +28,9 @@ public:
     // Distance from the view plane (Z=0 in VRC) to the Centre of Projection.
     // The COP is at VRC position (0, 0, -focal_distance).
     // Larger values → weaker perspective (approaches orthographic as d → ∞).
-    float focal_distance = 20.0f;
+    // Default is large so perspective is effectively undistorted on startup;
+    // Shift+scroll brings the COP closer for wide-angle distortion.
+    float focal_distance = 1000.0f;
 
     Camera() = default;
 
@@ -44,17 +46,16 @@ public:
     // Only meaningful when AppConfig::perspective is true.
     core::mat4 GetPerspectiveMatrix() const;
 
-    // Returns the inverse of GetPerspectiveMatrix().
-    // Reconstructs a VRC-space ray direction from a projected (x,y) on the
-    // view plane; z is recovered as 0 (the view plane itself).
-    core::mat4 GetInversePerspectiveMatrix() const;
-
     // Translate VRP along view-space u (right) and v (up) directions.
     void pan(float du, float dv);
 
-    // Orthographic zoom: scale the view volume.
-    // Perspective zoom: adjust focal_distance (narrower FOV = zoom in).
+    // Zoom: scale the view volume (factor < 1 = zoom in). Works in both
+    // orthographic and perspective modes.
     void zoom(float factor);
+
+    // Perspective only: move the COP along the view axis by scaling
+    // focal_distance. Smaller d = wide angle, larger d = telephoto.
+    void adjustFocalDistance(float factor);
 
     // Orbit: rotate VPN around world Y axis (yaw, Y-up) and local u axis (pitch).
     void orbit(float dyaw_deg, float dpitch_deg);

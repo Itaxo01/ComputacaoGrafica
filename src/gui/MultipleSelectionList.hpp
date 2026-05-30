@@ -13,6 +13,7 @@ private:
     int size = 0;
     std::unordered_set<int> selected_indexes;
     std::vector<std::string> context_item_names;
+    std::vector<bool> context_item_single_only; // item enabled only when exactly 1 selected
     int last_selected_index = -1;
     int selected_context_item = -1;
 
@@ -40,6 +41,14 @@ public:
     }
     void SetContextItems(const std::vector<std::string>& items) {
         context_item_names = items;
+        context_item_single_only.assign(items.size(), false);
+    }
+    // single_only[j] = true disables item j unless exactly one row is selected.
+    void SetContextItems(const std::vector<std::string>& items,
+                         const std::vector<bool>& single_only) {
+        context_item_names = items;
+        context_item_single_only = single_only;
+        context_item_single_only.resize(items.size(), false);
     }
     void clear() {
         selected_indexes.clear();

@@ -36,7 +36,7 @@ private:
 public:
     EntityManager(DisplayFile& df, Renderer& r) : displayFile(df), renderer(r) {}
 
-    void add(core::ObjectFactory& factory);
+    long long add(core::ObjectFactory& factory);
 
     const std::unordered_map<long long, int>&        getHashID()   const { return displayFile.getHashID(); }
     const std::vector<core::Object>&                 getObjects()  const { return displayFile.getObjects(); }
@@ -55,6 +55,11 @@ public:
 
     void remove(long long id) {
         displayFile.remove(id);
+        renderer.notifyTransformation();
+    }
+
+    void removeAll() {
+        displayFile.clear();
         renderer.notifyTransformation();
     }
 

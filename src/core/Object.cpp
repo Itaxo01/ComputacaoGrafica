@@ -72,6 +72,7 @@ const char* getTypeName(ObjectType type) {
         case ObjectType::WIREFRAME:return "Wireframe";
         case ObjectType::POLYGON:  return "Polygon";
         case ObjectType::CURVE2D:  return "Curve2D";
+        case ObjectType::MESH:     return "Mesh";
         default:                  return "Unknown";
     }
 }

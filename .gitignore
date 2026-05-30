@@ -6,6 +6,7 @@ imgui.ini
 ./.cache/
 .cache
 .cache/* 
+*.mtl
 # EUVO FICA MALUCO COM ESSE CACHE 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites

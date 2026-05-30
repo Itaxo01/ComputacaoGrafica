@@ -25,6 +25,7 @@ namespace core {
         NONE,
         POLYGON,
         CURVE2D,
+        MESH,        // imported OBJ mesh: solid, possibly multi-face, full Mesh fidelity
         ENUM_SIZE,
     };
 

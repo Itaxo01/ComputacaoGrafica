@@ -1,5 +1,4 @@
 #include "Camera.hpp"
-#include "AppConfig.hpp"
 
 static inline core::Point normalize3(const core::Point &p) {
     float len = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
@@ -56,36 +55,33 @@ void Camera::pan(float du, float dv) {
 }
 
 void Camera::zoom(float factor) {
-    if (AppConfig::perspective) {
-        // Orthographic zoom: factor < 1 = zoom in (view volume shrinks).
-        // Perspective zoom: larger focal_distance = narrower FOV = zoom in,
-        // so we divide instead of multiply to match the same convention.
-        focal_distance *= (1.0f / factor);
-        if (focal_distance < 0.5f) focal_distance = 0.5f; // prevent degenerate COP
-    } else {
-        view_width  *= factor;
-        view_height *= factor;
-    }
+    // Zoom always scales the view volume (works in both orthographic and
+    // perspective). factor < 1 = zoom in (view volume shrinks). In perspective
+    // the perspective strength is controlled separately via adjustFocalDistance.
+    view_width  *= factor;
+    view_height *= factor;
+}
+
+void Camera::adjustFocalDistance(float factor) {
+    // Moves the Centre of Projection along the view axis (changes the COP
+    // distance d). Larger d = COP farther back = weaker perspective (telephoto,
+    // approaches orthographic); smaller d = stronger perspective (wide angle).
+    focal_distance *= (1.0f / factor);
+    if (focal_distance < 0.5f) focal_distance = 0.5f; // prevent degenerate COP
 }
 
 core::mat4 Camera::GetPerspectiveMatrix() const {
+    // COP at VRC (0,0,-d), view plane at z=0. A VRC point (x,y,z,1) maps to
+    // (x*d, y*d, z*d, z+d); after the divide-by-w this yields the projected
+    // point x' = x*d/(z+d), y' = y*d/(z+d). The +1 in the w-row is what makes
+    // w = z + d (distance from the COP), so points farther from the COP shrink.
     float d = focal_distance;
     core::mat4 P;
-    P[0][0] = d;    P[0][1] = 0.0f; P[0][2] =  0.0f; P[0][3] = 0.0f;
-    P[1][0] = 0.0f; P[1][1] = d;    P[1][2] =  0.0f; P[1][3] = 0.0f;
-    P[2][0] = 0.0f; P[2][1] = 0.0f; P[2][2] =  d;    P[2][3] = 0.0f;
-    P[3][0] = 0.0f; P[3][1] = 0.0f; P[3][2] = -1.0f; P[3][3] = d;
+    P[0][0] = d;    P[0][1] = 0.0f; P[0][2] = 0.0f; P[0][3] = 0.0f;
+    P[1][0] = 0.0f; P[1][1] = d;    P[1][2] = 0.0f; P[1][3] = 0.0f;
+    P[2][0] = 0.0f; P[2][1] = 0.0f; P[2][2] = d;    P[2][3] = 0.0f;
+    P[3][0] = 0.0f; P[3][1] = 0.0f; P[3][2] = 1.0f; P[3][3] = d;
     return P;
-}
-
-core::mat4 Camera::GetInversePerspectiveMatrix() const {
-    float inv_d = 1.0f / focal_distance;
-    core::mat4 PI;
-    PI[0][0] = inv_d;  PI[0][1] = 0.0f;  PI[0][2] = 0.0f;  PI[0][3] = 0.0f;
-    PI[1][0] = 0.0f;   PI[1][1] = inv_d; PI[1][2] = 0.0f;  PI[1][3] = 0.0f;
-    PI[2][0] = 0.0f;   PI[2][1] = 0.0f;  PI[2][2] = inv_d; PI[2][3] = 0.0f;
-    PI[3][0] = 0.0f;   PI[3][1] = 0.0f;  PI[3][2] = inv_d; PI[3][3] = 1.0f;
-    return PI;
 }
 
 void Camera::orbit(float dyaw_deg, float dpitch_deg) {

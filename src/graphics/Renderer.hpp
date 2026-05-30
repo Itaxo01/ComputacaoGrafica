@@ -20,6 +20,7 @@ private:
     ExampleAppLog& log;
 
     std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
+    std::vector<SortedTri>      sortedTris;  // all filled tris, depth-sorted for painter's
 
     void RenderBackground();
     void DrawPreview();
@@ -27,7 +28,9 @@ private:
     void draw_name_if_visible(const std::string& name, const core::Point& anchor);
     void ApplyClipping();
     void ApplyViewportTransform();
-    void ApplyObjTransformAndNCSTransform();
+    // Everything before the 2D clip: object transform + projection to NCS, plus
+    // near-plane clipping in the perspective path.
+    void ProcessPreClipping();
     void GenerateDrawList();
 
 public:

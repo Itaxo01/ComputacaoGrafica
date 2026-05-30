@@ -79,9 +79,11 @@ void MultipleSelectionList::Draw() {
 
             selected_context_item = -1; // Mudar de lugar depois?
             for (int j = 0; j < (int)context_item_names.size(); ++j) {
-                if (ImGui::MenuItem(context_item_names[j].c_str())) {
+                bool single_only = j < (int)context_item_single_only.size() && context_item_single_only[j];
+                bool enabled = !single_only || selected_indexes.size() == 1;
+                if (ImGui::MenuItem(context_item_names[j].c_str(), nullptr, false, enabled)) {
                     selected_context_item = j;
-                    // Context Item Handle now need to be captured by the user of this class 
+                    // Context Item Handle now need to be captured by the user of this class
                     // by checking the value of selected_context_item after calling Draw()
                 }
             }

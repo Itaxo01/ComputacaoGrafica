@@ -26,7 +26,7 @@ void Renderer::RenderBackground() {
 }
 
 void Renderer::DrawObject(const RenderedObject& obj) {
-    const ImU32 col   = obj.material.color;
+    const ImU32 col   = obj.color;
     const float width = 2.0f;
 
     if (obj.type == core::ObjectType::POINT) {
@@ -44,14 +44,7 @@ void Renderer::DrawObject(const RenderedObject& obj) {
                            ToImVec2(obj.mesh.vertices[j]),
                            col, width);
     }
-
-    for (const auto& [ti, tj, tk] : obj.mesh.tri_indices) {
-        draw_list->AddTriangleFilled(
-            ToImVec2(obj.mesh.vertices[ti]),
-            ToImVec2(obj.mesh.vertices[tj]),
-            ToImVec2(obj.mesh.vertices[tk]),
-            col);
-    }
+    // Filled triangles are drawn separately, globally depth-sorted (see render()).
 }
 
 void Renderer::DrawPreview() {
@@ -83,8 +76,16 @@ void Renderer::DrawPreview() {
     }
 }
 
-void Renderer::ApplyObjTransformAndNCSTransform() {
-    TransformObjectAndDoNCS(drawObjects, displayFile.getObjects(), window.GetWindowNCSMatrix());
+void Renderer::ProcessPreClipping() {
+    if (AppConfig::is3d && AppConfig::perspective) {
+        // Split pipeline: transform to VRC, clip against the near plane (before
+        // the divide), then project + scale to NCS (divide happens here).
+        TransformObjectAndDoNCS(drawObjects, displayFile.getObjects(), window.GetVRCMatrix());
+        ClipNearPlane(drawObjects, window.GetNearPlaneZ());
+        ProjectVertices(drawObjects, window.GetProjectionScaleMatrix());
+    } else {
+        TransformObjectAndDoNCS(drawObjects, displayFile.getObjects(), window.GetWindowNCSMatrix());
+    }
 }
 
 void Renderer::ApplyClipping() {
@@ -105,8 +106,11 @@ void Renderer::GenerateDrawList() {
         log.AddLog("Scene changed, refreshing object cache\n");
         rendererCache.store_cache(w, canvas_p.first, canvas_p.second);
         refresh_cache = false;
-        ApplyObjTransformAndNCSTransform();
+        ProcessPreClipping();
         ApplyClipping();
+        // Gather + depth-sort filled triangles in NCS space (z still meaningful)
+        // before the viewport map drops z; lines/points use the viewport verts.
+        BuildSortedTriangles(drawObjects, window, canvas_p.first, sortedTris);
         ApplyViewportTransform();
     }
 }
@@ -115,6 +119,10 @@ void Renderer::render() {
     draw_list = viewport.GetDrawList();
     RenderBackground();
     GenerateDrawList();
+
+    // Solid surfaces first (back-to-front), then wireframe/points on top.
+    for (const auto& t : sortedTris)
+        draw_list->AddTriangleFilled(t.a, t.b, t.c, t.color);
 
     for (const auto& obj : drawObjects)
         DrawObject(obj);

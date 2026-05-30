@@ -22,6 +22,7 @@ private:
 public:
     void add(core::Object obj);
     void remove(long long id);
+    void clear();
 
     const std::vector<core::Object>& getObjects() const { return objects; }
     core::Object& getObject(long long id) { return objects[hash_id.at(id)]; }
