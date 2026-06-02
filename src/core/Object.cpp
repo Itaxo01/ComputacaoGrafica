@@ -72,8 +72,21 @@ const char* getTypeName(ObjectType type) {
         case ObjectType::WIREFRAME:return "Wireframe";
         case ObjectType::POLYGON:  return "Polygon";
         case ObjectType::CURVE2D:  return "Curve2D";
+        case ObjectType::SURFACE:  return "Surface";
         case ObjectType::MESH:     return "Mesh";
         default:                  return "Unknown";
+    }
+}
+
+bool typeAvailableInMode(ObjectType type, bool is3d) {
+    switch (type) {
+        case ObjectType::POINT:
+        case ObjectType::LINE:
+        case ObjectType::WIREFRAME:
+        case ObjectType::POLYGON:   return true;
+        case ObjectType::CURVE2D:   return !is3d;
+        case ObjectType::SURFACE:   return is3d;
+        default:                    return false;
     }
 }
 

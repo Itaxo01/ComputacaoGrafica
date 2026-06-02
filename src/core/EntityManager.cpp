@@ -4,6 +4,15 @@
 #include "ObjectFactories/WireframeFactory.hpp"
 #include "ObjectFactories/PolygonFactory.hpp"
 #include "ObjectFactories/Curve2DFactory.hpp"
+#include "ObjectFactories/SurfaceFactory.hpp"
+
+// Splits a flat control-point list into 16-point patches (row-major 4x4).
+static std::vector<std::vector<core::Point>> toPatches(const std::vector<core::Point>& flat) {
+    std::vector<std::vector<core::Point>> patches;
+    for (size_t i = 0; i + 16 <= flat.size(); i += 16)
+        patches.emplace_back(flat.begin() + i, flat.begin() + i + 16);
+    return patches;
+}
 
 static std::string colorStr(ImU32 col) {
     unsigned int uc = (unsigned int)col;
@@ -50,6 +59,23 @@ core::ObjectDetails EntityManager::GetObjectDetails(long long id) const {
             return d;
         }
     }
+    if (obj.type == core::ObjectType::SURFACE) {
+        const SurfaceMetadata* meta = displayFile.getMetadata<SurfaceMetadata>(id);
+        if (meta) {
+            std::string pts = "[";
+            bool first = true;
+            for (const auto& patch : meta->patches)
+                for (const auto& cp : patch) {
+                    if (!first) pts += "\n";
+                    pts += (obj.transform * cp).coords();
+                    first = false;
+                }
+            pts += "]";
+            d.points = pts;
+            return d;
+        }
+    }
+
     // All other types: use mesh vertices
     std::string pts = "[";
     for (size_t i = 0; i < obj.mesh->vertices.size(); ++i) {
@@ -78,6 +104,19 @@ std::vector<std::tuple<float,float,float>> EntityManager::GetObjectRawPoints(lon
             return result;
         }
     }
+
+    if (obj.type == core::ObjectType::SURFACE) {
+        const SurfaceMetadata* meta = displayFile.getMetadata<SurfaceMetadata>(id);
+        if (meta) {
+            std::vector<std::tuple<float,float,float>> result;
+            for (const auto& patch : meta->patches)
+                for (const auto& cp : patch) {
+                    core::Point w = obj.transform * cp;
+                    result.emplace_back(w.x, w.y, w.z);
+                }
+            return result;
+        }
+    }
     return obj.GetRawPoints();
 }
 
@@ -92,6 +131,10 @@ void EntityManager::UpdateObjectPoints(long long id,
     int smoothness = 50;
     const CurveMetadata* meta = displayFile.getMetadata<CurveMetadata>(id);
     if (meta) smoothness = meta->smoothness;
+
+    int surf_resolution = 12;
+    const SurfaceMetadata* smeta = displayFile.getMetadata<SurfaceMetadata>(id);
+    if (smeta) surf_resolution = smeta->resolution;
 
     displayFile.remove(id);
 
@@ -118,6 +161,10 @@ void EntityManager::UpdateObjectPoints(long long id,
         }
         case core::ObjectType::CURVE2D: {
             core::Curve2DFactory f(name, pts, smoothness, new_method, color);
+            add(f); break;
+        }
+        case core::ObjectType::SURFACE: {
+            core::SurfaceFactory f(name, toPatches(pts), new_method, surf_resolution, color);
             add(f); break;
         }
         default: break;

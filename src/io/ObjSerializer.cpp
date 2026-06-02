@@ -3,8 +3,10 @@
 #include "ObjectFactories/WireframeFactory.hpp"
 #include "ObjectFactories/PolygonFactory.hpp"
 #include "ObjectFactories/Curve2DFactory.hpp"
+#include "ObjectFactories/SurfaceFactory.hpp"
 #include "ObjectFactories/MeshFactory.hpp"
 #include "ObjectMetadatas/CurveMetadata.hpp"
+#include "ObjectMetadatas/SurfaceMetadata.hpp"
 #include <sstream>
 #include <unordered_map>
 #include <climits>
@@ -179,6 +181,11 @@ namespace obj {
         std::unordered_map<std::string, int> matIndex;
         std::vector<std::vector<PendingFace>> matFaces;
 
+        // Free-form bicubic surface state (cstype/deg/surf/parm/end). Patches
+        // accumulate until the object changes (or EOF), forming one SURFACE object.
+        int surf_method = -1;  // -1 none, else BEZIER / BSPLINE
+        std::vector<std::vector<core::Point>> surf_patches;
+
         auto flushObject = [&]() {
             for (size_t b = 0; b < matFaces.size(); ++b) {
                 auto& faces = matFaces[b];
@@ -251,6 +258,16 @@ namespace obj {
             matOrder.clear(); matIndex.clear(); matFaces.clear();
         };
 
+        auto flushSurface = [&]() {
+            if (surf_patches.empty()) return;
+            std::string nm = current_object.empty() ? "surface" : current_object;
+            int method = (surf_method == BSPLINE) ? BSPLINE : BEZIER;
+            core::SurfaceFactory sf(nm, surf_patches, method, 12, (ImU32)pending_color);
+            em.add(sf);
+            res.object_count++;
+            surf_patches.clear();
+        };
+
         auto bucketFor = [&](const std::string& m) -> std::vector<PendingFace>& {
             auto it = matIndex.find(m);
             if (it != matIndex.end()) return matFaces[it->second];
@@ -321,10 +338,33 @@ namespace obj {
                 current_smoothing = (s == "off" || s.empty()) ? 0 : std::atoi(s.c_str());
             } else if (type == "o") {
                 flushObject();
+                flushSurface();
                 iss >> current_object;
                 current_group.clear();
                 pending_color = IM_COL32_WHITE;
                 pending_curve = false;
+            } else if (type == "cstype") {
+                std::string t; iss >> t;
+                if (t == "rat") iss >> t;   // skip optional 'rat' (rational) keyword
+                surf_method = (t == "bspline") ? BSPLINE : BEZIER;
+            } else if (type == "deg" || type == "parm" || type == "end") {
+                // deg is assumed bicubic (3 3); parm ranges/knots are assumed
+                // uniform [0,1]; end is implied by patch grouping — all ignored.
+            } else if (type == "surf") {
+                // surf s0 s1 t0 t1  <control-vertex refs...>  → one 16-point patch.
+                float s0, s1, t0, t1; iss >> s0 >> s1 >> t0 >> t1;
+                std::vector<core::Point> patch;
+                std::string tok;
+                while (iss >> tok) {
+                    core::FaceVertex fv = parseCorner(tok, (int)positions.size(),
+                                                      (int)uvs.size(), (int)normals.size());
+                    if (fv.v >= 0 && fv.v < (int)positions.size())
+                        patch.push_back(positions[fv.v]);
+                }
+                if (patch.size() >= 16) {
+                    patch.resize(16);
+                    surf_patches.push_back(std::move(patch));
+                }
             } else if (type == "p") {
                 importPoint(current_object, resolvePoints(iss), pending_color, em);
                 if (!positions.empty()) res.object_count++;
@@ -350,7 +390,8 @@ namespace obj {
                 }
             }
         }
-        flushObject();  // remaining faces of the last object
+        flushObject();   // remaining faces of the last object
+        flushSurface();  // remaining surface patches of the last object
         return res;
     }
 
@@ -472,12 +513,44 @@ namespace obj {
         }
     }
 
+    // Emits a bicubic surface as standard OBJ free-form geometry: the control
+    // points as v statements, then one cstype/surf/parm/end block per patch.
+    static void exportSurface(std::ofstream& f, const core::Object& obj,
+                              EntityManager& em, int& vi) {
+        const SurfaceMetadata* meta = em.getSurfaceMetadata(obj.id);
+        if (!meta || meta->patches.empty()) return;
+
+        int r, g, b, a;
+        unpack_color(obj.material.color, r, g, b, a);
+        f << "o " << obj.name << "\n";
+        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
+
+        const char* cstype = (meta->method == BSPLINE) ? "bspline" : "bezier";
+        for (const auto& patch : meta->patches) {
+            if (patch.size() < 16) continue;
+            const int base = vi;
+            for (int i = 0; i < 16; ++i) {
+                core::Point w = obj.transform * patch[i];
+                f << "v " << w.x << " " << w.y << " " << w.z << "\n"; vi++;
+            }
+            f << "cstype " << cstype << "\n";
+            f << "deg 3 3\n";
+            f << "surf 0.0 1.0 0.0 1.0";
+            for (int i = 0; i < 16; ++i) f << " " << (base + i);
+            f << "\n";
+            f << "parm u 0.0 1.0\n";
+            f << "parm v 0.0 1.0\n";
+            f << "end\n";
+        }
+    }
+
     void Export(std::ofstream& f, const std::vector<core::Object>& objects,
                 EntityManager& em, int& vi) {
         int vti = 1, vni = 1;  // global vt/vn running indices (independent of v)
         for (const auto& obj : objects) {
-            if (obj.type == core::ObjectType::MESH) exportMesh(f, obj, vi, vti, vni);
-            else                                    exportPrimitive(f, obj, em, vi);
+            if      (obj.type == core::ObjectType::MESH)    exportMesh(f, obj, vi, vti, vni);
+            else if (obj.type == core::ObjectType::SURFACE) exportSurface(f, obj, em, vi);
+            else                                            exportPrimitive(f, obj, em, vi);
         }
     }
 }

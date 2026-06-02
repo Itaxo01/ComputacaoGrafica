@@ -12,8 +12,7 @@ class ObjectCreator{
         std::vector<std::tuple<float, float, float>> points;
         bool filled = false;       // only meaningful in polygon mode
         int curve_smoothness = 50; // points per segment for Curve2D
-        int method = 0;            // 0=Bezier, 1=B-Spline (Curve2D only for now)
-        int e = 0;                 // radio button state: 0=Point 1=Line 2=Wireframe 3=Polygon 4=Curve2D
+        int method = 0;            // 0=Bezier, 1=B-Spline (Curve2D / Surface)
         char obj_name[64] = "";    // empty = auto-generate
         float color_f[3] = {1.0f, 1.0f, 1.0f};
         int object_color = IM_COL32_WHITE;
@@ -32,6 +31,10 @@ class ObjectCreator{
         void DrawWindow();
         void RegisterLeftClick(float x, float y, float z = 0.0f);
         void AddGraphicObject();
+        // Build from the current in-progress `points` using an explicit type, so
+        // the text modal can create an object whose mode differs from the active
+        // radio (e.g. a 2D Curve while the app is in 3D mode).
+        void AddGraphicObjectAs(core::ObjectType type, int method, bool filled);
         void CloseShape();    // finish wireframe/polygon — called by Enter or double-click
         void CancelCreation();// discard in-progress points — called by Escape
 

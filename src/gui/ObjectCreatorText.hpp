@@ -21,7 +21,8 @@ class ObjectCreatorText {
     core::ObjectType mode   = core::ObjectType::POINT;
     int             method = 0;     // 0=Bezier, 1=B-Spline (Curve2D only)
     bool            filled = false; // Polygon only
-    int             e      = 0;     // radio index mirroring mode
+    bool            target_3d = false; // which object set the selector offers;
+                                       // independent of AppConfig::is3d
 
     std::vector<std::tuple<float, float, float>> parsed;
     std::string parse_error;
@@ -39,8 +40,10 @@ public:
     explicit ObjectCreatorText(ExampleAppLog &log, const char* title = "Create by Text")
         : popup_title(title), log(log) {}
 
-    // Seed internal mode from the parent before opening.
-    void Open(core::ObjectType initial_mode, int initial_method = 0, bool initial_filled = false);
+    // Seed internal mode from the parent before opening. `initial_3d` seeds the
+    // modal's own 2D/3D selector (which the user can then flip independently).
+    void Open(core::ObjectType initial_mode, int initial_method = 0,
+              bool initial_filled = false, bool initial_3d = false);
 
     // Pre-fill the buffer from existing points, then open.
     void OpenForEdit(core::ObjectType mode, int method, bool filled,

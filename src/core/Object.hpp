@@ -25,11 +25,17 @@ namespace core {
         NONE,
         POLYGON,
         CURVE2D,
+        SURFACE,     // bicubic surface (Bezier or B-Spline), a list of 16-point patches; 3D-only
         MESH,        // imported OBJ mesh: solid, possibly multi-face, full Mesh fidelity
         ENUM_SIZE,
     };
 
     const char* getTypeName(ObjectType type);
+
+    // Whether a user can create this object type while the app is in the given
+    // dimensionality. Point/Line/Wireframe/Polygon work in both modes; Curve2D
+    // is 2D-only; Surface is 3D-only. Mesh/None are never user-created here.
+    bool typeAvailableInMode(ObjectType type, bool is3d);
 
     class Object {
     public:

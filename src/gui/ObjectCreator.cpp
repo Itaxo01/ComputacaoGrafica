@@ -1,11 +1,13 @@
 #include "ObjectCreator.hpp"
 #include "ObjectIO.hpp"
+#include "AppConfig.hpp"
 #include "imgui.h"
 #include "ObjectFactories/PointFactory.hpp"
 #include "ObjectFactories/LineFactory.hpp"
 #include "ObjectFactories/WireframeFactory.hpp"
 #include "ObjectFactories/PolygonFactory.hpp"
 #include "ObjectFactories/Curve2DFactory.hpp"
+#include "ObjectFactories/SurfaceFactory.hpp"
 #include <fstream>
 #include <sstream>
 #include <cstring>
@@ -62,6 +64,14 @@ static const char* curve_2d_bspline_instruction(int n) {
     return "Click to add more control points.\nPress Enter or double-click to finish.\nEsc to cancel.";
 }
 
+static const char* surface_instruction() {
+    // Bicubic surfaces are defined by 16 control points per patch, entered as a
+    // 4x4 matrix; clicking can't place 3D control points, so use Create by Text.
+    return "Bicubic surface: 16 control points per patch (4x4 matrix).\n"
+           "Use the Create by Text modal; rows/patches separated by ';'.\n"
+           "Stack k*16 points for k patches. Smoothness = grid samples per patch.";
+}
+
 // ─── DrawWindow ──────────────────────────────────────────────────────────────
 
 void ObjectCreator::DrawWindow(){
@@ -74,31 +84,32 @@ void ObjectCreator::DrawWindow(){
     ImGui::Begin("Create New Object");
         ImGui::Columns(2, "ObjectCreatorColumns", true);
 
-        // ── Mode radio buttons ──
-        if (ImGui::RadioButton("Point", &e, 0)) {
-            log.AddLog("Mode changed to POINT\n");
+        const bool is3d = AppConfig::is3d;
+
+        // The available object set depends on 2D/3D mode. If the current mode is
+        // no longer creatable here (e.g. Curve2D after switching to 3D), fall back
+        // to Point so the UI never sits on a hidden selection.
+        if (!core::typeAvailableInMode(mode, is3d)) {
             mode = core::ObjectType::POINT;
             points.clear();
         }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Line", &e, 1)) {
-            log.AddLog("Mode changed to LINE\n");
-            mode = core::ObjectType::LINE;
-            points.clear();
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Wireframe", &e, 2)) {
-            log.AddLog("Mode changed to WIREFRAME\n");
-            mode = core::ObjectType::WIREFRAME;
-            points.clear();
-        }
-        ImGui::SameLine();
+
+        // ── Mode radio buttons (filtered by 2D/3D mode) ──
+        auto mode_radio = [&](const char* label, core::ObjectType t, int sub_method = -1) {
+            bool selected = (mode == t) && (sub_method < 0 || method == sub_method);
+            if (ImGui::RadioButton(label, selected)) {
+                mode = t;
+                if (sub_method >= 0) method = sub_method;
+                points.clear();
+                log.AddLog("Mode changed to %s\n", label);
+            }
+        };
+
+        mode_radio("Point", core::ObjectType::POINT);     ImGui::SameLine();
+        mode_radio("Line", core::ObjectType::LINE);       ImGui::SameLine();
+        mode_radio("Wireframe", core::ObjectType::WIREFRAME); ImGui::SameLine();
         float polygon_x = ImGui::GetCursorPosX();
-        if (ImGui::RadioButton("Polygon", &e, 3)) {
-            log.AddLog("Mode changed to POLYGON\n");
-            mode = core::ObjectType::POLYGON;
-            points.clear();
-        }
+        mode_radio("Polygon", core::ObjectType::POLYGON);
 
         // ── Filled toggle (polygon only) ──
         if (mode == core::ObjectType::POLYGON) {
@@ -107,25 +118,34 @@ void ObjectCreator::DrawWindow(){
         }
 
         float curve_x = ImGui::GetCursorPosX();
-        if (ImGui::RadioButton("2D Curve", &e, 4)) {
-            log.AddLog("Mode changed to CURVE2D\n");
-            mode = core::ObjectType::CURVE2D;
-            points.clear();
-        }
+        if (!is3d) {
+            // ── 2D-only: Curve2D ──
+            mode_radio("2D Curve", core::ObjectType::CURVE2D);
+            if (mode == core::ObjectType::CURVE2D) {
+                ImGui::SetCursorPosX(curve_x);
+                ImGui::RadioButton("Bezier", &method, 0); ImGui::SameLine();
+                ImGui::RadioButton("B-Spline", &method, 1);
 
-        // ── Smoothness (curve only) ──
-        if (mode == core::ObjectType::CURVE2D){
-            ImGui::SetCursorPosX(curve_x);
-            ImGui::RadioButton("Bezier", &method, 0); ImGui::SameLine();
-            ImGui::RadioButton("B-Spline", &method, 1);
-        }
+                ImGui::SetCursorPosX(curve_x);
+                ImGui::Text("Smoothness:"); ImGui::SameLine();
+                ImGui::PushItemWidth(80);
+                ImGui::SliderInt("##smoothness", &curve_smoothness, 4, 300);
+                ImGui::PopItemWidth();
+            }
+        } else {
+            // ── 3D-only: bicubic surfaces ──
+            mode_radio("3D Surface", core::ObjectType::SURFACE);
+            if (mode == core::ObjectType::SURFACE) {
+                ImGui::SetCursorPosX(curve_x);
+                ImGui::RadioButton("Bezier", &method, 0); ImGui::SameLine();
+                ImGui::RadioButton("B-Spline", &method, 1);
 
-        if (mode == core::ObjectType::CURVE2D) {
-            ImGui::SetCursorPosX(curve_x);
-            ImGui::Text("Smoothness:"); ImGui::SameLine();
-            ImGui::PushItemWidth(80);
-            ImGui::SliderInt("##smoothness", &curve_smoothness, 4, 300);
-            ImGui::PopItemWidth();
+                ImGui::SetCursorPosX(curve_x);
+                ImGui::Text("Smoothness:"); ImGui::SameLine();
+                ImGui::PushItemWidth(80);
+                ImGui::SliderInt("##surf_smoothness", &curve_smoothness, 4, 60);
+                ImGui::PopItemWidth();
+            }
         }
 
 
@@ -140,8 +160,10 @@ void ObjectCreator::DrawWindow(){
         }
 
         // ── Object creation by text ──
+        // The text modal carries its own 2D/3D switch (seeded from the app mode),
+        // so e.g. a Curve2D can still be created by text while the app is in 3D.
         if (ImGui::Button("Create by text...")) {
-            text_creator.Open(mode, method, filled);
+            text_creator.Open(mode, method, filled, is3d);
         }
         {
             std::vector<std::tuple<float, float, float>> text_pts;
@@ -150,18 +172,12 @@ void ObjectCreator::DrawWindow(){
             bool            text_filled = filled;
             if (text_creator.DrawModal(text_pts, text_mode, text_method, text_filled)) {
                 points = text_pts;
-                mode   = text_mode;
                 method = text_method;
                 filled = text_filled;
-                // sync radio index
-                switch (mode) {
-                    case core::ObjectType::LINE:      e = 1; break;
-                    case core::ObjectType::WIREFRAME: e = 2; break;
-                    case core::ObjectType::POLYGON:   e = 3; break;
-                    case core::ObjectType::CURVE2D:   e = 4; break;
-                    default:                         e = 0; break;
-                }
-                AddGraphicObject();
+                // Only adopt the modal's mode as the active radio when it matches
+                // the current 2D/3D mode; otherwise create it without flipping UI.
+                if (core::typeAvailableInMode(text_mode, is3d)) mode = text_mode;
+                AddGraphicObjectAs(text_mode, text_method, text_filled);
             }
         }
 
@@ -169,16 +185,17 @@ void ObjectCreator::DrawWindow(){
         ImGui::Spacing();
         ImGui::TextDisabled("=== Instructions ===");
         int n = (int)points.size();
-        switch (e) {
-            case 0: ImGui::TextWrapped("%s", point_instruction()); break;
-            case 1: ImGui::TextWrapped("%s", line_instruction(n)); break;
-            case 2: ImGui::TextWrapped("%s", wireframe_instruction(n)); break;
-            case 3: ImGui::TextWrapped("%s", polygon_instruction(n)); break;
-            case 4: {
-                if(method == 0) ImGui::TextWrapped("%s", curve_2d_bezier_instruction(n));
-                else ImGui::TextWrapped("%s", curve_2d_bspline_instruction(n));
+        switch (mode) {
+            case core::ObjectType::POINT:     ImGui::TextWrapped("%s", point_instruction()); break;
+            case core::ObjectType::LINE:      ImGui::TextWrapped("%s", line_instruction(n)); break;
+            case core::ObjectType::WIREFRAME: ImGui::TextWrapped("%s", wireframe_instruction(n)); break;
+            case core::ObjectType::POLYGON:   ImGui::TextWrapped("%s", polygon_instruction(n)); break;
+            case core::ObjectType::CURVE2D:
+                if (method == BEZIER) ImGui::TextWrapped("%s", curve_2d_bezier_instruction(n));
+                else                  ImGui::TextWrapped("%s", curve_2d_bspline_instruction(n));
                 break;
-            }
+            case core::ObjectType::SURFACE:   ImGui::TextWrapped("%s", surface_instruction()); break;
+            default: break;
         }
 
         ImGui::NextColumn();
@@ -264,10 +281,14 @@ void ObjectCreator::CancelCreation(){
 }
 
 void ObjectCreator::AddGraphicObject(){
+    AddGraphicObjectAs(mode, method, filled);
+}
+
+void ObjectCreator::AddGraphicObjectAs(core::ObjectType type, int curve_method, bool is_filled){
     std::string name(obj_name);
     ImU32 col = (ImU32)object_color;
 
-    switch (mode) {
+    switch (type) {
         case core::ObjectType::POINT: {
             auto [x, y, z] = points[0];
             core::PointFactory f(name, x, y, z, col);
@@ -291,7 +312,7 @@ void ObjectCreator::AddGraphicObject(){
             std::vector<core::Point> pts;
             pts.reserve(points.size());
             for (const auto& t : points) pts.emplace_back(t);
-            core::PolygonFactory f(name, pts, filled, col);
+            core::PolygonFactory f(name, pts, is_filled, col);
             entityManager.add(f);
             break;
         }
@@ -299,7 +320,25 @@ void ObjectCreator::AddGraphicObject(){
             std::vector<core::Point> pts;
             pts.reserve(points.size());
             for (const auto& t : points) pts.emplace_back(t);
-            core::Curve2DFactory f(name, pts, curve_smoothness, method, col);
+            core::Curve2DFactory f(name, pts, curve_smoothness, curve_method, col);
+            entityManager.add(f);
+            break;
+        }
+        case core::ObjectType::SURFACE: {
+            // points carries k*16 control points (validated as a multiple of 16);
+            // each consecutive 16 form one 4x4 patch.
+            std::vector<std::vector<core::Point>> patches;
+            for (size_t i = 0; i + 16 <= points.size(); i += 16) {
+                std::vector<core::Point> patch;
+                patch.reserve(16);
+                for (size_t k = i; k < i + 16; ++k) patch.emplace_back(points[k]);
+                patches.push_back(std::move(patch));
+            }
+            if (patches.empty()) {
+                log.AddLog("[error] Surface needs 16 control points per patch.\n");
+                break;
+            }
+            core::SurfaceFactory f(name, patches, curve_method, curve_smoothness, col);
             entityManager.add(f);
             break;
         }

@@ -5,6 +5,7 @@
 #include "Object.hpp"
 #include "Renderer.hpp"
 #include "ObjectMetadatas/CurveMetadata.hpp"
+#include "ObjectMetadatas/SurfaceMetadata.hpp"
 #include "ObjectFactories/ObjectFactory.hpp"
 #include <string>
 #include <vector>
@@ -28,6 +29,7 @@ private:
             case core::ObjectType::WIREFRAME:prefix = "W";    break;
             case core::ObjectType::POLYGON:  prefix = "POLY"; break;
             case core::ObjectType::CURVE2D:  prefix = "C2D";  break;
+            case core::ObjectType::SURFACE:  prefix = "SURF"; break;
             default:                        prefix = "Obj";  break;
         }
         return prefix + std::to_string(id);
@@ -45,6 +47,10 @@ public:
 
     const CurveMetadata* getCurveMetadata(long long id) const {
         return displayFile.getMetadata<CurveMetadata>(id);
+    }
+
+    const SurfaceMetadata* getSurfaceMetadata(long long id) const {
+        return displayFile.getMetadata<SurfaceMetadata>(id);
     }
 
     core::ObjectDetails GetObjectDetails(long long id) const;

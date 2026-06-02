@@ -3,28 +3,6 @@
 #include <cstdlib>
 #include <cstring>
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-static core::ObjectType e_to_mode(int e) {
-    switch (e) {
-        case 1: return core::ObjectType::LINE;
-        case 2: return core::ObjectType::WIREFRAME;
-        case 3: return core::ObjectType::POLYGON;
-        case 4: return core::ObjectType::CURVE2D;
-        default: return core::ObjectType::POINT;
-    }
-}
-
-static int mode_to_e(core::ObjectType m) {
-    switch (m) {
-        case core::ObjectType::LINE:      return 1;
-        case core::ObjectType::WIREFRAME: return 2;
-        case core::ObjectType::POLYGON:   return 3;
-        case core::ObjectType::CURVE2D:   return 4;
-        default:                         return 0;
-    }
-}
-
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
 void ObjectCreatorText::reparse() {
@@ -37,8 +15,10 @@ void ObjectCreatorText::reparse() {
     auto skipws = [&]() {
         while (*p && std::isspace((unsigned char)*p)) ++p;
     };
+    // ';' separates surface matrix rows/patches; treat it like any other point
+    // separator so the flat point list can still be collected uniformly.
     auto skip_sep = [&]() {
-        while (*p && (std::isspace((unsigned char)*p) || *p == ',')) ++p;
+        while (*p && (std::isspace((unsigned char)*p) || *p == ',' || *p == ';')) ++p;
     };
 
     skip_sep();
@@ -99,6 +79,8 @@ bool ObjectCreatorText::validate() const {
             if (method == 0) return n >= 4 && (n - 1) % 3 == 0;
             if (method == 1) return n >= 4;
             return false;
+        case core::ObjectType::SURFACE:
+            return n > 0 && n % 16 == 0; // k patches of 16 control points each
         default: return false;
     }
 }
@@ -118,6 +100,8 @@ const char* ObjectCreatorText::format_hint() const {
             if (method == 0)
                 return "(P0),(C0),(C1),(P1),(C2),(C3),(P2), ...  — anchor,ctrl,ctrl,anchor,...";
             return "(P0),(P1),(P2),(P3), ...  — 4+ control points";
+        case core::ObjectType::SURFACE:
+            return "(x11,y11,z11),(x12,y12,z12),...;(x21,...),...  — 16 points/patch, rows split by ';'";
         default:
             return "(x,y)  or  (x,y,z)";
     }
@@ -133,6 +117,8 @@ std::string ObjectCreatorText::validation_msg() const {
         case core::ObjectType::CURVE2D:
             if (method == 0) return "Bezier: needs 4,7,10... points — anchor,ctrl,ctrl,anchor (got " + std::to_string(n) + ")";
             return "B-Spline: needs at least 4 control points (got " + std::to_string(n) + ")";
+        case core::ObjectType::SURFACE:
+            return "needs 16 control points per patch — k*16 total (got " + std::to_string(n) + ")";
         default: return "";
     }
 }
@@ -140,28 +126,49 @@ std::string ObjectCreatorText::validation_msg() const {
 // ── Mode selector ─────────────────────────────────────────────────────────────
 
 void ObjectCreatorText::draw_mode_selector() {
-    if (ImGui::RadioButton("Point",     &e, 0)) { mode = e_to_mode(0); }
+    // 2D/3D selector — independent of the app's mode, so a 2D object can be typed
+    // in while the app is in 3D (and vice-versa). Flipping it may invalidate the
+    // current mode, so snap back to Point when that happens.
+    int dim = target_3d ? 1 : 0;
+    ImGui::TextUnformatted("Object set:"); ImGui::SameLine();
+    if (ImGui::RadioButton("2D##octdim", &dim, 0)) target_3d = false;
     ImGui::SameLine();
-    if (ImGui::RadioButton("Line",      &e, 1)) { mode = e_to_mode(1); }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Wireframe", &e, 2)) { mode = e_to_mode(2); }
-    ImGui::SameLine();
+    if (ImGui::RadioButton("3D##octdim", &dim, 1)) target_3d = true;
+    if (!core::typeAvailableInMode(mode, target_3d)) mode = core::ObjectType::POINT;
+    ImGui::Separator();
+
+    auto type_radio = [&](const char* label, core::ObjectType t, int sub_method = -1) {
+        bool selected = (mode == t) && (sub_method < 0 || method == sub_method);
+        if (ImGui::RadioButton(label, selected)) {
+            mode = t;
+            if (sub_method >= 0) method = sub_method;
+        }
+    };
+
+    type_radio("Point##oct", core::ObjectType::POINT);     ImGui::SameLine();
+    type_radio("Line##oct", core::ObjectType::LINE);       ImGui::SameLine();
+    type_radio("Wireframe##oct", core::ObjectType::WIREFRAME); ImGui::SameLine();
     float polygon_x = ImGui::GetCursorPosX();
-    if (ImGui::RadioButton("Polygon",   &e, 3)) { mode = e_to_mode(3); }
-    ImGui::SameLine();
-    float curve_x = ImGui::GetCursorPosX();
-    if (ImGui::RadioButton("Curve",     &e, 4)) { mode = e_to_mode(4); }
+    type_radio("Polygon##oct", core::ObjectType::POLYGON);
+
+    if (!target_3d) {
+        ImGui::SameLine();
+        type_radio("Curve##oct", core::ObjectType::CURVE2D);
+    } else {
+        ImGui::SameLine();
+        type_radio("Bezier Surf##oct", core::ObjectType::SURFACE, 0); ImGui::SameLine();
+        type_radio("B-Spline Surf##oct", core::ObjectType::SURFACE, 1);
+    }
 
     // Polygon: filled toggle
     if (mode == core::ObjectType::POLYGON) {
         ImGui::SetCursorPosX(polygon_x);
         ImGui::Checkbox("Filled##oct", &filled);
-        ImGui::SameLine();
     }
 
     // Curve: method sub-selector
     if (mode == core::ObjectType::CURVE2D) {
-        ImGui::SetCursorPosX(curve_x);
+        ImGui::SetCursorPosX(polygon_x);
         ImGui::RadioButton("Bezier##oct",   &method, 0); ImGui::SameLine();
         ImGui::RadioButton("B-Spline##oct", &method, 1);
     }
@@ -169,11 +176,14 @@ void ObjectCreatorText::draw_mode_selector() {
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
-void ObjectCreatorText::Open(core::ObjectType initial_mode, int initial_method, bool initial_filled) {
-    mode   = initial_mode;
-    method = initial_method;
-    filled = initial_filled;
-    e      = mode_to_e(mode);
+void ObjectCreatorText::Open(core::ObjectType initial_mode, int initial_method,
+                             bool initial_filled, bool initial_3d) {
+    mode      = initial_mode;
+    method    = initial_method;
+    filled    = initial_filled;
+    target_3d = initial_3d;
+    // Make sure the seeded mode is actually offered by the seeded 2D/3D set.
+    if (!core::typeAvailableInMode(mode, target_3d)) mode = core::ObjectType::POINT;
     open_requested = true;
 }
 
@@ -194,7 +204,9 @@ void ObjectCreatorText::OpenForEdit(core::ObjectType initial_mode, int initial_m
     while (off > 0 && (tmp[off - 1] == '\n' || tmp[off - 1] == ',' || tmp[off - 1] == ' '))
         tmp[--off] = '\0';
     memcpy(buffer, tmp, sizeof(buffer));
-    Open(initial_mode, initial_method, initial_filled);
+    // Seed the 2D/3D selector so the object being edited is visible in it.
+    bool want_3d = !core::typeAvailableInMode(initial_mode, false);
+    Open(initial_mode, initial_method, initial_filled, want_3d);
 }
 
 bool ObjectCreatorText::DrawModal(std::vector<std::tuple<float, float, float>> &out_points,
