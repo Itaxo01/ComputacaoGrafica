@@ -20,6 +20,11 @@ namespace AppConfig {
     // Supersampling anti-aliasing factor. The CPU framebuffer is rasterized at
     // (supersample x viewport) resolution and box-downsampled on present. 1 = off.
     extern int supersample;
+
+    // Per-pixel depth buffer (z-buffer). When on, visibility is resolved per pixel
+    // and the painter's triangle sort is skipped. When off, uses depth_sort.
+    // The test direction follows depth_ascending (flip if a model looks inside-out).
+    extern bool z_buffer;
 }
 
 inline std::string format(float x, int precision) {

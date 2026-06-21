@@ -32,9 +32,10 @@ void ProjectVertices(std::vector<RenderedObject>& objs, const core::mat4& mat) {
 void TransformToViewport(std::vector<RenderedObject>& objs, const Window& window, float scale) {
     cg_parallel_for_each(objs.begin(), objs.end(), [&](RenderedObject& obj) {
         for (auto& v : obj.mesh.vertices) {
-            v = window.NCSToViewport(v);
-            v.x *= scale;
-            v.y *= scale;
+            core::Point s = window.NCSToViewport(v); // maps x/y to viewport, drops z
+            v.x = s.x * scale;
+            v.y = s.y * scale;
+            // v.z keeps the NCS depth so wireframe lines/points can be depth-tested.
         }
     });
 }
@@ -67,11 +68,13 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
             out.push_back({ ImVec2(va.x * scale, va.y * scale),
                             ImVec2(vb.x * scale, vb.y * scale),
                             ImVec2(vc.x * scale, vc.y * scale),
-                            o.color, (A.z + B.z + C.z) / 3.0f });
+                            o.color, (A.z + B.z + C.z) / 3.0f,
+                            A.z, B.z, C.z });
         }
     }
 
-    if (AppConfig::is3d && AppConfig::depth_sort) {
+    // The painter's sort is pointless when the z-buffer resolves visibility per pixel.
+    if (AppConfig::is3d && AppConfig::depth_sort && !AppConfig::z_buffer) {
         std::sort(out.begin(), out.end(), [](const SortedTri& a, const SortedTri& b) {
             return AppConfig::depth_ascending ? (a.depth < b.depth) : (a.depth > b.depth);
         });

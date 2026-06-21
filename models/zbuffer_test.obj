@@ -1,0 +1,35 @@
+# Z-buffer demonstration model: two flat quads that pass through each other.
+#
+#   - RED  quad lies in the y = 0 plane (horizontal sheet).
+#   - BLUE quad lies in the z = 0 plane (vertical sheet).
+#   They intersect along the X axis, so each sheet is half in front of and half
+#   behind the other.
+#
+# Painter's algorithm (Z-Buffer OFF): triangles are ordered by a single average
+# depth, so one whole quad gets drawn over the other in the crossing region —
+# the sheets look like one is simply in front of the other (WRONG).
+#
+# Z-buffer (Z-Buffer ON): visibility is resolved per pixel, so the sheets
+# correctly interweave into a 3-D cross (CORRECT).
+#
+# Each quad is given as two faces with opposite winding so it stays visible from
+# both sides regardless of the backface-cull setting.
+mtllib zbuffer_test.mtl
+o zbuffer_test
+
+v -3.0  0.0 -3.0
+v  3.0  0.0 -3.0
+v  3.0  0.0  3.0
+v -3.0  0.0  3.0
+v -3.0 -3.0  0.0
+v  3.0 -3.0  0.0
+v  3.0  3.0  0.0
+v -3.0  3.0  0.0
+
+usemtl red
+f 1 2 3 4
+f 4 3 2 1
+
+usemtl blue
+f 5 6 7 8
+f 8 7 6 5

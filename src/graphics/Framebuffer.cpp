@@ -26,6 +26,7 @@ void Framebuffer::Resize(int display_w, int display_h, int f) {
     width = w;   height = h;
     rwidth = rw; rheight = rh;
     pixels.assign((size_t)width * height, 0u);
+    depth.assign((size_t)width * height, 0.0f); // cleared per-band each frame when in use
     resolved.assign((size_t)rwidth * rheight, 0u);
     needs_realloc = true; // resolved dimensions changed: re-spec texture storage on next upload
 }
@@ -40,6 +41,14 @@ void Framebuffer::ClearRows(int y_lo, int y_hi, ImU32 color) {
     if (y_lo >= y_hi) return;
     std::fill(pixels.begin() + (size_t)y_lo * width,
               pixels.begin() + (size_t)y_hi * width, color);
+}
+
+void Framebuffer::ClearDepthRows(int y_lo, int y_hi, float far) {
+    y_lo = std::max(y_lo, 0);
+    y_hi = std::min(y_hi, height);
+    if (y_lo >= y_hi) return;
+    std::fill(depth.begin() + (size_t)y_lo * width,
+              depth.begin() + (size_t)y_hi * width, far);
 }
 
 void Framebuffer::Resolve() {

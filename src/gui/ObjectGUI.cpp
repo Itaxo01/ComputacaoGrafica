@@ -21,11 +21,30 @@ void ObjectGUI::DrawObjectList() {
         return label;
     });
 
-    ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+    ImGui::BeginChild("left pane", ImVec2(220, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
 
     std::vector<std::string> context_item_names = {"Edit", "Delete", "Rotate (Placeholder)"};
     std::vector<bool>        context_single_only = {true,   false,    false};
     multipleSelectionList.SetContextItems(context_item_names, context_single_only);
+
+    // Delete All sits on the pagination row, right-aligned (disabled when empty).
+    bool has_objects = !objects.empty();
+    multipleSelectionList.SetHeaderAction([this, has_objects]() {
+        const char* label = "Delete All";
+        float w = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+        float avail = ImGui::GetContentRegionAvail().x;
+        if (avail > w) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail - w));
+        if (!has_objects) ImGui::BeginDisabled();
+        if (ImGui::Button(label)) {
+            size_t n = entityManager.getObjects().size();
+            entityManager.removeAll();
+            selected_ids.clear();
+            multipleSelectionList.clear();
+            log.AddLog("Deleted all objects (%zu)\n", n);
+        }
+        if (!has_objects) ImGui::EndDisabled();
+    });
+
     multipleSelectionList.Draw();
 
     selected_ids.clear();
@@ -65,18 +84,6 @@ void ObjectGUI::DrawObjectList() {
         default:
             break;
     }
-
-    ImGui::Separator();
-    bool has_objects = !objects.empty();
-    if (!has_objects) ImGui::BeginDisabled();
-    if (ImGui::Button("Delete All")) {
-        size_t n = objects.size();
-        entityManager.removeAll();
-        selected_ids.clear();
-        multipleSelectionList.clear();
-        log.AddLog("Deleted all objects (%zu)\n", n);
-    }
-    if (!has_objects) ImGui::EndDisabled();
 
     ImGui::EndChild();
 }

@@ -30,5 +30,6 @@ struct RenderedObject {
 struct SortedTri {
     ImVec2 a, b, c;
     ImU32  color;
-    float  depth;   // NCS-space average z, captured before the viewport map drops z
+    float  depth;        // NCS-space average z, used by the painter's sort
+    float  za, zb, zc;   // per-vertex NCS depth, interpolated per pixel by the z-buffer
 };

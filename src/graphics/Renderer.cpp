@@ -9,6 +9,7 @@
 #include "ParallelUtils.hpp"
 #include "imgui.h"
 #include <cmath>
+#include <limits>
 
 void Renderer::draw_name_if_visible(const std::string& name, const core::Point& anchor) {
     core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
@@ -28,13 +29,14 @@ void Renderer::RenderBackground() {
 
 void Renderer::DrawObject(const RenderedObject& obj, int y_lo, int y_hi) {
     const ImU32 col = obj.color;
-
-    const int ss = AppConfig::supersample; // line/point sizes scale with the SSAA factor
+    const int ss = AppConfig::supersample;          // line/point sizes scale with SSAA
+    const bool zt = AppConfig::z_buffer;            // depth-test (hidden-line) when on
+    const bool less = !AppConfig::depth_ascending;  // nearer-is-smaller unless flipped
 
     if (obj.type == core::ObjectType::POINT) {
         if (!obj.mesh.vertices.empty()) {
             const auto& v = obj.mesh.vertices[0];
-            DrawPoint(framebuffer, v.x, v.y, col, ss, y_lo, y_hi);
+            DrawPoint(framebuffer, v.x, v.y, v.z, col, ss, zt, less, y_lo, y_hi);
         }
         return;
     }
@@ -42,9 +44,9 @@ void Renderer::DrawObject(const RenderedObject& obj, int y_lo, int y_hi) {
     for (const auto& [i, j] : obj.mesh.line_indices) {
         const auto& a = obj.mesh.vertices[i];
         const auto& b = obj.mesh.vertices[j];
-        DrawLine(framebuffer, a.x, a.y, b.x, b.y, col, ss, y_lo, y_hi);
+        DrawLine(framebuffer, a.x, a.y, a.z, b.x, b.y, b.z, col, ss, zt, less, y_lo, y_hi);
     }
-    // Filled triangles are drawn separately, globally depth-sorted (see RasterizeFramebuffer).
+    // Filled triangles are drawn separately (see RasterizeFramebuffer).
 }
 
 void Renderer::DrawPreview() {
@@ -100,12 +102,6 @@ void Renderer::ApplyViewportTransform() {
 void Renderer::GenerateDrawList() {
     WindowAttributes w = window.getWindowAttributes();
     auto canvas_p = viewport.GetCanvasP();
-    // The cached vertices are pre-scaled by the SSAA factor, so a change to it
-    // must rebuild them — the window/canvas cache key wouldn't catch it.
-    if (AppConfig::supersample != last_supersample) {
-        last_supersample = AppConfig::supersample;
-        refresh_cache = true;
-    }
     if (refresh_cache || rendererCache.cache_changed(w, canvas_p.first, canvas_p.second)) {
         log.AddLog("Scene changed, refreshing object cache\n");
         rendererCache.store_cache(w, canvas_p.first, canvas_p.second);
@@ -123,15 +119,22 @@ void Renderer::RasterizeFramebuffer() {
     const int H = framebuffer.Height();
     if (H <= 0 || framebuffer.Width() <= 0) return;
 
+    const bool zt = AppConfig::z_buffer;
+    const bool less = !AppConfig::depth_ascending; // nearer-is-smaller unless flipped
+    const float farZ = less ?  std::numeric_limits<float>::infinity()
+                            : -std::numeric_limits<float>::infinity();
+
     // One band per hardware thread (TBB pool when available). Each band clears
-    // and fills a disjoint row range: solid triangles first, back-to-front, then
-    // wireframe lines / points on top — matching the old draw_list layering.
+    // and fills a disjoint row range: solid triangles (depth-tested when z_buffer
+    // is on, else in painter's order), then wireframe lines / points on top.
     cg_parallel_chunks((std::size_t)H, [&](std::size_t lo, std::size_t hi) {
         int y_lo = (int)lo, y_hi = (int)hi;
         framebuffer.ClearRows(y_lo, y_hi, 0u); // transparent: grid shows through
+        if (zt) framebuffer.ClearDepthRows(y_lo, y_hi, farZ);
 
         for (const auto& t : sortedTris)
-            DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.color, y_lo, y_hi);
+            DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.za, t.zb, t.zc,
+                               t.color, zt, less, y_lo, y_hi);
 
         for (const auto& obj : drawObjects)
             DrawObject(obj, y_lo, y_hi);

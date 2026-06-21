@@ -12,7 +12,8 @@ void MultipleSelectionList::Draw() {
         current_page = total_pages - 1;
     }
 
-    ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
+    // Fills the parent pane so the list follows its (resizable) width.
+    ImGui::BeginChild("left pane", ImVec2(0, 0), ImGuiChildFlags_Borders);
 
     // Controles da paginação
     ImGui::PushItemWidth(100);
@@ -24,6 +25,11 @@ void MultipleSelectionList::Draw() {
     ImGui::SameLine();
     if (ImGui::Button(">") && current_page < total_pages - 1) {
         current_page++;
+    }
+    // Optional caller-supplied action (e.g. Delete All), on the same row.
+    if (header_action) {
+        ImGui::SameLine();
+        header_action();
     }
     ImGui::Separator();
 

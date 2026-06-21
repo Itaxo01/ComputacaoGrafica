@@ -20,7 +20,6 @@ private:
     bool refresh_cache = false;
     ExampleAppLog& log;
     Framebuffer framebuffer; // CPU raster target, presented as a texture each frame
-    int last_supersample = 0; // detects AppConfig::supersample changes to invalidate the cache
 
     std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
     std::vector<SortedTri>      sortedTris;  // all filled tris, depth-sorted for painter's

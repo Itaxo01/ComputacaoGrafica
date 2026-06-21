@@ -1,0 +1,10 @@
+# Two distinct flat colors for the two interpenetrating quads.
+newmtl red
+Kd 0.90 0.20 0.20
+Ka 0.00 0.00 0.00
+Ks 0.30 0.30 0.30
+
+newmtl blue
+Kd 0.20 0.45 0.95
+Ka 0.00 0.00 0.00
+Ks 0.30 0.30 0.30

@@ -29,6 +29,10 @@ public:
     // Clear scene rows [y_lo, y_hi) only — used by the banded parallel rasterizer.
     void ClearRows(int y_lo, int y_hi, ImU32 color = 0u);
 
+    // Clear depth rows [y_lo, y_hi) to `far` (the farthest value, so the first
+    // fragment always wins). Only needed when the z-buffer is in use.
+    void ClearDepthRows(int y_lo, int y_hi, float far);
+
     // Scene (supersampled) dimensions — the space all rasterization happens in.
     inline int Width()  const { return width;  }
     inline int Height() const { return height; }
@@ -39,6 +43,30 @@ public:
     inline void SetPixel(int x, int y, ImU32 color) {
         if ((unsigned)x < (unsigned)width && (unsigned)y < (unsigned)height)
             pixels[(size_t)y * width + x] = color;
+    }
+
+    // Depth-tested write: keep the fragment only if it is nearer than what is
+    // stored, and on success update BOTH color and depth. `less` selects the
+    // nearer direction (true: nearer = smaller z). Used by filled triangles.
+    inline bool SetPixelDepth(int x, int y, ImU32 color, float z, bool less) {
+        if ((unsigned)x >= (unsigned)width || (unsigned)y >= (unsigned)height) return false;
+        size_t i = (size_t)y * width + x;
+        if (less ? (z < depth[i]) : (z > depth[i])) {
+            depth[i] = z;
+            pixels[i] = color;
+            return true;
+        }
+        return false;
+    }
+
+    // Read-only depth test (nearer-or-equal), without writing depth. Used by
+    // wireframe lines / points so they are hidden behind solids but do not
+    // pollute the depth buffer (and coplanar edges-on-their-own-surface still
+    // show, since the test is inclusive). Out-of-bounds counts as failing.
+    inline bool DepthPasses(int x, int y, float z, bool less) const {
+        if ((unsigned)x >= (unsigned)width || (unsigned)y >= (unsigned)height) return false;
+        size_t i = (size_t)y * width + x;
+        return less ? (z <= depth[i]) : (z >= depth[i]);
     }
 
     // Box-downsample the scene buffer into the display-size resolve buffer
@@ -57,6 +85,7 @@ private:
     int rwidth = 0, rheight = 0;    // resolved (display) dimensions
     int factor = 1;                 // supersample factor: width == rwidth * factor
     std::vector<ImU32> pixels;      // scene buffer (rasterized here)
+    std::vector<float> depth;       // per-pixel depth, same size as pixels (z-buffer)
     std::vector<ImU32> resolved;    // display-size buffer (uploaded)
     unsigned int tex = 0;           // GLuint, kept opaque to avoid a GL include here
     bool needs_realloc = false;     // true after a resize: next upload must reallocate

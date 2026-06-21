@@ -23,12 +23,18 @@ private:
     int just_clicked = -1; // index of the last item plain-clicked (no modifiers), reset after read
 
     std::function<std::string(int)> get_name; // Função recebida em SetData
+    std::function<void()> header_action;      // widget opcional desenhado na linha da paginação
 
 public:
     MultipleSelectionList() : size(0), selected_indexes(), context_item_names() {}
     void SetData(int size, std::function<std::string(int)> callback) {
         this->size = size;
         this->get_name = callback;
+    }
+    // Optional widget drawn on the pagination row, after the page controls (e.g. a
+    // right-aligned action button). Left unset for lists that don't need one.
+    void SetHeaderAction(std::function<void()> fn) {
+        this->header_action = std::move(fn);
     }
     
     void Draw();

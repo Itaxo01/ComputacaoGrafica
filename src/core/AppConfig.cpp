@@ -12,4 +12,6 @@ namespace AppConfig {
     bool depth_ascending = false;
 
     int supersample = 2; // SSAA factor: framebuffer is rendered at NxN the viewport
+
+    bool z_buffer = true; // per-pixel depth test; when off, falls back to painter's sort
 }
