@@ -29,18 +29,18 @@ void ProjectVertices(std::vector<RenderedObject>& objs, const core::mat4& mat) {
     });
 }
 
-void TransformToViewport(std::vector<RenderedObject>& objs, const Window& window, const ImVec2& offset) {
+void TransformToViewport(std::vector<RenderedObject>& objs, const Window& window, float scale) {
     cg_parallel_for_each(objs.begin(), objs.end(), [&](RenderedObject& obj) {
         for (auto& v : obj.mesh.vertices) {
             v = window.NCSToViewport(v);
-            v.x += offset.x;
-            v.y += offset.y;
+            v.x *= scale;
+            v.y *= scale;
         }
     });
 }
 
 void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window& window,
-                          const ImVec2& offset, std::vector<SortedTri>& out) {
+                          float scale, std::vector<SortedTri>& out) {
     out.clear();
     const bool cull = AppConfig::is3d && AppConfig::backface_cull;
 
@@ -64,9 +64,9 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
                 if (back) continue;
             }
 
-            out.push_back({ ImVec2(va.x + offset.x, va.y + offset.y),
-                            ImVec2(vb.x + offset.x, vb.y + offset.y),
-                            ImVec2(vc.x + offset.x, vc.y + offset.y),
+            out.push_back({ ImVec2(va.x * scale, va.y * scale),
+                            ImVec2(vb.x * scale, vb.y * scale),
+                            ImVec2(vc.x * scale, vc.y * scale),
                             o.color, (A.z + B.z + C.z) / 3.0f });
         }
     }

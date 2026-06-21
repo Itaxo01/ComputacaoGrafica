@@ -16,6 +16,10 @@ namespace AppConfig {
     extern bool cull_ccw;        // winding convention for the cull test (flip if the wrong side is culled)
     extern bool depth_sort;      // painter's algorithm: sort triangles back-to-front
     extern bool depth_ascending; // flip sort order (use if near/far appear inverted)
+
+    // Supersampling anti-aliasing factor. The CPU framebuffer is rasterized at
+    // (supersample x viewport) resolution and box-downsampled on present. 1 = off.
+    extern int supersample;
 }
 
 inline std::string format(float x, int precision) {

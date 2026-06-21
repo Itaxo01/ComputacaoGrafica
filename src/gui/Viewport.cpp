@@ -30,7 +30,7 @@ void Viewport::DrawWindow() {
         ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 230, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
        
-        ImGui::BeginChild("Viewport Options", ImVec2(215, 215), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::BeginChild("Viewport Options", ImVec2(215, 245), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
             ImGui::Checkbox("Show Axes", &show_axes);
             ImGui::Checkbox("Show Grid", &show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
@@ -49,6 +49,11 @@ void Viewport::DrawWindow() {
                 log.AddLog("Perspective mode %s\n", AppConfig::perspective ? "enabled" : "disabled");
             }
             ImGui::Checkbox("Render Names", &AppConfig::render_names);
+            ImGui::SetNextItemWidth(110);
+            if (ImGui::SliderInt("Anti-aliasing", &AppConfig::supersample, 1, 4, "SSAA %dx")) {
+                if (AppConfig::supersample < 1) AppConfig::supersample = 1;
+                log.AddLog("Supersampling set to %dx\n", AppConfig::supersample);
+            }
         ImGui::EndChild();
  
     ImGui::End();
