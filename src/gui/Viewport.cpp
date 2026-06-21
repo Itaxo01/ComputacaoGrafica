@@ -30,10 +30,12 @@ void Viewport::DrawWindow() {
         ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 230, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
        
-        ImGui::BeginChild("Viewport Options", ImVec2(215, 170), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::BeginChild("Viewport Options", ImVec2(215, 215), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
             ImGui::Checkbox("Show Axes", &show_axes);
             ImGui::Checkbox("Show Grid", &show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
+            if (AppConfig::is3d)
+                ImGui::Checkbox("Show Bounding Box", &AppConfig::show_bounding_box);
             if(ImGui::RadioButton("Liang Barsky Clipping", &clipping_mode, 0)){
                 log.AddLog("Clipping mode changed to Liang Barsky Clipping\n");
             }
@@ -42,6 +44,9 @@ void Viewport::DrawWindow() {
             }
             if(ImGui::Checkbox("Enable 3D", &AppConfig::is3d)){
                 log.AddLog("3D mode %s\n", AppConfig::is3d ? "enabled" : "disabled");
+            }
+            if(AppConfig::is3d && ImGui::Checkbox("Enable Perspective", &AppConfig::perspective)){
+                log.AddLog("Perspective mode %s\n", AppConfig::perspective ? "enabled" : "disabled");
             }
             ImGui::Checkbox("Render Names", &AppConfig::render_names);
         ImGui::EndChild();

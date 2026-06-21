@@ -1,192 +1,99 @@
 #include "ObjectIO.hpp"
-#include "imgui.h"
-#include <sstream>
+#include "ObjSerializer.hpp"
+#include "MtlSerializer.hpp"
+#include <fstream>
+#include <cctype>
 
-// ─── Validation ──────────────────────────────────────────────────────────────
-
-ObjValidationResult ValidateObjFile(const std::string &path) {
-    ObjValidationResult result;
-
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        result.error = "Cannot open file: " + path;
-        return result;
+namespace {
+    bool endsWithCI(const std::string& s, const std::string& suffix) {
+        if (s.size() < suffix.size()) return false;
+        for (size_t i = 0; i < suffix.size(); ++i)
+            if (std::tolower((unsigned char)s[s.size() - suffix.size() + i]) != suffix[i])
+                return false;
+        return true;
     }
-
-    std::vector<std::tuple<float,float,float>> vertices;
-    bool pending_curve2d = false;
-    std::string line;
-
-    while (std::getline(file, line)) {
-        if (!line.empty() && line[0] == '#') {
-            std::istringstream css(line.substr(1));
-            std::string tag; css >> tag;
-            if (tag == "color") result.color_count++;
-            else if (tag == "type") {
-                std::string t; css >> t;
-                pending_curve2d = (t == "bezier_curve");
-            }
-            continue;
-        }
-        if (line.empty()) continue;
-
-        std::istringstream iss(line);
-        std::string type; iss >> type;
-
-        if (type == "v") {
-            float x, y, z = 0.0f; iss >> x >> y >> z;
-            vertices.emplace_back(x, y, z);
-            result.vertex_count++;
-        } else if (type == "o" || type == "g") {
-            pending_curve2d = false;
-        } else if (type == "p") {
-            std::string v_str;
-            while (iss >> v_str) {
-                try {
-                    int idx = std::stoi(v_str);
-                    if (idx < 0) idx = (int)vertices.size() + idx + 1;
-                    if (idx > 0 && idx <= (int)vertices.size()) { result.object_count++; break; }
-                } catch (...) {}
-            }
-        } else if (type == "l" || type == "f") {
-            int resolved = 0;
-            std::string v_str;
-            while (iss >> v_str) {
-                try {
-                    int idx = std::stoi(v_str);
-                    if (idx < 0) idx = (int)vertices.size() + idx + 1;
-                    if (idx > 0 && idx <= (int)vertices.size()) resolved++;
-                } catch (...) {}
-            }
-            int min_pts = (type == "f") ? 3 : (pending_curve2d ? 4 : 2);
-            bool valid_count = (pending_curve2d && type == "l")
-                ? (resolved >= 4 && (resolved - 1) % 3 == 0)
-                : (resolved >= min_pts);
-            if (valid_count) result.object_count++;
-        }
+    bool fileExists(const std::string& path) {
+        std::ifstream f(path);
+        return f.good();
     }
-
-    result.valid = true;
-    return result;
-}
-
-static void unpack_color(int col, int &r, int &g, int &b, int &a) {
-    unsigned int uc = (unsigned int)col;
-    r = (uc >>  0) & 0xFF;
-    g = (uc >>  8) & 0xFF;
-    b = (uc >> 16) & 0xFF;
-    a = (uc >> 24) & 0xFF;
-}
-
-// ─── Export ──────────────────────────────────────────────────────────────────
-
-void ExportPoints(std::ofstream &f, const std::vector<core::Point> &v, int &vi) {
-    for (const auto &pt : v) {
-        int r, g, b, a;
-        unpack_color(pt.object_color, r, g, b, a);
-        f << "o " << pt.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "v " << pt.x << " " << pt.y << " " << pt.z << "\n";
-        f << "p " << vi << "\n";
-        vi++;
+    std::string baseName(const std::string& path) {
+        auto slash = path.find_last_of("/\\");
+        return (slash == std::string::npos) ? path : path.substr(slash + 1);
     }
 }
 
-void ExportLines(std::ofstream &f, const std::vector<core::Line> &v, int &vi) {
-    for (const auto &ln : v) {
-        int r, g, b, a;
-        unpack_color(ln.object_color, r, g, b, a);
-        f << "o " << ln.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "v " << ln.a.x << " " << ln.a.y << " " << ln.a.z << "\n";
-        f << "v " << ln.b.x << " " << ln.b.y << " " << ln.b.z << "\n";
-        f << "l " << vi << " " << vi + 1 << "\n";
-        vi += 2;
+namespace ObjectIO {
+
+void Import(const std::string& input_path, EntityManager& em, ExampleAppLog& log) {
+    std::string obj_path, mtl_path;
+    bool mtl_explicit = false;
+
+    if (endsWithCI(input_path, ".obj")) {
+        obj_path = input_path;                       // only the .obj
+    } else if (endsWithCI(input_path, ".mtl")) {
+        mtl_path = input_path; mtl_explicit = true;  // only the .mtl
+    } else {
+        obj_path = input_path + ".obj";              // pair both by base name
+        mtl_path = input_path + ".mtl";              // companion is optional
+    }
+
+    mtl::MaterialLibrary lib;
+
+    // 1) Load the companion / explicit .mtl up front so `usemtl` can resolve.
+    if (!mtl_path.empty() && (mtl_explicit || fileExists(mtl_path))) {
+        mtl::Result mr = mtl::Load(mtl_path, lib);
+        if (mr.ok)
+            log.AddLog("[info] Loaded %d material(s) from %s\n", mr.material_count, mtl_path.c_str());
+        else
+            log.AddLog("[error] %s\n", mr.error.c_str());
+    }
+
+    if (obj_path.empty()) {
+        log.AddLog("[info] No geometry imported (materials only).\n");
+        return;
+    }
+
+    // 2) Validate geometry before touching the scene.
+    obj::ValidationResult v = obj::Validate(obj_path);
+    if (!v.valid) { log.AddLog("[error] %s\n", v.error.c_str()); return; }
+    log.AddLog("[info] Validation passed: %d vertices, %d objects, %d colored.\n",
+               v.vertex_count, v.object_count, v.color_count);
+
+    // 3) Import geometry. Any `mtllib` directives merge into `lib` during this pass.
+    obj::ImportResult r = obj::Import(obj_path, lib, em);
+    if (!r.error.empty()) { log.AddLog("[error] %s\n", r.error.c_str()); return; }
+    for (const auto& w : r.warnings) log.AddLog("[warn] %s\n", w.c_str());
+    log.AddLog("Imported %d objects from %s\n", r.object_count, obj_path.c_str());
+}
+
+void Export(const std::string& input_path, EntityManager& em, ExampleAppLog& log) {
+    std::string path = input_path;
+    if (endsWithCI(path, ".mtl")) path = path.substr(0, path.size() - 4);
+    if (!endsWithCI(path, ".obj")) path += ".obj";
+    const std::string mtl_path = path.substr(0, path.size() - 4) + ".mtl";
+
+    // Gather the named materials carried by mesh objects into a library.
+    mtl::MaterialLibrary lib;
+    for (const auto& obj : em.getObjects())
+        for (const auto& m : obj.mesh->materials)
+            if (!m.name.empty()) lib[m.name] = m;
+
+    std::ofstream file(path);
+    if (!file.is_open()) { log.AddLog("[error] Failed to open file: %s\n", path.c_str()); return; }
+
+    int vi = 1;
+    file << "# Exported by ComputacaoGrafica\n";
+    if (!lib.empty()) file << "mtllib " << baseName(mtl_path) << "\n";
+    obj::Export(file, em.getObjects(), em, vi);
+    file.close();
+    log.AddLog("Exported objects to %s\n", path.c_str());
+
+    // Companion .mtl for the materials referenced above.
+    if (!lib.empty()) {
+        mtl::Result mr = mtl::Export(mtl_path, lib);
+        if (mr.ok) log.AddLog("[info] Wrote %d material(s) to %s\n", mr.material_count, mtl_path.c_str());
+        else       log.AddLog("[error] %s\n", mr.error.c_str());
     }
 }
 
-void ExportWireframes(std::ofstream &f, const std::vector<core::Wireframe> &v, int &vi) {
-    for (const auto &w : v) {
-        int r, g, b, a;
-        unpack_color(w.object_color, r, g, b, a);
-        f << "o " << w.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        for (const auto &p : w.points)
-            f << "v " << p.x << " " << p.y << " " << p.z << "\n";
-        f << "l";
-        for (size_t i = 0; i < w.points.size(); ++i)
-            f << " " << vi + i;
-        f << "\n";
-        vi += (int)w.points.size();
-    }
-}
-
-void ExportPolygons(std::ofstream &f, const std::vector<core::Polygon> &v, int &vi) {
-    for (const auto &poly : v) {
-        int r, g, b, a;
-        unpack_color(poly.object_color, r, g, b, a);
-        f << "o " << poly.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "# filled " << (poly.filled ? 1 : 0) << "\n";
-        // polygons store a closing duplicate of the first vertex — skip it on export
-        size_t n = poly.points.size();
-        if (n > 1 && poly.points.front().x == poly.points.back().x &&
-                     poly.points.front().y == poly.points.back().y)
-            n--;
-        for (size_t i = 0; i < n; ++i)
-            f << "v " << poly.points[i].x << " " << poly.points[i].y << " " << poly.points[i].z << "\n";
-        f << "f";
-        for (size_t i = 0; i < n; ++i)
-            f << " " << vi + i;
-        f << "\n";
-        vi += (int)n;
-    }
-}
-
-void ExportCurve2Ds(std::ofstream &f, const std::vector<core::Curve2D> &v, int &vi) {
-    for (const auto &bc : v) {
-        int r, g, b, a;
-        unpack_color(bc.object_color, r, g, b, a);
-        f << "o " << bc.getName() << "\n";
-        f << "# color " << r << " " << g << " " << b << " " << a << "\n";
-        f << "# type bezier_curve\n";
-        for (const auto &p : bc.control_points)
-            f << "v " << p.x << " " << p.y << " " << p.z << "\n";
-        f << "l";
-        for (size_t i = 0; i < bc.control_points.size(); ++i)
-            f << " " << vi + i;
-        f << "\n";
-        vi += (int)bc.control_points.size();
-    }
-}
-
-// ─── Import ──────────────────────────────────────────────────────────────────
-
-void ImportPoint(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
-    if (pts.empty()) return;
-    auto mode = core::ShapeType::POINT;
-    RawPts single = {pts[0]};
-    em.add(name, single, mode, false, color);
-}
-
-void ImportWireframe(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
-    if (pts.size() < 2) return;
-    auto mode = core::ShapeType::WIREFRAME;
-    RawPts copy = pts;
-    em.add(name, copy, mode, false, color);
-}
-
-void ImportPolygon(const std::string &name, const RawPts &pts, int color, bool filled, EntityManager &em) {
-    if (pts.size() < 3) return;
-    auto mode = core::ShapeType::POLYGON;
-    RawPts copy = pts;
-    em.add(name, copy, mode, filled, color);
-}
-
-void ImportCurve2D(const std::string &name, const RawPts &pts, int color, EntityManager &em) {
-    int n = (int)pts.size();
-    if (n < 4 || (n - 1) % 3 != 0) return;
-    auto mode = core::ShapeType::CURVE2D;
-    RawPts copy = pts;
-    em.add(name, copy, mode, false, color);
 }

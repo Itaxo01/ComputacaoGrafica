@@ -1,62 +1,29 @@
-// Classe de objeto para polimorfismo
 #ifndef SHAPE_HPP
 #define SHAPE_HPP
 
 #include <string>
 #include <tuple>
-#include <utility>
-#include "Util.hpp"
-#include "imgui.h"
-namespace core{
-    struct { // Detalhes do objeto para serialização dos detalhes na interface 
-        std::string type = "";
-        std::string id = "";
-        std::string name = "";
+
+namespace core {
+    struct {
+        std::string type  = "";
+        std::string id    = "";
+        std::string name  = "";
         std::string color = "";
         std::string points = "";
     } typedef ObjectDetails;
 
-    enum class ShapeType {
-        POINT, // 0
-        LINE, // 1
-        WIREFRAME, // 2
-        NONE, // 3
-        POLYGON, // 4
-        CURVE2D, // 5
-        ENUM_SIZE, // 6
-    }; // Se esse enum passar de 10 elementos, modificar a lógica de ID do entity manager
-
-    
-    class Shape{
-        public:
-            ShapeType type;
-            virtual ~Shape() = default;
-            virtual std::tuple<float, float, float> anchorPoint() const = 0;
-            virtual std::tuple<float, float, float> centerPoint() const = 0;
-            
-            std::string getName() const{
-                return name;
-                return "idk";
-            }
-            
-            std::string getColor() const{ // r g b
-                unsigned int mask = -1;
-                mask >>= 24;
-                int object_color_copy = object_color;
-                int r = object_color_copy & mask; object_color_copy >>= 8;
-                int g = object_color_copy & mask; object_color_copy >>= 8;
-                int b = object_color_copy & mask; object_color_copy >>= 8;
-                std::string res = "[" + std::to_string(r) + ", " + std::to_string(g) + ", " + std::to_string(b) + "]";
-                return res;
-                return "idk";
-            } 
-
-            std::string name;
-            int object_color = 0xFF; // Uses 32 bit 
+    enum class ObjectType {
+        POINT,    // 0
+        LINE,     // 1
+        WIREFRAME,// 2
+        NONE,     // 3
+        POLYGON,  // 4
+        CURVE2D,  // 5
+        ENUM_SIZE,// 6
     };
+
+    const char* getTypeName(ObjectType type);
 }
-
-
-
 
 #endif // SHAPE_HPP

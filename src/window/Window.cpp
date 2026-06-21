@@ -20,18 +20,34 @@ void Window::setWindowBounds(const core::Point &bottomLeft, const core::Point &t
 
 /*
     2D: centraliza, rotaciona e escala para [-1,1].
-    3D: aplica VRC (câmera) e escala para [-1,1] (projeção paralela ortogonal).
+    3D ortográfico: aplica VRC (câmera) e escala para [-1,1] (projeção paralela ortogonal).
+    3D perspectivo: aplica VRC, depois a matriz de perspectiva com divisão por w, depois escala.
     Chamada internamente toda vez que a window for atualizada.
 */
 void Window::UpdateNCSMatrix(){
     if (AppConfig::is3d) {
-        // 3D pipeline: Scale(2/vw, 2/vh) * VRC
-        core::mat4 scale = core::getScalingMatrix(2.0f / camera.view_width, 2.0f / camera.view_height);
-        this->NCSTransformMatrix = scale * camera.GetVRCMatrix();
+        if (AppConfig::perspective) {
+            core::mat4 scale    = core::getScalingMatrix(2.0f / camera.view_width,
+                                                         2.0f / camera.view_height);
+            core::mat4 persp    = camera.GetPerspectiveMatrix();
+            this->NCSTransformMatrix        = scale * persp * camera.GetVRCMatrix();
 
-        // Inverse: VRC^-1 * Scale^-1
-        core::mat4 inv_scale = core::getScalingMatrix(camera.view_width / 2.0f, camera.view_height / 2.0f, 1.0f);
-        this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix() * inv_scale;
+            // Inverse (screen → world): resolves a click onto the view plane
+            // (z=0 in VRC), where the perspective projection is the identity in
+            // x/y. So the inverse is just VRC^-1 * Scale^-1 — no perspective term
+            // (adding one would scale pan/picking deltas by ~1/focal_distance).
+            core::mat4 inv_scale = core::getScalingMatrix(camera.view_width  / 2.0f,
+                                                          camera.view_height / 2.0f, 1.0f);
+            this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix() * inv_scale;
+        } else {
+            core::mat4 scale = core::getScalingMatrix(2.0f / camera.view_width,
+                                                      2.0f / camera.view_height);
+            this->NCSTransformMatrix = scale * camera.GetVRCMatrix();
+
+            core::mat4 inv_scale = core::getScalingMatrix(camera.view_width  / 2.0f,
+                                                          camera.view_height / 2.0f, 1.0f);
+            this->InverseNCSTransformMatrix = camera.GetInverseVRCMatrix() * inv_scale;
+        }
     } else {
         this->NCSTransformMatrix = \
                             core::getScalingMatrix(2.0f / width, 2.0f / height) *\
@@ -53,6 +69,8 @@ WindowAttributes Window::getWindowAttributes() const {
         w.height = camera.view_height;
         w.angle  = 0.0f;
         w.vpn    = camera.vpn;
+        w.focal_distance = camera.focal_distance;
+        w.perspective    = AppConfig::perspective;
     } else {
         w.center = center;
         w.width  = width;
@@ -60,6 +78,19 @@ WindowAttributes Window::getWindowAttributes() const {
         w.angle  = angle;
     }
     return w;
+}
+
+core::mat4 Window::GetProjectionScaleMatrix() const {
+    // Scale(2/vw, 2/vh) * Perspective. Applied to VRC-space points (after the
+    // near-plane clip), with the perspective divide happening in mat4 * Point.
+    core::mat4 scale = core::getScalingMatrix(2.0f / camera.view_width,
+                                              2.0f / camera.view_height);
+    return scale * camera.GetPerspectiveMatrix();
+}
+
+void Window::adjustPerspective(float factor) {
+    camera.adjustFocalDistance(factor);
+    UpdateNCSMatrix();
 }
 
 core::Point Window::NCSToViewport(const core::Point &p) const{
@@ -126,12 +157,16 @@ void Window::zoom(const float zoom_factor, const ImVec2 &mouse_pos){
 
 void Window::moveWindow(const float dx, const float dy, const ImVec2 &canvas_sz){
     if (AppConfig::is3d) {
-        // Convert pixel delta to world-space delta via the inverse NCS matrix.
+        // Pan in the camera's view plane: p2 - p1 is the world displacement of the
+        // dragged point on the view plane (a combination of the view's right/up
+        // axes), so applying all three components keeps the scene following the
+        // cursor at any orientation. Dropping Y would freeze vertical panning
+        // whenever the view looks along the XZ plane (v ≈ world Y).
         core::Point p1 = ViewportToWindow(ImVec2(0.0f, 0.0f));
         core::Point p2 = ViewportToWindow(ImVec2(dx, dy));
         camera.vrp.x -= (p2.x - p1.x);
         camera.vrp.y -= (p2.y - p1.y);
-        // Z (world up) is intentionally locked — panning only moves in the XY floor plane.
+        camera.vrp.z -= (p2.z - p1.z);
         UpdateNCSMatrix();
         return;
     }
@@ -157,15 +192,55 @@ void Window::orbitPitch(float degrees) {
     UpdateNCSMatrix();
 }
 
+float Window::getBoundingBoxHalfSize() const {
+    return camera.view_width * 0.31f;
+}
+
+std::pair<core::Point, core::Point> Window::getClipBoundsNCS() const {
+    // 2D, or 3D with the bounding box hidden: clip to the full viewport [-1,1].
+    // The bounding-box-derived clip region is only used while the box is visible.
+    if (!AppConfig::is3d || !AppConfig::show_bounding_box)
+        return { core::Point(-1.0f, -1.0f, 0.0f), core::Point(1.0f, 1.0f, 0.0f) };
+
+    float B  = getBoundingBoxHalfSize();
+    float cx = camera.vrp.x, cy = camera.vrp.y, cz = camera.vrp.z;
+
+    const core::Point corners[8] = {
+        {cx-B, cy-B, cz-B}, {cx+B, cy-B, cz-B},
+        {cx-B, cy+B, cz-B}, {cx+B, cy+B, cz-B},
+        {cx-B, cy-B, cz+B}, {cx+B, cy-B, cz+B},
+        {cx-B, cy+B, cz+B}, {cx+B, cy+B, cz+B},
+    };
+
+    float x_min =  1e9f, x_max = -1e9f;
+    float y_min =  1e9f, y_max = -1e9f;
+    for (const auto& c : corners) {
+        core::Point p = NCSTransformMatrix * c;
+        if (p.x < x_min) x_min = p.x;
+        if (p.x > x_max) x_max = p.x;
+        if (p.y < y_min) y_min = p.y;
+        if (p.y > y_max) y_max = p.y;
+    }
+
+    // Clamp to viewport so clip region never exceeds screen
+    if (x_min < -1.0f) x_min = -1.0f;
+    if (x_max >  1.0f) x_max =  1.0f;
+    if (y_min < -1.0f) y_min = -1.0f;
+    if (y_max >  1.0f) y_max =  1.0f;
+
+    return { core::Point(x_min, y_min, 0.0f), core::Point(x_max, y_max, 0.0f) };
+}
+
 void Window::OnModeChanged() {
     if (AppConfig::is3d) {
-        // Z-up convention: vpn = normalize(1,-1,1) puts camera at 315° azimuth, 35° elevation.
-        // Result: X goes right-down, Y goes right-up, Z goes straight up on screen.
-        camera.vrp        = {0.0f, 0.0f, 0.0f};
-        camera.vpn        = {0.5774f, -0.5774f, 0.5774f};
-        camera.vup        = {0.0f, 0.0f, 1.0f};
-        camera.view_width  = 20.0f;
-        camera.view_height = 20.0f;
+        // Y-up convention: vpn = normalize(1,1,1) gives standard isometric view.
+        // Result: X goes right, Y goes up on screen, Z goes left-down (depth).
+        camera.vrp           = {0.0f, 0.0f, 0.0f};
+        camera.vpn           = {0.5774f, 0.5774f, 0.5774f};
+        camera.vup           = {0.0f, 1.0f, 0.0f};
+        camera.view_width    = 20.0f;
+        camera.view_height   = 20.0f;
+        camera.focal_distance = 1000.0f; // large d ≈ orthographic; Shift+scroll for perspective
     }
     UpdateNCSMatrix();
 }

@@ -10,7 +10,7 @@ A interface contém atualmente 4 componentes:
         * **Zoom** -> Scroll do mouse ou ctrl + Up/Down arrow.
         * **Translação** -> Clicar com o botão direito do mouse e arrastar ou shift + arrow key
         * **Rotação da Window** -> Ctrl+Shift+Right/Left arrow key.
-        * **Criação de objetos:**
+        * **Criação de objetos (2D, 3D deprecated):**
             * Habilitar a criação no menu de Criação de objetos
             * Selecionar o tipo do objeto
             * Dar um nome (opcional, gerado nome automático com o ID (O nome não é usado como ID))gi
@@ -30,6 +30,17 @@ A interface contém atualmente 4 componentes:
   * A implementação em 3D é feita utilizando a mesma interface, e pode ser habilitada ou desabilitada a vontade por um checkbox no menu do viewport.    
   * Seu uso se permanece parecido com a interface 2D, com os mesmos controles para panning, zoom e rotação.
   * Para a criação de objetos recomenda-se utilizar a criação por texto, clicar na interface não funciona como o esperado.
+
+* **Modelos 3D:**
+  * No zip, há uma pasta models/ com modelos 3D para teste. 
+  * Todos os modelos requeridos de cada entrega estão presentes nessa pasta, além de outros modelos para teste.
+  * A importação de modelos é feita pelo campo de importação no menu de criação de objetos, basta digitar o caminho do arquivo e clicar em importar (ex "models/mk4.obj").
+    * O arquivo da entrega 8 (perspectiva) é o mk4.obj.
+    * Os arquivos da entrega 9 (superfícies bicubicas) são o "models/bezier_surface.obj" e o "models/bspline_surface.obj".
+  * Se presente, importar o arquivo .obj também importa o arquivo .mtl.
+
+* **Perspectiva:**
+  * A perspectiva é habilitada por um checkbox no menu do viewport. Ao habilitar a perspectiva, o controle de rotação da window e zoom é substituido pelos controles da perspectiva.
 
 * **Menu de Criação de Objetos:**
     * Menu básico para criação de objetos. Desabilitar a criação faz com que ao clicar no viewport não se crie objetos.

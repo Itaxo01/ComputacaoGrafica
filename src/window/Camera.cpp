@@ -55,16 +55,41 @@ void Camera::pan(float du, float dv) {
 }
 
 void Camera::zoom(float factor) {
+    // Zoom always scales the view volume (works in both orthographic and
+    // perspective). factor < 1 = zoom in (view volume shrinks). In perspective
+    // the perspective strength is controlled separately via adjustFocalDistance.
     view_width  *= factor;
     view_height *= factor;
+}
+
+void Camera::adjustFocalDistance(float factor) {
+    // Moves the Centre of Projection along the view axis (changes the COP
+    // distance d). Larger d = COP farther back = weaker perspective (telephoto,
+    // approaches orthographic); smaller d = stronger perspective (wide angle).
+    focal_distance *= (1.0f / factor);
+    if (focal_distance < 0.5f) focal_distance = 0.5f; // prevent degenerate COP
+}
+
+core::mat4 Camera::GetPerspectiveMatrix() const {
+    // COP at VRC (0,0,-d), view plane at z=0. A VRC point (x,y,z,1) maps to
+    // (x*d, y*d, z*d, z+d); after the divide-by-w this yields the projected
+    // point x' = x*d/(z+d), y' = y*d/(z+d). The +1 in the w-row is what makes
+    // w = z + d (distance from the COP), so points farther from the COP shrink.
+    float d = focal_distance;
+    core::mat4 P;
+    P[0][0] = d;    P[0][1] = 0.0f; P[0][2] = 0.0f; P[0][3] = 0.0f;
+    P[1][0] = 0.0f; P[1][1] = d;    P[1][2] = 0.0f; P[1][3] = 0.0f;
+    P[2][0] = 0.0f; P[2][1] = 0.0f; P[2][2] = d;    P[2][3] = 0.0f;
+    P[3][0] = 0.0f; P[3][1] = 0.0f; P[3][2] = 1.0f; P[3][3] = d;
+    return P;
 }
 
 void Camera::orbit(float dyaw_deg, float dpitch_deg) {
     auto basis = computeBasis();
 
     if (std::abs(dyaw_deg) > 1e-6f) {
-        // Yaw around world Z (Z-up convention used in 3D mode).
-        core::mat4 yaw = core::getRotationMatrixZ(dyaw_deg);
+        // Yaw around world Y (Y-up convention used in 3D mode).
+        core::mat4 yaw = core::getRotationMatrixY(dyaw_deg);
         vpn = yaw * vpn;
         vup = yaw * vup;
     }

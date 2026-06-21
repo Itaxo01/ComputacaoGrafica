@@ -18,16 +18,21 @@ IMGUI_DIR = ./imgui
 GUI_DIR = ./src/gui
 CONTROLLER_DIR = ./src/controller
 CORE_DIR = ./src/core
+FACTORIES_DIR = ./src/core/ObjectFactories
+METADATAS_DIR = ./src/core/ObjectMetadatas
 WINDOW_DIR = ./src/window
 GRAPHICS_DIR = ./src/graphics
+IO_DIR = ./src/io
 BUILD_DIR = ./build/obj
 
 SOURCES = $(wildcard ./src/*.cpp)
 SOURCES += $(wildcard $(GRAPHICS_DIR)/*.cpp)
 SOURCES += $(wildcard $(WINDOW_DIR)/*.cpp)
 SOURCES += $(wildcard $(CORE_DIR)/*.cpp)
+SOURCES += $(wildcard $(FACTORIES_DIR)/*.cpp)
 SOURCES += $(wildcard $(GUI_DIR)/*.cpp)
 SOURCES += $(wildcard $(CONTROLLER_DIR)/*.cpp)
+SOURCES += $(wildcard $(IO_DIR)/*.cpp)
 
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
@@ -37,7 +42,7 @@ OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
-CXXFLAGS = -std=c++20 -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
+CXXFLAGS = -std=c++20 -MMD -MP -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(FACTORIES_DIR) -I$(METADATAS_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IO_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
 CXXFLAGS += -g -Wall -Wformat
 LIBS =
 
@@ -96,7 +101,7 @@ endif
 ## BUILD RULES
 ##---------------------------------------------------------------------
 
-vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
+vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(FACTORIES_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IO_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
@@ -105,7 +110,7 @@ $(BUILD_DIR)/%.o: %.cpp
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
-fast: CXXFLAGS += -O3 -DDONT_DRAW_SHAPE_NAME -DUSE_PARALLEL_DRAWLIST
+fast: CXXFLAGS += -O3
 
 fast: $(EXE)
 	@echo Fast build complete for $(ECHO_MESSAGE)
@@ -179,3 +184,11 @@ windows_fast: $(OBJS)
 clean:
 	rm -rf build
 	rm -f $(EXE)
+
+# Header-dependency tracking: -MMD -MP (in CXXFLAGS) emits a .d per .o listing the
+# headers it includes, so editing a header rebuilds every .o that uses it. Without
+# this, changing a struct in a header leaves stale .o files with a mismatched
+# layout (ABI skew) — a silent crash waiting to happen.
+# NOTE: this -include must stay at the very end, AFTER `all:` — otherwise the first
+# included .d's target would hijack the default goal.
+-include $(OBJS:.o=.d)

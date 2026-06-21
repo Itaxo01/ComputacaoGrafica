@@ -14,6 +14,13 @@ void GuiController::run(){
         log.AddLog("Switched to %s mode\n", AppConfig::is3d ? "3D" : "2D");
     }
 
+    if (AppConfig::perspective != prev_perspective) {
+        prev_perspective = AppConfig::perspective;
+        // Rebuild the NCS matrix now; the render cache invalidates itself via
+        // WindowAttributes (which tracks AppConfig::perspective).
+        window.OnPerspectiveChanged();
+    }
+
     HandleCanvasInteractions();
 }
 
@@ -36,12 +43,26 @@ void GuiController::HandleRightDragging(){
 
 void GuiController::HandleScroll(){
     float scroll = ImGui::GetIO().MouseWheel;
-    if (scroll != 0.0f) {
-        ImVec2 mouse_pos = ImGui::GetMousePos();
-        std::string mode = scroll > 0.0f ? "in" : scroll < 0.0f ? "out" : "";
-        log.AddLog("Canvas zoomed {%s}. scroll = {%.1f} at position ({%.1f}, {%.1f})\n", mode.c_str(), scroll, mouse_pos.x, mouse_pos.y);
-        float zoom_factor = scroll > 0.0f ? 0.9f : 1.1f;
-        window.zoom(zoom_factor, mouse_pos);
+    if (scroll == 0.0f) return;
+
+    ImVec2 mouse_pos = ImGui::GetMousePos();
+
+    // Shift + scroll in 3D perspective moves the Centre of Projection
+    // (focal distance) → wide-angle / telephoto distortion.
+    // Plain scroll always zooms the view (works in perspective too).
+    if (AppConfig::is3d && AppConfig::perspective && ImGui::GetIO().KeyShift) {
+        // Larger step than zoom: the default focal distance is large, so a
+        // gentle factor would need many scrolls to reach a visible distortion.
+        float factor = scroll > 0.0f ? 0.8f : 1.25f;
+        window.adjustPerspective(factor);
+        log.AddLog("Perspective COP %s (%s)\n",
+                   scroll > 0.0f ? "moved back" : "moved closer",
+                   scroll > 0.0f ? "telephoto" : "wide angle");
+    } else {
+        float factor = scroll > 0.0f ? 0.9f : 1.1f;
+        window.zoom(factor, mouse_pos);
+        log.AddLog("Canvas zoomed {%s}. scroll = {%.1f} at position ({%.1f}, {%.1f})\n",
+                   scroll > 0.0f ? "in" : "out", scroll, mouse_pos.x, mouse_pos.y);
     }
 }
 
@@ -116,12 +137,15 @@ void GuiController::HandleCanvasInteractions(){
         creator.CancelCreation();
 
     if(is_hovered){
-        // Double-click closes wireframe/polygon without adding an extra vertex.
-        // Check before single-click so the else-if suppresses the regular click.
-        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            creator.CloseShape();
-        } else if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)){
-            HandleLeftClick();
+        // Click-to-add is 2D only; in 3D objects are created via text creation.
+        if (!AppConfig::is3d) {
+            // Double-click closes wireframe/polygon without adding an extra vertex.
+            // Check before single-click so the else-if suppresses the regular click.
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                creator.CloseShape();
+            } else if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)){
+                HandleLeftClick();
+            }
         }
 
         float scroll = ImGui::GetIO().MouseWheel;

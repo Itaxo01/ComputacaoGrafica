@@ -1,93 +1,60 @@
-/*
-    DisplayFile que guardará a lista de objetos do src/core a serem renderizados
-*/
 #ifndef DISPLAYFILE_H
 #define DISPLAYFILE_H
 
 #include <vector>
-
-#include "Point.hpp"
-#include "Line.hpp"
-#include "Polygon.hpp"
-#include "Wireframe.hpp"
-#include "Curve2D.hpp"
 #include <unordered_map>
-#include "Shape.hpp"
+#include <memory>
+#include <string>
+#include "Object.hpp"
+#include "ObjectMetadatas/Metadata.hpp"
 
-template <typename T>
-inline void erase_id(std::vector<T>&v, size_t i){
-    v.erase(v.begin()+i);
-}
-
-struct ManifestEntry {
-    long long id;
-    long long fake_id; // fake id não contém o id de identificador do tipo do objeto
-    core::ShapeType type;
-    std::string name;
-    ManifestEntry(long long id, core::ShapeType type, std::string name): id(id), type(type), name(name) {
-        fake_id = id/10;
-    }
-};
-
-/* Current geometric primitives:
-    Line
-    Point
-    Wireframe
-*/
-
-class DisplayFile{
+class DisplayFile {
 private:
-    std::vector<core::Point> pointList;
-    std::vector<core::Line> lineList;
-    std::vector<core::Wireframe> wireframeList;
-    std::vector<core::Polygon> polygonList;
-    std::vector<core::Curve2D> Curve2DList;
+    std::vector<core::Object> objects;
+    std::unordered_map<long long, int> hash_id;              // id → index in objects
+    std::unordered_map<long long, std::unique_ptr<Metadata>> metadata;
 
-    std::vector<ManifestEntry> manifest; // Essa é a lista que a interface irá conhecer. 
-
-    /*
-        hash_id: a partir de um id, guarda a posição do elemento no manifest e na lista do seu tipo.
-        pair.first() = ListId, pair.second() = manifestId.
-    */ 
-    std::unordered_map<long long, std::pair<int, int>> hash_id; 
-
-    // Preview state: in-progress object being created by the user
+    // Preview state
     std::vector<std::tuple<float, float, float>> preview_points;
-    core::ShapeType preview_mode = core::ShapeType::NONE;
-    int preview_method = 0; // for Curve2D: 0=Bezier, 1=B-Spline
+    core::ObjectType preview_mode = core::ObjectType::NONE;
+    int preview_method = 0;
 
 public:
-    unsigned long object_count = 0;
-    void add(core::Shape &k, const std::string &name, const long long id);
-    void remove(const long long id);
+    void add(core::Object obj);
+    void remove(long long id);
+    void clear();
 
-    void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts, core::ShapeType mode, int method = 0) {
+    const std::vector<core::Object>& getObjects() const { return objects; }
+    core::Object& getObject(long long id) { return objects[hash_id.at(id)]; }
+    const core::Object& getObject(long long id) const { return objects[hash_id.at(id)]; }
+
+    template<typename T>
+    T* getMetadata(long long id) {
+        auto it = metadata.find(id);
+        return it != metadata.end() ? static_cast<T*>(it->second.get()) : nullptr;
+    }
+    template<typename T>
+    const T* getMetadata(long long id) const {
+        auto it = metadata.find(id);
+        return it != metadata.end() ? static_cast<const T*>(it->second.get()) : nullptr;
+    }
+    void setMetadata(long long id, std::unique_ptr<Metadata> meta) {
+        metadata[id] = std::move(meta);
+    }
+
+    const std::unordered_map<long long, int>& getHashID() const { return hash_id; }
+
+    void setPreviewState(const std::vector<std::tuple<float, float, float>>& pts,
+                         core::ObjectType mode, int method = 0) {
         preview_points = pts;
         preview_mode   = mode;
         preview_method = method;
     }
     const std::vector<std::tuple<float, float, float>>& getPreviewPoints() const { return preview_points; }
-    core::ShapeType getPreviewMode() const { return preview_mode; }
-    int getPreviewMethod() const { return preview_method; }
-    /* Não desenhamos essas, apenas armazenamos os valores */
-    const std::vector<core::Point>& getPointList() const {return pointList;}
-    const std::vector<core::Line>& getLineList() const {return lineList;}
-    const std::vector<core::Wireframe>& getWireframeList() const {return wireframeList;}
-    const std::vector<core::Polygon>& getPolygonList() const {return polygonList;}
-    const std::vector<core::Curve2D>& getCurve2DList() const {return Curve2DList;}
-    const std::vector<ManifestEntry>& getManifest() const {return manifest;}
-    core::Shape &getShape(long long real_id);
+    core::ObjectType getPreviewMode()   const { return preview_mode; }
+    int             getPreviewMethod() const { return preview_method; }
 
-    const core::Point &getPoint(long long id) const {return pointList[id];}
-    const core::Line &getLine(long long id) const {return lineList[id];}
-    const core::Wireframe &getWireframe(long long id) const {return wireframeList[id];}
-    const core::Polygon &getPolygon(long long id) const {return polygonList[id];}
-    const core::Curve2D &getCurve2D(long long id) const {return Curve2DList[id];}
-
-    const std::unordered_map<long long, std::pair<int, int>>& getHashID() const {return hash_id;}
-
-    DisplayFile(){}
+    DisplayFile() {}
 };
-
 
 #endif // DISPLAYFILE_H

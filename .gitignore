@@ -6,6 +6,10 @@ imgui.ini
 ./.cache/
 .cache
 .cache/* 
+*.mtl
+*.obj
+!models/*.mtl
+!models/*.obj
 # EUVO FICA MALUCO COM ESSE CACHE 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites
@@ -15,7 +19,6 @@ imgui.ini
 *.slo
 *.lo
 *.o
-*.obj
 
 # Precompiled Headers
 *.gch

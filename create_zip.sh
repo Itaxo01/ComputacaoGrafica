@@ -20,6 +20,8 @@ cp build/windows/programa_compilado_windows64.zip ./programa_compilado_windows64
 
 echo "Zipping project files into $ZIP_FILENAME..."
 zip -r "$ZIP_FILENAME" Makefile README.md LICENSE src/ libs/ imgui/ programa_compilado_windows64.zip
+zip -r "$ZIP_FILENAME" models/
+
 
 echo "Cleaning up temporary files..."
 rm ./programa_compilado_windows64.zip
