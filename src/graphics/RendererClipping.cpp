@@ -74,22 +74,30 @@ bool ClipLine(core::Line& line, const core::Point& wp0, const core::Point& wp1) 
     return ClipSegmentLiangBarsky(line.a, line.b, wp0, wp1);
 }
 
-// ── Sutherland-Hodgman polygon clipping ───────────────────────────────────────
+// ── Sutherland-Hodgman polygon clipping (attribute-aware) ─────────────────────
 
-static bool SHClipping(std::vector<core::Point>& poly,
+// A polygon vertex that carries the shading attributes alongside the clip-space
+// position, so they get interpolated at every clip intersection (keeping them
+// index-aligned with the geometry after clipping). When shading is off, world/
+// normal are just unused zeros riding along.
+struct ClipVert {
+    core::Point pos;     // NCS position (x/y clipped against the window; z carried)
+    core::Point world;   // world-space position (Phong)
+    core::Point normal;  // world-space normal (Phong)
+};
+
+static inline ClipVert lerpCV(const ClipVert& a, const ClipVert& b, float t) {
+    return { a.pos    + (b.pos    - a.pos)    * t,
+             a.world  + (b.world  - a.world)  * t,
+             a.normal + (b.normal - a.normal) * t };
+}
+
+static bool SHClipping(std::vector<ClipVert>& poly,
                         const core::Point& wp0, const core::Point& wp1) {
     for (int edge = 0; edge < 4; ++edge) {
-        std::vector<core::Point> input = std::move(poly);
-        poly = {};
+        std::vector<ClipVert> input = std::move(poly);
+        poly.clear();
         if (input.empty()) break;
-
-        core::Point A, B;
-        switch (edge) {
-            case 0: A = {wp0.x, wp0.y}; B = {wp0.x, wp1.y}; break;
-            case 1: A = {wp1.x, wp0.y}; B = {wp1.x, wp1.y}; break;
-            case 2: A = {wp0.x, wp0.y}; B = {wp1.x, wp0.y}; break;
-            case 3: A = {wp0.x, wp1.y}; B = {wp1.x, wp1.y}; break;
-        }
 
         auto inside = [&](const core::Point& p) -> bool {
             switch (edge) {
@@ -100,26 +108,27 @@ static bool SHClipping(std::vector<core::Point>& poly,
             }
             return false;
         };
+        // Parametric crossing of prev→cur with the (axis-aligned) window edge. The
+        // crossing condition (one endpoint inside, one outside) guarantees a nonzero
+        // denominator on the relevant axis. Interpolates pos/world/normal together.
+        auto intersect = [&](const ClipVert& prev, const ClipVert& cur) -> ClipVert {
+            float t;
+            switch (edge) {
+                case 0: t = (wp0.x - prev.pos.x) / (cur.pos.x - prev.pos.x); break;
+                case 1: t = (wp1.x - prev.pos.x) / (cur.pos.x - prev.pos.x); break;
+                case 2: t = (wp0.y - prev.pos.y) / (cur.pos.y - prev.pos.y); break;
+                default:t = (wp1.y - prev.pos.y) / (cur.pos.y - prev.pos.y); break;
+            }
+            return lerpCV(prev, cur, t);
+        };
 
         for (size_t i = 0; i < input.size(); ++i) {
-            const core::Point& cur  = input[i];
-            const core::Point& prev = input[(i + input.size() - 1) % input.size()];
-            bool ci = inside(cur), pi = inside(prev);
-            float denom = (B.x-A.x)*(prev.y-cur.y) - (B.y-A.y)*(prev.x-cur.x);
-            if (ci && !pi) {
-                if (std::abs(denom) > 1e-9f) {
-                    float t = ((A.x-prev.x)*(B.y-A.y) - (A.y-prev.y)*(B.x-A.x)) / denom;
-                    poly.push_back({prev.x + t*(cur.x-prev.x), prev.y + t*(cur.y-prev.y)});
-                }
-                poly.push_back(cur);
-            } else if (ci) {
-                poly.push_back(cur);
-            } else if (pi) {
-                if (std::abs(denom) > 1e-9f) {
-                    float t = ((A.x-prev.x)*(B.y-A.y) - (A.y-prev.y)*(B.x-A.x)) / denom;
-                    poly.push_back({prev.x + t*(cur.x-prev.x), prev.y + t*(cur.y-prev.y)});
-                }
-            }
+            const ClipVert& cur  = input[i];
+            const ClipVert& prev = input[(i + input.size() - 1) % input.size()];
+            bool ci = inside(cur.pos), pi = inside(prev.pos);
+            if (ci && !pi)      { poly.push_back(intersect(prev, cur)); poly.push_back(cur); }
+            else if (ci)        { poly.push_back(cur); }
+            else if (pi)        { poly.push_back(intersect(prev, cur)); }
         }
     }
     return !poly.empty();
@@ -152,7 +161,8 @@ void ClipNearPlane(std::vector<RenderedObject>& objs, float near_z) {
             return;
         }
 
-        std::vector<core::Point> new_verts;
+        const bool shaded = !obj.mesh.world_vertices.empty();
+        std::vector<core::Point> new_verts, new_world, new_normal;
         std::vector<std::pair<uint32_t,uint32_t>> new_lines;
         for (auto& [i, j] : obj.mesh.line_indices) {
             core::Point a = obj.mesh.vertices[i];
@@ -161,11 +171,16 @@ void ClipNearPlane(std::vector<RenderedObject>& objs, float near_z) {
                 uint32_t na = (uint32_t)new_verts.size(); new_verts.push_back(a);
                 uint32_t nb = (uint32_t)new_verts.size(); new_verts.push_back(b);
                 new_lines.push_back({na, nb});
+                if (shaded) { // lines aren't shaded — placeholders keep arrays aligned
+                    new_world.push_back(core::Point()); new_world.push_back(core::Point());
+                    new_normal.push_back(core::Point()); new_normal.push_back(core::Point());
+                }
             }
         }
 
         // Filled triangles: conservative — keep only those fully in front of the
-        // near plane (rare in wireframe scenes; avoids re-triangulating here).
+        // near plane (rare in wireframe scenes; avoids re-triangulating here). Kept
+        // whole, so shading attributes are copied (no interpolation needed).
         std::vector<std::tuple<uint32_t,uint32_t,uint32_t>> new_tris;
         for (auto& [ti, tj, tk] : obj.mesh.tri_indices) {
             const core::Point& A = obj.mesh.vertices[ti];
@@ -177,12 +192,24 @@ void ClipNearPlane(std::vector<RenderedObject>& objs, float near_z) {
                 new_verts.push_back(B);
                 new_verts.push_back(C);
                 new_tris.emplace_back(base, base + 1, base + 2);
+                if (shaded) {
+                    new_world.push_back(obj.mesh.world_vertices[ti]);
+                    new_world.push_back(obj.mesh.world_vertices[tj]);
+                    new_world.push_back(obj.mesh.world_vertices[tk]);
+                    new_normal.push_back(obj.mesh.world_normals[ti]);
+                    new_normal.push_back(obj.mesh.world_normals[tj]);
+                    new_normal.push_back(obj.mesh.world_normals[tk]);
+                }
             }
         }
 
         obj.mesh.vertices     = std::move(new_verts);
         obj.mesh.line_indices = std::move(new_lines);
         obj.mesh.tri_indices  = std::move(new_tris);
+        if (shaded) {
+            obj.mesh.world_vertices = std::move(new_world);
+            obj.mesh.world_normals  = std::move(new_normal);
+        }
     });
 }
 
@@ -193,7 +220,13 @@ void ClipObjects(std::vector<RenderedObject>& objs,
         if ((obj.type == core::ObjectType::POLYGON || obj.type == core::ObjectType::MESH) && obj.filled) {
             auto orig_verts   = obj.mesh.vertices;
             auto orig_tri_idx = std::move(obj.mesh.tri_indices);
+            // Shading attributes ride through the clip (interpolated by SHClipping).
+            const bool shaded = !obj.mesh.world_vertices.empty();
+            auto orig_world   = obj.mesh.world_vertices;
+            auto orig_normal  = obj.mesh.world_normals;
 
+            // Wireframe edges (Liang-Barsky). These verts come first in the array;
+            // shading only reads tri-vertex indices, so they get attribute placeholders.
             {
                 std::vector<core::Point> new_verts;
                 std::vector<std::pair<uint32_t,uint32_t>> new_lines;
@@ -209,26 +242,43 @@ void ClipObjects(std::vector<RenderedObject>& objs,
                 obj.mesh.vertices     = new_verts;
                 obj.mesh.line_indices = new_lines;
             }
+            const size_t line_count = obj.mesh.vertices.size();
 
             std::vector<std::tuple<uint32_t,uint32_t,uint32_t>> new_tris;
-            std::vector<core::Point> tri_verts;
+            std::vector<core::Point> tri_verts, tri_world, tri_normal;
 
             for (auto& [ti, tj, tk] : orig_tri_idx) {
-                std::vector<core::Point> poly = {orig_verts[ti], orig_verts[tj], orig_verts[tk]};
+                std::vector<ClipVert> poly = {
+                    { orig_verts[ti], shaded ? orig_world[ti] : core::Point(), shaded ? orig_normal[ti] : core::Point() },
+                    { orig_verts[tj], shaded ? orig_world[tj] : core::Point(), shaded ? orig_normal[tj] : core::Point() },
+                    { orig_verts[tk], shaded ? orig_world[tk] : core::Point(), shaded ? orig_normal[tk] : core::Point() },
+                };
                 if (!SHClipping(poly, wp0, wp1) || poly.size() < 3) continue;
 
                 std::vector<ImVec2> imverts;
-                for (const auto& p : poly) imverts.push_back(ImVec2(p.x, p.y));
+                for (const auto& p : poly) imverts.push_back(ImVec2(p.pos.x, p.pos.y));
                 auto tris = core::triangulate(imverts);
 
-                uint32_t base = (uint32_t)(obj.mesh.vertices.size() + tri_verts.size());
-                for (const auto& p : poly) tri_verts.push_back(p);
+                uint32_t base = (uint32_t)(line_count + tri_verts.size());
+                for (const auto& p : poly) {
+                    tri_verts.push_back(p.pos);
+                    if (shaded) { tri_world.push_back(p.world); tri_normal.push_back(p.normal); }
+                }
                 for (int k = 0; k + 2 < (int)tris.size(); k += 3)
                     new_tris.emplace_back(base + tris[k], base + tris[k+1], base + tris[k+2]);
             }
 
             obj.mesh.vertices.insert(obj.mesh.vertices.end(), tri_verts.begin(), tri_verts.end());
             obj.mesh.tri_indices = std::move(new_tris);
+
+            if (shaded) {
+                // Rebuild attribute arrays aligned with the final vertex array:
+                // [placeholders for line verts] ++ [interpolated tri verts].
+                obj.mesh.world_vertices.assign(line_count, core::Point());
+                obj.mesh.world_normals.assign(line_count, core::Point());
+                obj.mesh.world_vertices.insert(obj.mesh.world_vertices.end(), tri_world.begin(), tri_world.end());
+                obj.mesh.world_normals.insert(obj.mesh.world_normals.end(), tri_normal.begin(), tri_normal.end());
+            }
 
         } else if (obj.type == core::ObjectType::POINT) {
             if (!obj.mesh.vertices.empty()) {

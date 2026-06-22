@@ -10,6 +10,7 @@
 #include "imgui.h"
 #include <cmath>
 #include <limits>
+#include <cstdio>
 
 void Renderer::draw_name_if_visible(const std::string& name, const core::Point& anchor) {
     core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
@@ -134,7 +135,7 @@ void Renderer::RasterizeFramebuffer() {
 
         for (const auto& t : sortedTris)
             DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.za, t.zb, t.zc,
-                               t.color, zt, less, y_lo, y_hi);
+                               t.P, t.N, t.mat, t.color, shadeCtx, zt, less, y_lo, y_hi);
 
         for (const auto& obj : drawObjects)
             DrawObject(obj, y_lo, y_hi);
@@ -145,6 +146,22 @@ void Renderer::render() {
     draw_list = viewport.GetDrawList();
     RenderBackground();
     GenerateDrawList();
+
+    // Build per-frame shading inputs. These are read live (not cached), so moving a
+    // light or orbiting updates the lighting immediately without a geometry rebuild.
+    effectiveLights.clear();
+    for (const auto& L : Lighting::lights) effectiveLights.push_back(L);
+    if (Lighting::headlight) {
+        core::Light hl;
+        hl.position  = window.GetEyeWorld();
+        hl.color     = Lighting::headlight_color;
+        hl.intensity = Lighting::headlight_intensity;
+        effectiveLights.push_back(hl);
+    }
+    shadeCtx.mode    = Lighting::mode;
+    shadeCtx.eye     = window.GetEyeWorld();
+    shadeCtx.ambient = Lighting::ambient;
+    shadeCtx.lights  = &effectiveLights;
 
     // Rasterize the scene into the CPU framebuffer, then blit it over the grid.
     ImVec2 sz = viewport.GetCanvasSize();
@@ -160,6 +177,15 @@ void Renderer::render() {
     }
 
     DrawPreview();
+
+    // Viewport resolution readout (bottom-left), drawn on top of the scene like the
+    // other overlays so the framebuffer blit doesn't cover it.
+    char res[64];
+    std::snprintf(res, sizeof(res), "%d x %d px  (SSAA x%d)",
+                  (int)(sz.x + 0.5f), (int)(sz.y + 0.5f), AppConfig::supersample);
+    ImVec2 res_sz = ImGui::CalcTextSize(res);
+    draw_list->AddText(ImVec2(canvas_p.first.x + 6.0f, canvas_p.second.y - res_sz.y - 6.0f),
+                       IM_COL32(210, 210, 210, 220), res);
 }
 
 void Renderer::notifyTransformation() {

@@ -1,5 +1,52 @@
 #include "Viewport.hpp"
 #include "AppConfig.hpp"
+#include "Lighting.hpp"
+
+// Lighting / shading controls. Standalone ImGui window so the multi-light editor
+// has room; the globals live in Lighting:: (read live by the renderer each frame).
+static void DrawLightingWindow() {
+    // Left column of the bottom row, mirroring the Log window to its right.
+    const ImGuiViewport* mv = ImGui::GetMainViewport();
+    ImVec2 monitor_pos = mv->Pos, monitor_size = mv->Size;
+    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (900.0f / 1700.0f), monitor_pos.y + monitor_size.y * (611.0f / 940.0f)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (360.0f / 1700.0f), monitor_size.y * (227.0f / 940.0f)), ImGuiCond_FirstUseEver);
+
+    ImGui::Begin("Lighting");
+
+    const char* modes[] = { "None", "Flat", "Gouraud", "Phong" };
+    ImGui::Combo("Shading Model", &Lighting::mode, modes, IM_ARRAYSIZE(modes));
+    if (!AppConfig::is3d)
+        ImGui::TextDisabled("(shading is intended for 3D mode)");
+    ImGui::ColorEdit3("Ambient", &Lighting::ambient.r);
+
+    ImGui::Separator();
+    ImGui::Checkbox("Headlight", &Lighting::headlight);
+    if (Lighting::headlight) {
+        ImGui::ColorEdit3("Headlight color", &Lighting::headlight_color.r, ImGuiColorEditFlags_NoInputs);
+        ImGui::DragFloat("Headlight intensity", &Lighting::headlight_intensity, 0.01f, 0.0f, 10.0f);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Point lights (%d)", (int)Lighting::lights.size());
+    if (ImGui::Button("Add light")) Lighting::lights.push_back(core::Light{});
+
+    int to_remove = -1;
+    for (int i = 0; i < (int)Lighting::lights.size(); ++i) {
+        ImGui::PushID(i);
+        core::Light& L = Lighting::lights[i];
+        ImGui::Checkbox("##en", &L.enabled); ImGui::SameLine();
+        ImGui::SetNextItemWidth(180);
+        ImGui::DragFloat3("pos", &L.position.x, 0.1f); ImGui::SameLine();
+        ImGui::ColorEdit3("##col", &L.color.r, ImGuiColorEditFlags_NoInputs); ImGui::SameLine();
+        ImGui::SetNextItemWidth(70);
+        ImGui::DragFloat("##int", &L.intensity, 0.01f, 0.0f, 10.0f); ImGui::SameLine();
+        if (ImGui::SmallButton("X")) to_remove = i;
+        ImGui::PopID();
+    }
+    if (to_remove >= 0) Lighting::lights.erase(Lighting::lights.begin() + to_remove);
+
+    ImGui::End();
+}
 
 void Viewport::DrawWindow() {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -58,7 +105,8 @@ void Viewport::DrawWindow() {
                 log.AddLog("Supersampling set to %dx\n", AppConfig::supersample);
             }
         ImGui::EndChild();
- 
+
     ImGui::End();
 
+    DrawLightingWindow();
 }

@@ -1,12 +1,15 @@
 #include "RendererTransform.hpp"
 #include "ParallelUtils.hpp"
 #include "AppConfig.hpp"
+#include "Lighting.hpp"
 #include <algorithm>
+#include <cmath>
 
 void TransformObjectAndDoNCS(std::vector<RenderedObject>& dest,
                               const std::vector<core::Object>& src,
                               const core::mat4& ncs_mat) {
     dest.resize(src.size());
+    const bool shading = Lighting::mode != Lighting::NONE;
     cg_parallel_for_each(dest.begin(), dest.end(), [&](RenderedObject& ro) {
         size_t i = &ro - dest.data();
         const core::Object& obj = src[i];
@@ -15,10 +18,48 @@ void TransformObjectAndDoNCS(std::vector<RenderedObject>& dest,
         ro.filled   = obj.material.filled;
         ro.mesh.line_indices = obj.mesh->line_indices;
         ro.mesh.tri_indices  = obj.mesh->tri_indices;
-        core::mat4 combined = ncs_mat * obj.transform;
-        ro.mesh.vertices.resize(obj.mesh->vertices.size());
-        for (size_t j = 0; j < obj.mesh->vertices.size(); ++j)
-            ro.mesh.vertices[j] = combined * obj.mesh->vertices[j];
+        const size_t nv = obj.mesh->vertices.size();
+        ro.mesh.vertices.resize(nv);
+
+        if (!shading) {
+            core::mat4 combined = ncs_mat * obj.transform;
+            for (size_t j = 0; j < nv; ++j)
+                ro.mesh.vertices[j] = combined * obj.mesh->vertices[j];
+            ro.mesh.world_vertices.clear();
+            ro.mesh.world_normals.clear();
+            return;
+        }
+
+        // Shading on: keep world-space positions (for lighting) separately from the
+        // NCS/VRC working positions. world = obj.transform * v; working = ncs * world.
+        ro.mesh.world_vertices.resize(nv);
+        for (size_t j = 0; j < nv; ++j) {
+            core::Point wv = obj.transform * obj.mesh->vertices[j];
+            ro.mesh.world_vertices[j] = wv;
+            ro.mesh.vertices[j] = ncs_mat * wv;
+        }
+
+        // Smooth world-space vertex normals: sum the (area-weighted) world face
+        // normals over shared vertices, then normalize. Cross of world-space edges
+        // is already the world normal, so no inverse-transpose matrix is needed.
+        auto& wn = ro.mesh.world_normals;
+        wn.assign(nv, core::Point(0.0f, 0.0f, 0.0f));
+        for (const auto& [ti, tj, tk] : ro.mesh.tri_indices) {
+            const core::Point& A = ro.mesh.world_vertices[ti];
+            const core::Point& B = ro.mesh.world_vertices[tj];
+            const core::Point& C = ro.mesh.world_vertices[tk];
+            core::Point fn = cross(B - A, C - A);
+            wn[ti] += fn; wn[tj] += fn; wn[tk] += fn;
+        }
+        for (auto& n : wn) {
+            float l = std::sqrt(dot(n, n));
+            if (l > 1e-12f) n /= l;
+        }
+
+        // Material subset. Many .mtl set Ka=0; fall back to Kd so ambient isn't black.
+        core::Color3 ka = obj.material.ambient;
+        if (ka.r == 0.0f && ka.g == 0.0f && ka.b == 0.0f) ka = obj.material.diffuse;
+        ro.shadeMat = { ka, obj.material.diffuse, obj.material.specular, obj.material.shininess };
     });
 }
 
@@ -50,6 +91,7 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
         // Only cull imported meshes; user-drawn filled polygons are single-sided
         // surfaces that must stay visible regardless of winding.
         const bool cullThis = cull && (o.type == core::ObjectType::MESH);
+        const bool shaded = !o.mesh.world_vertices.empty();
         for (const auto& [ti, tj, tk] : o.mesh.tri_indices) {
             const core::Point& A = o.mesh.vertices[ti];   // NCS space: z is depth
             const core::Point& B = o.mesh.vertices[tj];
@@ -65,11 +107,23 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
                 if (back) continue;
             }
 
-            out.push_back({ ImVec2(va.x * scale, va.y * scale),
-                            ImVec2(vb.x * scale, vb.y * scale),
-                            ImVec2(vc.x * scale, vc.y * scale),
-                            o.color, (A.z + B.z + C.z) / 3.0f,
-                            A.z, B.z, C.z });
+            SortedTri t;
+            t.a = ImVec2(va.x * scale, va.y * scale);
+            t.b = ImVec2(vb.x * scale, vb.y * scale);
+            t.c = ImVec2(vc.x * scale, vc.y * scale);
+            t.color = o.color;
+            t.depth = (A.z + B.z + C.z) / 3.0f;
+            t.za = A.z; t.zb = B.z; t.zc = C.z;
+            if (shaded) {
+                t.P[0] = o.mesh.world_vertices[ti];
+                t.P[1] = o.mesh.world_vertices[tj];
+                t.P[2] = o.mesh.world_vertices[tk];
+                t.N[0] = o.mesh.world_normals[ti];
+                t.N[1] = o.mesh.world_normals[tj];
+                t.N[2] = o.mesh.world_normals[tk];
+                t.mat = o.shadeMat;
+            }
+            out.push_back(t);
         }
     }
 

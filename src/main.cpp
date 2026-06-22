@@ -70,6 +70,11 @@ int main(int, char**) {
 
         // Nossas janelas rodam aqui!
         guiController.run();
+
+        // Ctrl+W closes the application.
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W))
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+
         renderer.render();
 
         // FPS Overlay

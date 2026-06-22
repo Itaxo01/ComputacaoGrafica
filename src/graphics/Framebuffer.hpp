@@ -59,6 +59,22 @@ public:
         return false;
     }
 
+    // Unchecked writes — NO bounds check. Only call from a loop whose iteration
+    // range is already clamped to the framebuffer (the triangle rasterizer clamps
+    // its bbox), so the per-pixel branch is removed from the hot fill path.
+    inline void SetPixelUnchecked(int x, int y, ImU32 color) {
+        pixels[(size_t)y * width + x] = color;
+    }
+    inline bool SetPixelDepthUnchecked(int x, int y, ImU32 color, float z, bool less) {
+        size_t i = (size_t)y * width + x;
+        if (less ? (z < depth[i]) : (z > depth[i])) {
+            depth[i] = z;
+            pixels[i] = color;
+            return true;
+        }
+        return false;
+    }
+
     // Read-only depth test (nearer-or-equal), without writing depth. Used by
     // wireframe lines / points so they are hidden behind solids but do not
     // pollute the depth buffer (and coplanar edges-on-their-own-surface still

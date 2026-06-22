@@ -9,6 +9,8 @@
 #include "Window.hpp"
 #include "RendererCache.hpp"
 #include "Framebuffer.hpp"
+#include "Lighting.hpp"
+#include "Shading.hpp"
 
 class Renderer {
 private:
@@ -23,6 +25,8 @@ private:
 
     std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
     std::vector<SortedTri>      sortedTris;  // all filled tris, depth-sorted for painter's
+    std::vector<core::Light>    effectiveLights; // user lights + headlight, rebuilt per frame
+    ShadingContext              shadeCtx;    // per-frame shading inputs for the rasterizer
 
     void RenderBackground();
     void DrawPreview();

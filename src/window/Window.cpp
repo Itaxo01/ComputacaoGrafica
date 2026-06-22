@@ -135,7 +135,15 @@ core::Point Window::ViewportToWindow(const ImVec2 &vp) const {
 
 void Window::zoom(const float zoom_factor, const ImVec2 &mouse_pos){
     if (AppConfig::is3d) {
+        // Anchored zoom, 3D analog of the 2D path below: keep the world point under
+        // the mouse (resolved onto the view plane) fixed on screen. ViewportToWindow
+        // works in both ortho and perspective, so shifting the camera VRP by the
+        // pre/post-zoom anchor difference re-anchors the view.
+        core::Point old_anchor = ViewportToWindow(mouse_pos);
         camera.zoom(zoom_factor);
+        UpdateNCSMatrix();
+        core::Point new_anchor = ViewportToWindow(mouse_pos);
+        camera.vrp += (old_anchor - new_anchor);
         UpdateNCSMatrix();
         return;
     }

@@ -9,7 +9,10 @@ static inline float edge(const ImVec2& a, const ImVec2& b, float px, float py) {
 }
 
 void DrawTriangleFilled(Framebuffer& fb, const ImVec2& a, const ImVec2& b,
-                        const ImVec2& c, float za, float zb, float zc, ImU32 color,
+                        const ImVec2& c, float za, float zb, float zc,
+                        const core::Point P[3], const core::Point N[3],
+                        const ShadeMaterial& mat, ImU32 flatColor,
+                        const ShadingContext& sctx,
                         bool depth_test, bool depth_less, int y_lo, int y_hi) {
     int minx = (int)std::floor(std::min({a.x, b.x, c.x}));
     int maxx = (int)std::ceil (std::max({a.x, b.x, c.x}));
@@ -29,6 +32,20 @@ void DrawTriangleFilled(Framebuffer& fb, const ImVec2& a, const ImVec2& b,
     // barycentric coordinates. Screen-space linear interp of post-divide z is exact.
     const float invArea = 1.0f / area;
 
+    // Per-triangle shading precompute (mode 0 = none, 1 = flat, 2 = gouraud, 3 = phong).
+    const int mode = sctx.mode;
+    ImU32 flatShaded = flatColor;
+    core::Color3 gc0, gc1, gc2; // Gouraud per-vertex colors
+    if (mode == 1) { // FLAT — one color from the face normal at the centroid
+        core::Point fn = cross(P[1] - P[0], P[2] - P[0]);
+        core::Point centroid = (P[0] + P[1] + P[2]) * (1.0f / 3.0f);
+        flatShaded = packColor(shadePhong(centroid, fn, mat, sctx));
+    } else if (mode == 2) { // GOURAUD — light the 3 vertices, interpolate color
+        gc0 = shadePhong(P[0], N[0], mat, sctx);
+        gc1 = shadePhong(P[1], N[1], mat, sctx);
+        gc2 = shadePhong(P[2], N[2], mat, sctx);
+    }
+
     for (int y = miny; y <= maxy; ++y) {
         float py = (float)y + 0.5f;
         for (int x = minx; x <= maxx; ++x) {
@@ -40,11 +57,30 @@ void DrawTriangleFilled(Framebuffer& fb, const ImVec2& a, const ImVec2& b,
             bool inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) ||
                           (w0 <= 0 && w1 <= 0 && w2 <= 0);
             if (!inside) continue;
+
+            ImU32 col;
+            if (mode == 0) {
+                col = flatColor;
+            } else if (mode == 1) {
+                col = flatShaded;
+            } else {
+                float l0 = w0 * invArea, l1 = w1 * invArea, l2 = w2 * invArea;
+                if (mode == 2) { // Gouraud: interpolate the vertex colors
+                    col = packColor({ l0*gc0.r + l1*gc1.r + l2*gc2.r,
+                                      l0*gc0.g + l1*gc1.g + l2*gc2.g,
+                                      l0*gc0.b + l1*gc1.b + l2*gc2.b });
+                } else {         // Phong: interpolate position + normal, light per pixel
+                    core::Point Pp = P[0]*l0 + P[1]*l1 + P[2]*l2;
+                    core::Point Np = N[0]*l0 + N[1]*l1 + N[2]*l2;
+                    col = packColor(shadePhong(Pp, Np, mat, sctx));
+                }
+            }
+
             if (depth_test) {
                 float z = (w0 * za + w1 * zb + w2 * zc) * invArea;
-                fb.SetPixelDepth(x, y, color, z, depth_less);
+                fb.SetPixelDepthUnchecked(x, y, col, z, depth_less);
             } else {
-                fb.SetPixel(x, y, color);
+                fb.SetPixelUnchecked(x, y, col);
             }
         }
     }
