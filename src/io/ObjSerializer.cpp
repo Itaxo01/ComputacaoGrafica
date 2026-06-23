@@ -181,10 +181,13 @@ namespace obj {
         std::unordered_map<std::string, int> matIndex;
         std::vector<std::vector<PendingFace>> matFaces;
 
-        // Free-form bicubic surface state (cstype/deg/surf/parm/end). Patches
-        // accumulate until the object changes (or EOF), forming one SURFACE object.
+        // Free-form bicubic surface state (cstype/deg/surf/parm/end). Each `surf`
+        // contributes one 16-vertex patch (its global 0-based control indices);
+        // patches accumulate until the object changes (or EOF), then collapse back
+        // into the single M×N control grid they were tiled from.
         int surf_method = -1;  // -1 none, else BEZIER / BSPLINE
-        std::vector<std::vector<core::Point>> surf_patches;
+        int surf_eval = SURF_FORWARD_DIFF;  // from our "# surface_eval" comment
+        std::vector<std::vector<int>> surf_index_lists;
 
         auto flushObject = [&]() {
             for (size_t b = 0; b < matFaces.size(); ++b) {
@@ -259,13 +262,38 @@ namespace obj {
         };
 
         auto flushSurface = [&]() {
-            if (surf_patches.empty()) return;
-            std::string nm = current_object.empty() ? "surface" : current_object;
-            int method = (surf_method == BSPLINE) ? BSPLINE : BEZIER;
-            core::SurfaceFactory sf(nm, surf_patches, method, 12, (ImU32)pending_color);
-            em.add(sf);
-            res.object_count++;
-            surf_patches.clear();
+            if (surf_index_lists.empty()) { surf_method = -1; return; }
+
+            // The patches tile one row-major M×N grid. Within a patch the control
+            // points run row-major too, so the 5th index (i=1,j=0) sits exactly
+            // `cols` ahead of the 1st (i=0,j=0); the grid then spans the full
+            // [min..max] index range. This recovers M and N for any column count.
+            int minIdx = INT_MAX, maxIdx = -1;
+            for (const auto& list : surf_index_lists)
+                for (int idx : list) { if (idx < minIdx) minIdx = idx; if (idx > maxIdx) maxIdx = idx; }
+
+            const auto& first = surf_index_lists[0];
+            int cols = (first.size() >= 5) ? (first[4] - first[0]) : 4;
+            int total = maxIdx - minIdx + 1;
+            int rows = (cols >= 1) ? total / cols : 0;
+
+            if (cols >= 4 && rows >= 4 && minIdx >= 0 && rows * cols == total &&
+                minIdx + rows * cols <= (int)positions.size()) {
+                std::vector<core::Point> grid;
+                grid.reserve(rows * cols);
+                for (int k = 0; k < rows * cols; ++k) grid.push_back(positions[minIdx + k]);
+
+                std::string nm = current_object.empty() ? "surface" : current_object;
+                int method = (surf_method == BSPLINE) ? BSPLINE : BEZIER;
+                core::SurfaceFactory sf(nm, rows, cols, grid, method, surf_eval, 12, (ImU32)pending_color);
+                em.add(sf);
+                res.object_count++;
+            } else {
+                res.warnings.push_back("skipped malformed bicubic surface (could not recover control grid)");
+            }
+            surf_index_lists.clear();
+            surf_method = -1;
+            surf_eval = SURF_FORWARD_DIFF;
         };
 
         auto bucketFor = [&](const std::string& m) -> std::vector<PendingFace>& {
@@ -306,6 +334,9 @@ namespace obj {
                     int v = 0; css >> v; pending_filled = (v != 0);
                 } else if (tag == "type") {
                     std::string t; css >> t; pending_curve = (t == "bezier_curve");
+                } else if (tag == "surface_eval") {
+                    std::string t; css >> t;
+                    surf_eval = (t == "blending") ? SURF_BLENDING : SURF_FORWARD_DIFF;
                 }
                 continue;
             }
@@ -353,17 +384,17 @@ namespace obj {
             } else if (type == "surf") {
                 // surf s0 s1 t0 t1  <control-vertex refs...>  → one 16-point patch.
                 float s0, s1, t0, t1; iss >> s0 >> s1 >> t0 >> t1;
-                std::vector<core::Point> patch;
+                std::vector<int> idxs;
                 std::string tok;
                 while (iss >> tok) {
                     core::FaceVertex fv = parseCorner(tok, (int)positions.size(),
                                                       (int)uvs.size(), (int)normals.size());
                     if (fv.v >= 0 && fv.v < (int)positions.size())
-                        patch.push_back(positions[fv.v]);
+                        idxs.push_back(fv.v);   // global 0-based control-vertex index
                 }
-                if (patch.size() >= 16) {
-                    patch.resize(16);
-                    surf_patches.push_back(std::move(patch));
+                if (idxs.size() >= 16) {
+                    idxs.resize(16);
+                    surf_index_lists.push_back(std::move(idxs));
                 }
             } else if (type == "p") {
                 importPoint(current_object, resolvePoints(iss), pending_color, em);
@@ -513,34 +544,43 @@ namespace obj {
         }
     }
 
-    // Emits a bicubic surface as standard OBJ free-form geometry: the control
-    // points as v statements, then one cstype/surf/parm/end block per patch.
+    // Emits a bicubic surface as standard OBJ free-form geometry: the M×N control
+    // grid as v statements (once), then one cstype/surf/parm/end block per patch,
+    // each referencing the shared control-vertex indices.
     static void exportSurface(std::ofstream& f, const core::Object& obj,
                               EntityManager& em, int& vi) {
         const SurfaceMetadata* meta = em.getSurfaceMetadata(obj.id);
-        if (!meta || meta->patches.empty()) return;
+        if (!meta || meta->rows < 4 || meta->cols < 4 ||
+            (int)meta->control_points.size() < meta->rows * meta->cols) return;
 
         int r, g, b, a;
         unpack_color(obj.material.color, r, g, b, a);
         f << "o " << obj.name << "\n";
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
+        f << "# surface_eval " << (meta->technique == SURF_BLENDING ? "blending" : "fwddiff") << "\n";
+
+        const int rows = meta->rows, cols = meta->cols;
+        const int base = vi;
+        for (const auto& p : meta->control_points) {
+            core::Point w = obj.transform * p;
+            f << "v " << w.x << " " << w.y << " " << w.z << "\n"; vi++;
+        }
 
         const char* cstype = (meta->method == BSPLINE) ? "bspline" : "bezier";
-        for (const auto& patch : meta->patches) {
-            if (patch.size() < 16) continue;
-            const int base = vi;
-            for (int i = 0; i < 16; ++i) {
-                core::Point w = obj.transform * patch[i];
-                f << "v " << w.x << " " << w.y << " " << w.z << "\n"; vi++;
+        const int step = (meta->method == BSPLINE) ? 1 : 3;
+        for (int pr = 0; pr + 3 < rows; pr += step) {
+            for (int pc = 0; pc + 3 < cols; pc += step) {
+                f << "cstype " << cstype << "\n";
+                f << "deg 3 3\n";
+                f << "surf 0.0 1.0 0.0 1.0";
+                for (int i = 0; i < 4; ++i)
+                    for (int j = 0; j < 4; ++j)
+                        f << " " << (base + (pr + i) * cols + (pc + j));
+                f << "\n";
+                f << "parm u 0.0 1.0\n";
+                f << "parm v 0.0 1.0\n";
+                f << "end\n";
             }
-            f << "cstype " << cstype << "\n";
-            f << "deg 3 3\n";
-            f << "surf 0.0 1.0 0.0 1.0";
-            for (int i = 0; i < 16; ++i) f << " " << (base + i);
-            f << "\n";
-            f << "parm u 0.0 1.0\n";
-            f << "parm v 0.0 1.0\n";
-            f << "end\n";
         }
     }
 

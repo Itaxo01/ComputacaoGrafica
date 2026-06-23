@@ -23,12 +23,7 @@ private:
     bool is_active = false;
 public:
     Viewport(ExampleAppLog &log): log(log) {};
-    
-    bool show_axes = true;
-    bool show_grid = true;
-    bool show_axis_coordinates = true;
-    int  clipping_mode = 0;
-    
+
     void DrawWindow();
     bool IsHovered() const {return is_hovered;}
     bool IsActive() const {return is_active;}
@@ -36,9 +31,6 @@ public:
     ImVec2 GetCanvasSize() {return canvas_sz;};
     std::pair<ImVec2, ImVec2> GetCanvasP() const {return std::make_pair(canvas_p0, canvas_p1);}
     ImDrawList* GetDrawList() {return draw_list;}
-
-    // 0 Liang Barsky, 1 South alguma coisa
-    int GetClippingMode() const {return clipping_mode;}
 };
 
 #endif // VIEWPORT_HPP

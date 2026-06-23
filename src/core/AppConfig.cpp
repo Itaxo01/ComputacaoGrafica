@@ -6,6 +6,11 @@ namespace AppConfig {
     bool render_names = false;
     bool show_bounding_box = false;
 
+    bool show_axes = false;
+    bool show_grid = false;
+    bool show_axis_coordinates = false;
+    int  clipping_mode = 0; // 0 = Liang-Barsky, 1 = Cohen-Sutherland
+
     bool backface_cull   = true;
     bool cull_ccw        = true;
     bool depth_sort      = true;

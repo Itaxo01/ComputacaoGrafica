@@ -10,6 +10,12 @@ namespace AppConfig {
     extern bool use_object_color;
     extern bool show_bounding_box;
 
+    // Viewport background helpers (axes/grid overlay) and the clipping algorithm.
+    extern bool show_axes;
+    extern bool show_grid;
+    extern bool show_axis_coordinates;
+    extern int  clipping_mode; // 0 = Liang-Barsky, 1 = Cohen-Sutherland
+
     // Solid-mesh rendering (imported OBJ meshes). Toggleable at runtime because the
     // correct winding/depth sign depends on the model and can't be known up front.
     extern bool backface_cull;   // skip triangles facing away from the camera

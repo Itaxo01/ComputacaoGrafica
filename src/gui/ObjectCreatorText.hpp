@@ -28,6 +28,12 @@ class ObjectCreatorText {
     std::string parse_error;
     bool        parse_ok = false;
 
+    // Surface grid shape, derived from ';'-separated rows during parse. cols is the
+    // length of each row (all rows must match for a valid M×N control grid).
+    int  grid_rows = 0;
+    int  grid_cols = 0;
+    bool grid_uniform = false;
+
     ExampleAppLog &log;
 
     void        reparse();
@@ -45,12 +51,17 @@ public:
     void Open(core::ObjectType initial_mode, int initial_method = 0,
               bool initial_filled = false, bool initial_3d = false);
 
-    // Pre-fill the buffer from existing points, then open.
+    // Pre-fill the buffer from existing points, then open. For surfaces, pass the
+    // control-grid column count so rows are re-emitted with ';' separators (lets
+    // the M×N grid round-trip through editing); 0 keeps one point per line.
     void OpenForEdit(core::ObjectType mode, int method, bool filled,
-                     const std::vector<std::tuple<float, float, float>> &pts);
+                     const std::vector<std::tuple<float, float, float>> &pts,
+                     int grid_cols = 0);
 
     // Call every frame inside the parent window. Returns true once on Confirm.
-    // On confirm, out_* carry the (possibly changed) mode back to the caller.
+    // On confirm, out_* carry the (possibly changed) mode back to the caller;
+    // out_rows/out_cols carry the surface control-grid shape (0 for non-surfaces).
     bool DrawModal(std::vector<std::tuple<float, float, float>> &out_points,
-                   core::ObjectType &out_mode, int &out_method, bool &out_filled);
+                   core::ObjectType &out_mode, int &out_method, bool &out_filled,
+                   int &out_rows, int &out_cols);
 };

@@ -9,21 +9,31 @@ void ObjectCreatorText::reparse() {
     parsed.clear();
     parse_ok = false;
     parse_error.clear();
+    grid_rows = 0;
+    grid_cols = 0;
+    grid_uniform = false;
 
     const char* p = buffer;
 
     auto skipws = [&]() {
         while (*p && std::isspace((unsigned char)*p)) ++p;
     };
-    // ';' separates surface matrix rows/patches; treat it like any other point
-    // separator so the flat point list can still be collected uniformly.
-    auto skip_sep = [&]() {
-        while (*p && (std::isspace((unsigned char)*p) || *p == ',' || *p == ';')) ++p;
+    // ';' separates surface control-grid rows. Returns whether a ';' was consumed
+    // so the parser can track row boundaries while still collecting a flat list.
+    auto skip_sep = [&]() -> bool {
+        bool row_break = false;
+        while (*p && (std::isspace((unsigned char)*p) || *p == ',' || *p == ';')) {
+            if (*p == ';') row_break = true;
+            ++p;
+        }
+        return row_break;
     };
 
     skip_sep();
     if (*p == '\0') return;
 
+    std::vector<int> row_sizes;   // points collected per ';'-delimited row
+    int row_count = 0;
     int idx = 0;
     while (*p != '\0') {
         if (*p != '(') {
@@ -59,8 +69,17 @@ void ObjectCreatorText::reparse() {
 
         parsed.emplace_back(x, y, z);
         ++idx;
-        skip_sep();
+        ++row_count;
+        if (skip_sep() && row_count > 0) { row_sizes.push_back(row_count); row_count = 0; }
     }
+    if (row_count > 0) row_sizes.push_back(row_count);
+
+    // Derive the surface grid shape: rows = number of ';'-delimited rows, cols =
+    // their common length (uniform only if every row has the same point count).
+    grid_rows = (int)row_sizes.size();
+    grid_cols = row_sizes.empty() ? 0 : row_sizes[0];
+    grid_uniform = !row_sizes.empty();
+    for (int s : row_sizes) if (s != grid_cols) grid_uniform = false;
 
     if (!parsed.empty()) parse_ok = true;
 }
@@ -80,7 +99,12 @@ bool ObjectCreatorText::validate() const {
             if (method == 1) return n >= 4;
             return false;
         case core::ObjectType::SURFACE:
-            return n > 0 && n % 16 == 0; // k patches of 16 control points each
+            // An M×N control grid, rows split by ';', M and N both >= 4. Bezier
+            // (method 0) additionally needs composite dimensions ((M-1),(N-1) % 3).
+            if (!grid_uniform || grid_rows < 4 || grid_cols < 4) return false;
+            if (n != grid_rows * grid_cols) return false;
+            if (method == 0) return (grid_rows - 1) % 3 == 0 && (grid_cols - 1) % 3 == 0;
+            return true;
         default: return false;
     }
 }
@@ -101,7 +125,7 @@ const char* ObjectCreatorText::format_hint() const {
                 return "(P0),(C0),(C1),(P1),(C2),(C3),(P2), ...  — anchor,ctrl,ctrl,anchor,...";
             return "(P0),(P1),(P2),(P3), ...  — 4+ control points";
         case core::ObjectType::SURFACE:
-            return "(x11,y11,z11),(x12,y12,z12),...;(x21,...),...  — 16 points/patch, rows split by ';'";
+            return "(r1c1),(r1c2),...;(r2c1),...  — M×N control grid (M,N>=4), rows split by ';'";
         default:
             return "(x,y)  or  (x,y,z)";
     }
@@ -118,7 +142,11 @@ std::string ObjectCreatorText::validation_msg() const {
             if (method == 0) return "Bezier: needs 4,7,10... points — anchor,ctrl,ctrl,anchor (got " + std::to_string(n) + ")";
             return "B-Spline: needs at least 4 control points (got " + std::to_string(n) + ")";
         case core::ObjectType::SURFACE:
-            return "needs 16 control points per patch — k*16 total (got " + std::to_string(n) + ")";
+            if (!grid_uniform)
+                return "rows must all have the same length — separate them with ';' (got " + std::to_string(n) + " pts)";
+            if (method == 0)
+                return "Bezier: M×N grid, M,N in {4,7,10,...} (got " + std::to_string(grid_rows) + "x" + std::to_string(grid_cols) + ")";
+            return "B-Spline: M×N grid, M,N >= 4 (got " + std::to_string(grid_rows) + "x" + std::to_string(grid_cols) + ")";
         default: return "";
     }
 }
@@ -189,19 +217,26 @@ void ObjectCreatorText::Open(core::ObjectType initial_mode, int initial_method,
 
 void ObjectCreatorText::OpenForEdit(core::ObjectType initial_mode, int initial_method,
                                      bool initial_filled,
-                                     const std::vector<std::tuple<float, float, float>> &pts) {
+                                     const std::vector<std::tuple<float, float, float>> &pts,
+                                     int grid_cols_hint) {
     char tmp[BUF_SIZE]; tmp[0] = '\0';
     size_t off = 0;
     // One point per line: ImGui's multiline input doesn't wrap long lines, so we
-    // break each point onto its own line to keep large point lists readable.
+    // break each point onto its own line to keep large point lists readable. For a
+    // surface grid, end each row of `grid_cols_hint` points with ';' so the M×N
+    // shape is recovered on reparse.
+    int col = 0;
     for (const auto& [x, y, z] : pts) {
+        ++col;
+        bool row_end = (grid_cols_hint > 0) && (col % grid_cols_hint == 0);
+        const char* sep = row_end ? ";\n" : ",\n";
         int w;
-        if (z != 0.0f) w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g,%g),\n", x, y, z);
-        else           w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g),\n",     x, y);
+        if (z != 0.0f) w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g,%g)%s", x, y, z, sep);
+        else           w = snprintf(tmp + off, sizeof(tmp) - off, "(%g,%g)%s",     x, y, sep);
         if (w > 0 && off + (size_t)w < sizeof(tmp)) off += (size_t)w;
     }
-    // Strip the trailing separator (",\n").
-    while (off > 0 && (tmp[off - 1] == '\n' || tmp[off - 1] == ',' || tmp[off - 1] == ' '))
+    // Strip the trailing separator (",\n" / ";\n").
+    while (off > 0 && (tmp[off - 1] == '\n' || tmp[off - 1] == ',' || tmp[off - 1] == ';' || tmp[off - 1] == ' '))
         tmp[--off] = '\0';
     memcpy(buffer, tmp, sizeof(buffer));
     // Seed the 2D/3D selector so the object being edited is visible in it.
@@ -210,7 +245,8 @@ void ObjectCreatorText::OpenForEdit(core::ObjectType initial_mode, int initial_m
 }
 
 bool ObjectCreatorText::DrawModal(std::vector<std::tuple<float, float, float>> &out_points,
-                                   core::ObjectType &out_mode, int &out_method, bool &out_filled) {
+                                   core::ObjectType &out_mode, int &out_method, bool &out_filled,
+                                   int &out_rows, int &out_cols) {
     if (open_requested) {
         ImGui::OpenPopup(popup_title);
         open_requested = false;
@@ -268,6 +304,8 @@ bool ObjectCreatorText::DrawModal(std::vector<std::tuple<float, float, float>> &
         out_mode   = mode;
         out_method = method;
         out_filled = filled;
+        out_rows   = (mode == core::ObjectType::SURFACE) ? grid_rows : 0;
+        out_cols   = (mode == core::ObjectType::SURFACE) ? grid_cols : 0;
         confirmed  = true;
         buffer[0]  = '\0';
         parsed.clear();

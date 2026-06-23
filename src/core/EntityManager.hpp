@@ -45,6 +45,11 @@ public:
 
     core::Object& getObject(long long id) { return displayFile.getObject(id); }
 
+    // True if an object with this id currently exists. Use before getObject() to
+    // avoid the std::out_of_range from hash_id.at() on a deleted id (e.g. an
+    // animation still referencing an object the user just removed).
+    bool exists(long long id) const { return displayFile.getHashID().count(id) != 0; }
+
     const CurveMetadata* getCurveMetadata(long long id) const {
         return displayFile.getMetadata<CurveMetadata>(id);
     }
@@ -57,7 +62,8 @@ public:
     std::vector<std::tuple<float,float,float>> GetObjectRawPoints(long long id) const;
     void UpdateObjectPoints(long long id,
                             const std::vector<std::tuple<float,float,float>>& new_pts,
-                            core::ObjectType new_type, int new_method, bool new_filled);
+                            core::ObjectType new_type, int new_method, bool new_filled,
+                            int new_rows = 0, int new_cols = 0);
 
     void remove(long long id) {
         displayFile.remove(id);
@@ -75,6 +81,9 @@ public:
     }
 
     void ApplyTransformation(long long id, const core::mat4& matrix);
+    // Define a matriz de transformação absoluta do objeto (usado na animação,
+    // que recalcula a pose completa a cada frame em vez de acumular).
+    void SetTransformation(long long id, const core::mat4& matrix);
 
     std::vector<std::string> GetObjectNames() const {
         std::vector<std::string> names;

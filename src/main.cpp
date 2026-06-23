@@ -75,6 +75,9 @@ int main(int, char**) {
         if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W))
             glfwSetWindowShouldClose(window, GLFW_TRUE);
 
+        // Avança animações de transformação em curso (transições temporizadas).
+        objectController.Update(ImGui::GetIO().DeltaTime);
+
         renderer.render();
 
         // FPS Overlay

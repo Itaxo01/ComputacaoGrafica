@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "GuiLayout.hpp"
 #include <stdio.h>
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -56,14 +57,10 @@ struct ExampleAppLog
     {   
     #ifndef DISABLE_LOGS
 
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImVec2 monitor_pos = viewport->Pos;
-        ImVec2 monitor_size = viewport->Size;
-
-        // Proportional window configurations based on the app window/monitor size.
-        // Right column of a two-column bottom row: the Lighting window sits to its left.
-        ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (1270.0f / 1700.0f), monitor_pos.y + monitor_size.y * (611.0f / 940.0f)), ImGuiCond_FirstUseEver); // Log window position
-        ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (360.0f / 1700.0f), monitor_size.y * (227.0f / 940.0f)), ImGuiCond_FirstUseEver); // Log window size
+        // Right column of the two-column bottom row: the Lighting window sits to its left.
+        gui::layout::Rect r = gui::layout::Get(gui::layout::Region::Log);
+        ImGui::SetNextWindowPos(r.pos, gui::layout::Cond());
+        ImGui::SetNextWindowSize(r.size, gui::layout::Cond());
 
         if (!ImGui::Begin(title, p_open))
         {

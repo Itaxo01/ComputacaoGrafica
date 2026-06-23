@@ -93,7 +93,7 @@ void Renderer::ProcessPreClipping() {
 
 void Renderer::ApplyClipping() {
     auto [clip_min, clip_max] = window.getClipBoundsNCS();
-    ClipObjects(drawObjects, clip_min, clip_max, viewport.GetClippingMode());
+    ClipObjects(drawObjects, clip_min, clip_max, AppConfig::clipping_mode);
 }
 
 void Renderer::ApplyViewportTransform() {

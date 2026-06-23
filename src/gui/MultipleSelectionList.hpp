@@ -60,6 +60,11 @@ public:
         selected_indexes.clear();
         last_selected_index = -1;
     }
+    void selectAll() {
+        selected_indexes.clear();
+        for (int i = 0; i < size; ++i) selected_indexes.insert(i);
+        last_selected_index = size - 1;
+    }
 
     // Returns the index of the last plain left-clicked item, then resets to -1.
     int GetJustClicked() {

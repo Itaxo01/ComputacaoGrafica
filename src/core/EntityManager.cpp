@@ -6,14 +6,6 @@
 #include "ObjectFactories/Curve2DFactory.hpp"
 #include "ObjectFactories/SurfaceFactory.hpp"
 
-// Splits a flat control-point list into 16-point patches (row-major 4x4).
-static std::vector<std::vector<core::Point>> toPatches(const std::vector<core::Point>& flat) {
-    std::vector<std::vector<core::Point>> patches;
-    for (size_t i = 0; i + 16 <= flat.size(); i += 16)
-        patches.emplace_back(flat.begin() + i, flat.begin() + i + 16);
-    return patches;
-}
-
 static std::string colorStr(ImU32 col) {
     unsigned int uc = (unsigned int)col;
     int r = (uc >> 0)  & 0xFF;
@@ -63,13 +55,10 @@ core::ObjectDetails EntityManager::GetObjectDetails(long long id) const {
         const SurfaceMetadata* meta = displayFile.getMetadata<SurfaceMetadata>(id);
         if (meta) {
             std::string pts = "[";
-            bool first = true;
-            for (const auto& patch : meta->patches)
-                for (const auto& cp : patch) {
-                    if (!first) pts += "\n";
-                    pts += (obj.transform * cp).coords();
-                    first = false;
-                }
+            for (size_t i = 0; i < meta->control_points.size(); ++i) {
+                pts += (obj.transform * meta->control_points[i]).coords();
+                if (i + 1 < meta->control_points.size()) pts += "\n";
+            }
             pts += "]";
             d.points = pts;
             return d;
@@ -109,11 +98,10 @@ std::vector<std::tuple<float,float,float>> EntityManager::GetObjectRawPoints(lon
         const SurfaceMetadata* meta = displayFile.getMetadata<SurfaceMetadata>(id);
         if (meta) {
             std::vector<std::tuple<float,float,float>> result;
-            for (const auto& patch : meta->patches)
-                for (const auto& cp : patch) {
-                    core::Point w = obj.transform * cp;
-                    result.emplace_back(w.x, w.y, w.z);
-                }
+            for (const auto& cp : meta->control_points) {
+                core::Point w = obj.transform * cp;
+                result.emplace_back(w.x, w.y, w.z);
+            }
             return result;
         }
     }
@@ -122,7 +110,8 @@ std::vector<std::tuple<float,float,float>> EntityManager::GetObjectRawPoints(lon
 
 void EntityManager::UpdateObjectPoints(long long id,
                                         const std::vector<std::tuple<float,float,float>>& new_pts,
-                                        core::ObjectType new_type, int new_method, bool new_filled) {
+                                        core::ObjectType new_type, int new_method, bool new_filled,
+                                        int new_rows, int new_cols) {
     if (displayFile.getHashID().find(id) == displayFile.getHashID().end()) return;
 
     const core::Object& old = displayFile.getObject(id);
@@ -133,8 +122,9 @@ void EntityManager::UpdateObjectPoints(long long id,
     if (meta) smoothness = meta->smoothness;
 
     int surf_resolution = 12;
+    int surf_technique  = SURF_FORWARD_DIFF;
     const SurfaceMetadata* smeta = displayFile.getMetadata<SurfaceMetadata>(id);
-    if (smeta) surf_resolution = smeta->resolution;
+    if (smeta) { surf_resolution = smeta->resolution; surf_technique = smeta->technique; }
 
     displayFile.remove(id);
 
@@ -164,8 +154,11 @@ void EntityManager::UpdateObjectPoints(long long id,
             add(f); break;
         }
         case core::ObjectType::SURFACE: {
-            core::SurfaceFactory f(name, toPatches(pts), new_method, surf_resolution, color);
-            add(f); break;
+            if (new_rows >= 4 && new_cols >= 4 && (int)pts.size() >= new_rows * new_cols) {
+                core::SurfaceFactory f(name, new_rows, new_cols, pts, new_method, surf_technique, surf_resolution, color);
+                add(f);
+            }
+            break;
         }
         default: break;
     }
@@ -173,5 +166,10 @@ void EntityManager::UpdateObjectPoints(long long id,
 
 void EntityManager::ApplyTransformation(long long id, const core::mat4& matrix) {
     displayFile.getObject(id).ApplyTransformation(matrix);
+    renderer.notifyTransformation();
+}
+
+void EntityManager::SetTransformation(long long id, const core::mat4& matrix) {
+    displayFile.getObject(id).transform = matrix;
     renderer.notifyTransformation();
 }
