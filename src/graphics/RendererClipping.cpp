@@ -1,8 +1,8 @@
 #include "RendererClipping.hpp"
 #include "Triangulate.hpp"
 #include "ParallelUtils.hpp"
-#include <atomic>
 #include <vector>
+#include <cstdint>
 #include <cmath>
 
 // ── Region-code helpers (Cohen-Sutherland) ────────────────────────────────────
@@ -78,8 +78,8 @@ bool ClipLine(core::Line& line, const core::Point& wp0, const core::Point& wp1) 
 
 // A polygon vertex that carries the shading attributes alongside the clip-space
 // position, so they get interpolated at every clip intersection (keeping them
-// index-aligned with the geometry after clipping). When shading is off, world/
-// normal are just unused zeros riding along.
+// aligned with the geometry after clipping). When shading is off, world/normal are
+// just unused zeros riding along.
 struct ClipVert {
     core::Point pos;     // NCS position (x/y clipped against the window; z carried)
     core::Point world;   // world-space position (Phong)
@@ -153,157 +153,176 @@ static bool ClipSegmentNear(core::Point& a, core::Point& b, float near_z) {
     return true;
 }
 
-void ClipNearPlane(std::vector<RenderedObject>& objs, float near_z) {
-    cg_parallel_for_each(objs.begin(), objs.end(), [&](RenderedObject& obj) {
-        if (obj.type == core::ObjectType::POINT) {
-            if (!obj.mesh.vertices.empty() && obj.mesh.vertices[0].z < near_z)
-                obj.mesh.vertices.clear();
-            return;
-        }
+// ── Flat clip plumbing: bounded per-primitive output + prefix-sum compaction ──
 
-        const bool shaded = !obj.mesh.world_vertices.empty();
-        std::vector<core::Point> new_verts, new_world, new_normal;
-        std::vector<std::pair<uint32_t,uint32_t>> new_lines;
-        for (auto& [i, j] : obj.mesh.line_indices) {
-            core::Point a = obj.mesh.vertices[i];
-            core::Point b = obj.mesh.vertices[j];
-            if (ClipSegmentNear(a, b, near_z)) {
-                uint32_t na = (uint32_t)new_verts.size(); new_verts.push_back(a);
-                uint32_t nb = (uint32_t)new_verts.size(); new_verts.push_back(b);
-                new_lines.push_back({na, nb});
-                if (shaded) { // lines aren't shaded — placeholders keep arrays aligned
-                    new_world.push_back(core::Point()); new_world.push_back(core::Point());
-                    new_normal.push_back(core::Point()); new_normal.push_back(core::Point());
-                }
-            }
-        }
-
-        // Filled triangles: conservative — keep only those fully in front of the
-        // near plane (rare in wireframe scenes; avoids re-triangulating here). Kept
-        // whole, so shading attributes are copied (no interpolation needed).
-        std::vector<std::tuple<uint32_t,uint32_t,uint32_t>> new_tris;
-        for (auto& [ti, tj, tk] : obj.mesh.tri_indices) {
-            const core::Point& A = obj.mesh.vertices[ti];
-            const core::Point& B = obj.mesh.vertices[tj];
-            const core::Point& C = obj.mesh.vertices[tk];
-            if (A.z >= near_z && B.z >= near_z && C.z >= near_z) {
-                uint32_t base = (uint32_t)new_verts.size();
-                new_verts.push_back(A);
-                new_verts.push_back(B);
-                new_verts.push_back(C);
-                new_tris.emplace_back(base, base + 1, base + 2);
-                if (shaded) {
-                    new_world.push_back(obj.mesh.world_vertices[ti]);
-                    new_world.push_back(obj.mesh.world_vertices[tj]);
-                    new_world.push_back(obj.mesh.world_vertices[tk]);
-                    new_normal.push_back(obj.mesh.world_normals[ti]);
-                    new_normal.push_back(obj.mesh.world_normals[tj]);
-                    new_normal.push_back(obj.mesh.world_normals[tk]);
-                }
-            }
-        }
-
-        obj.mesh.vertices     = std::move(new_verts);
-        obj.mesh.line_indices = std::move(new_lines);
-        obj.mesh.tri_indices  = std::move(new_tris);
-        if (shaded) {
-            obj.mesh.world_vertices = std::move(new_world);
-            obj.mesh.world_normals  = std::move(new_normal);
-        }
-    });
+// Exclusive prefix sum over per-primitive output counts. Returns the total; fills
+// `offsets[i]` with where primitive i's outputs start in the packed result. On the
+// GPU this is a parallel scan; here a serial scan suffices for the CPU proof.
+static size_t exclusiveScan(const std::vector<uint32_t>& counts, std::vector<uint32_t>& offsets) {
+    offsets.resize(counts.size());
+    size_t acc = 0;
+    for (size_t i = 0; i < counts.size(); ++i) { offsets[i] = (uint32_t)acc; acc += counts[i]; }
+    return acc;
 }
 
-void ClipObjects(std::vector<RenderedObject>& objs,
-                 const core::Point& wp0, const core::Point& wp1,
-                 int line_clip_mode) {
-    cg_parallel_for_each(objs.begin(), objs.end(), [&](auto& obj) {
-        if ((obj.type == core::ObjectType::POLYGON || obj.type == core::ObjectType::MESH) && obj.filled) {
-            auto orig_verts   = obj.mesh.vertices;
-            auto orig_tri_idx = std::move(obj.mesh.tri_indices);
-            // Shading attributes ride through the clip (interpolated by SHClipping).
-            const bool shaded = !obj.mesh.world_vertices.empty();
-            auto orig_world   = obj.mesh.world_vertices;
-            auto orig_normal  = obj.mesh.world_normals;
+// Generic clip-stage assembler. Each stage supplies three primitive "clippers" that
+// emit their (0..K) outputs through a callback; the assembler runs them twice — once
+// to count, once (after the scan) to write into the tightly-packed EXPANDED output
+// buffer. Re-running the clip in the write pass keeps memory minimal (only the small
+// count/offset arrays are stored), which is the canonical scan/scatter shape used on
+// the GPU. The output layout is [point verts][line verts][tri verts].
+//
+//   pointClip(i, emit)  emit(core::Point p)
+//   lineClip(i, emit)   emit(core::Point a, core::Point b)
+//   triClip(i, emit)    emit(ClipVert a, ClipVert b, ClipVert c)
+template <class PointFn, class LineFn, class TriFn>
+static GeometryBuffer assembleClipped(const GeometryBuffer& in, bool shaded,
+                                      PointFn pointClip, LineFn lineClip, TriFn triClip) {
+    const size_t nP = in.pointCount(), nL = in.lineCount(), nT = in.triCount();
+    std::vector<uint32_t> pc(nP, 0), lc(nL, 0), tc(nT, 0);
 
-            // Wireframe edges (Liang-Barsky). These verts come first in the array;
-            // shading only reads tri-vertex indices, so they get attribute placeholders.
-            {
-                std::vector<core::Point> new_verts;
-                std::vector<std::pair<uint32_t,uint32_t>> new_lines;
-                for (auto& [i, j] : obj.mesh.line_indices) {
-                    core::Point a = orig_verts[i];
-                    core::Point b = orig_verts[j];
-                    if (ClipSegmentLiangBarsky(a, b, wp0, wp1)) {
-                        uint32_t na = (uint32_t)new_verts.size(); new_verts.push_back(a);
-                        uint32_t nb = (uint32_t)new_verts.size(); new_verts.push_back(b);
-                        new_lines.push_back({na, nb});
-                    }
-                }
-                obj.mesh.vertices     = new_verts;
-                obj.mesh.line_indices = new_lines;
-            }
-            const size_t line_count = obj.mesh.vertices.size();
+    // ── Count pass ──
+    cg_parallel_chunks(nP, [&](size_t lo, size_t hi) {
+        for (size_t i = lo; i < hi; ++i) { uint32_t c = 0; pointClip(i, [&](const core::Point&) { ++c; }); pc[i] = c; }
+    });
+    cg_parallel_chunks(nL, [&](size_t lo, size_t hi) {
+        for (size_t i = lo; i < hi; ++i) { uint32_t c = 0; lineClip(i, [&](const core::Point&, const core::Point&) { ++c; }); lc[i] = c; }
+    });
+    cg_parallel_chunks(nT, [&](size_t lo, size_t hi) {
+        for (size_t i = lo; i < hi; ++i) { uint32_t c = 0; triClip(i, [&](const ClipVert&, const ClipVert&, const ClipVert&) { ++c; }); tc[i] = c; }
+    });
 
-            std::vector<std::tuple<uint32_t,uint32_t,uint32_t>> new_tris;
-            std::vector<core::Point> tri_verts, tri_world, tri_normal;
+    std::vector<uint32_t> po, lo2, to2;
+    const size_t P = exclusiveScan(pc, po);
+    const size_t L = exclusiveScan(lc, lo2);
+    const size_t T = exclusiveScan(tc, to2);
 
-            for (auto& [ti, tj, tk] : orig_tri_idx) {
-                std::vector<ClipVert> poly = {
-                    { orig_verts[ti], shaded ? orig_world[ti] : core::Point(), shaded ? orig_normal[ti] : core::Point() },
-                    { orig_verts[tj], shaded ? orig_world[tj] : core::Point(), shaded ? orig_normal[tj] : core::Point() },
-                    { orig_verts[tk], shaded ? orig_world[tk] : core::Point(), shaded ? orig_normal[tk] : core::Point() },
-                };
-                if (!SHClipping(poly, wp0, wp1) || poly.size() < 3) continue;
+    GeometryBuffer out;
+    const size_t V = P + 2 * L + 3 * T;
+    out.pos.assign(3 * V, 0.0f);
+    if (shaded) { out.world.assign(3 * V, 0.0f); out.normal.assign(3 * V, 0.0f); }
+    out.pointIdx.assign(P, 0); out.pointObj.assign(P, 0);
+    out.lineIdx.assign(2 * L, 0); out.lineObj.assign(L, 0);
+    out.triIdx.assign(3 * T, 0); out.triObj.assign(T, 0);
+    const size_t pvBase = 0, lvBase = P, tvBase = P + 2 * L;
 
-                std::vector<ImVec2> imverts;
-                for (const auto& p : poly) imverts.push_back(ImVec2(p.pos.x, p.pos.y));
-                auto tris = core::triangulate(imverts);
-
-                uint32_t base = (uint32_t)(line_count + tri_verts.size());
-                for (const auto& p : poly) {
-                    tri_verts.push_back(p.pos);
-                    if (shaded) { tri_world.push_back(p.world); tri_normal.push_back(p.normal); }
-                }
-                for (int k = 0; k + 2 < (int)tris.size(); k += 3)
-                    new_tris.emplace_back(base + tris[k], base + tris[k+1], base + tris[k+2]);
-            }
-
-            obj.mesh.vertices.insert(obj.mesh.vertices.end(), tri_verts.begin(), tri_verts.end());
-            obj.mesh.tri_indices = std::move(new_tris);
-
-            if (shaded) {
-                // Rebuild attribute arrays aligned with the final vertex array:
-                // [placeholders for line verts] ++ [interpolated tri verts].
-                obj.mesh.world_vertices.assign(line_count, core::Point());
-                obj.mesh.world_normals.assign(line_count, core::Point());
-                obj.mesh.world_vertices.insert(obj.mesh.world_vertices.end(), tri_world.begin(), tri_world.end());
-                obj.mesh.world_normals.insert(obj.mesh.world_normals.end(), tri_normal.begin(), tri_normal.end());
-            }
-
-        } else if (obj.type == core::ObjectType::POINT) {
-            if (!obj.mesh.vertices.empty()) {
-                const auto& v = obj.mesh.vertices[0];
-                if (v.x < wp0.x || v.x > wp1.x || v.y < wp0.y || v.y > wp1.y)
-                    obj.mesh.vertices.clear();
-            }
-        } else {
-            std::vector<core::Point> new_verts;
-            std::vector<std::pair<uint32_t,uint32_t>> new_lines;
-
-            for (auto& [i, j] : obj.mesh.line_indices) {
-                core::Point a = obj.mesh.vertices[i];
-                core::Point b = obj.mesh.vertices[j];
-                bool survived = (line_clip_mode == 1)
-                    ? ClipSegmentCohenSutherland(a, b, wp0, wp1)
-                    : ClipSegmentLiangBarsky(a, b, wp0, wp1);
-                if (survived) {
-                    uint32_t na = (uint32_t)new_verts.size(); new_verts.push_back(a);
-                    uint32_t nb = (uint32_t)new_verts.size(); new_verts.push_back(b);
-                    new_lines.push_back({na, nb});
-                }
-            }
-            obj.mesh.vertices     = new_verts;
-            obj.mesh.line_indices = new_lines;
+    // ── Write pass ── (each primitive owns a disjoint output region → race-free)
+    cg_parallel_chunks(nP, [&](size_t lo, size_t hi) {
+        for (size_t i = lo; i < hi; ++i) {
+            if (pc[i] == 0) continue;
+            const uint32_t o = po[i];
+            const uint32_t v = (uint32_t)(pvBase + o);
+            pointClip(i, [&](const core::Point& p) {
+                out.pos[3*v] = p.x; out.pos[3*v+1] = p.y; out.pos[3*v+2] = p.z;
+            });
+            out.pointIdx[o] = v; out.pointObj[o] = in.pointObj[i];
         }
     });
+    cg_parallel_chunks(nL, [&](size_t lo, size_t hi) {
+        for (size_t i = lo; i < hi; ++i) {
+            if (lc[i] == 0) continue;
+            const uint32_t o = lo2[i];
+            const uint32_t vb = (uint32_t)(lvBase + 2 * o);
+            lineClip(i, [&](const core::Point& a, const core::Point& b) {
+                out.pos[3*vb] = a.x;     out.pos[3*vb+1] = a.y;     out.pos[3*vb+2] = a.z;
+                out.pos[3*(vb+1)] = b.x; out.pos[3*(vb+1)+1] = b.y; out.pos[3*(vb+1)+2] = b.z;
+            });
+            out.lineIdx[2*o] = vb; out.lineIdx[2*o+1] = vb + 1; out.lineObj[o] = in.lineObj[i];
+        }
+    });
+    cg_parallel_chunks(nT, [&](size_t lo, size_t hi) {
+        for (size_t i = lo; i < hi; ++i) {
+            if (tc[i] == 0) continue;
+            const uint32_t baseTri = to2[i];
+            uint32_t k = 0;
+            triClip(i, [&](const ClipVert& a, const ClipVert& b, const ClipVert& c) {
+                const uint32_t g = baseTri + k;
+                const uint32_t vb = (uint32_t)(tvBase + 3 * g);
+                const ClipVert* cv[3] = { &a, &b, &c };
+                for (int e = 0; e < 3; ++e) {
+                    out.pos[3*(vb+e)]   = cv[e]->pos.x; out.pos[3*(vb+e)+1] = cv[e]->pos.y; out.pos[3*(vb+e)+2] = cv[e]->pos.z;
+                    if (shaded) {
+                        out.world[3*(vb+e)]  = cv[e]->world.x;  out.world[3*(vb+e)+1]  = cv[e]->world.y;  out.world[3*(vb+e)+2]  = cv[e]->world.z;
+                        out.normal[3*(vb+e)] = cv[e]->normal.x; out.normal[3*(vb+e)+1] = cv[e]->normal.y; out.normal[3*(vb+e)+2] = cv[e]->normal.z;
+                    }
+                    out.triIdx[3*g+e] = vb + e;
+                }
+                out.triObj[g] = in.triObj[i];
+                ++k;
+            });
+        }
+    });
+
+    return out;
+}
+
+GeometryBuffer NearClipFlat(const GeometryBuffer& in, float near_z) {
+    const bool shaded = in.shaded();
+
+    auto pointClip = [&](size_t i, auto emit) {
+        core::Point p = in.getPos(in.pointIdx[i]);
+        if (p.z >= near_z) emit(p);
+    };
+    auto lineClip = [&](size_t i, auto emit) {
+        core::Point a = in.getPos(in.lineIdx[2*i]);
+        core::Point b = in.getPos(in.lineIdx[2*i+1]);
+        if (ClipSegmentNear(a, b, near_z)) emit(a, b);
+    };
+    // Filled triangles: conservative — keep only those fully in front of the near
+    // plane (kept whole, so attributes are copied, no interpolation needed).
+    auto triClip = [&](size_t i, auto emit) {
+        uint32_t ia = in.triIdx[3*i], ib = in.triIdx[3*i+1], ic = in.triIdx[3*i+2];
+        core::Point A = in.getPos(ia), B = in.getPos(ib), C = in.getPos(ic);
+        if (A.z >= near_z && B.z >= near_z && C.z >= near_z) {
+            emit(ClipVert{ A, shaded ? in.getWorld(ia) : core::Point(), shaded ? in.getNormal(ia) : core::Point() },
+                 ClipVert{ B, shaded ? in.getWorld(ib) : core::Point(), shaded ? in.getNormal(ib) : core::Point() },
+                 ClipVert{ C, shaded ? in.getWorld(ic) : core::Point(), shaded ? in.getNormal(ic) : core::Point() });
+        }
+    };
+
+    return assembleClipped(in, shaded, pointClip, lineClip, triClip);
+}
+
+GeometryBuffer BoxClipFlat(const GeometryBuffer& in, const std::vector<ObjectSlice>& slices,
+                           const core::Point& wp0, const core::Point& wp1, int line_clip_mode) {
+    const bool shaded = in.shaded();
+    auto isFilled = [&](int o) {
+        const ObjectSlice& s = slices[o];
+        return (s.type == core::ObjectType::POLYGON || s.type == core::ObjectType::MESH) && s.filled;
+    };
+
+    auto pointClip = [&](size_t i, auto emit) {
+        core::Point p = in.getPos(in.pointIdx[i]);
+        if (p.x >= wp0.x && p.x <= wp1.x && p.y >= wp0.y && p.y <= wp1.y) emit(p);
+    };
+    auto lineClip = [&](size_t i, auto emit) {
+        core::Point a = in.getPos(in.lineIdx[2*i]);
+        core::Point b = in.getPos(in.lineIdx[2*i+1]);
+        // Filled polygon/mesh outlines always use Liang-Barsky; other (wireframe)
+        // objects honor the user's chosen line clip mode.
+        bool survived = isFilled(in.lineObj[i])
+            ? ClipSegmentLiangBarsky(a, b, wp0, wp1)
+            : (line_clip_mode == 1 ? ClipSegmentCohenSutherland(a, b, wp0, wp1)
+                                   : ClipSegmentLiangBarsky(a, b, wp0, wp1));
+        if (survived) emit(a, b);
+    };
+    auto triClip = [&](size_t i, auto emit) {
+        if (!isFilled(in.triObj[i])) return; // only filled surfaces contribute fills
+        uint32_t ia = in.triIdx[3*i], ib = in.triIdx[3*i+1], ic = in.triIdx[3*i+2];
+        std::vector<ClipVert> poly = {
+            { in.getPos(ia), shaded ? in.getWorld(ia) : core::Point(), shaded ? in.getNormal(ia) : core::Point() },
+            { in.getPos(ib), shaded ? in.getWorld(ib) : core::Point(), shaded ? in.getNormal(ib) : core::Point() },
+            { in.getPos(ic), shaded ? in.getWorld(ic) : core::Point(), shaded ? in.getNormal(ic) : core::Point() },
+        };
+        if (!SHClipping(poly, wp0, wp1) || poly.size() < 3) return;
+
+        std::vector<ImVec2> imverts;
+        imverts.reserve(poly.size());
+        for (const auto& p : poly) imverts.push_back(ImVec2(p.pos.x, p.pos.y));
+        std::vector<int> tris = core::triangulate(imverts);
+        for (int k = 0; k + 2 < (int)tris.size(); k += 3)
+            emit(poly[tris[k]], poly[tris[k+1]], poly[tris[k+2]]);
+    };
+
+    return assembleClipped(in, shaded, pointClip, lineClip, triClip);
 }

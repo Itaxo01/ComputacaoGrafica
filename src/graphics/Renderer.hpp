@@ -4,7 +4,8 @@
 #include "imgui.h"
 #include "Viewport.hpp"
 #include "DisplayFile.hpp"
-#include "RenderedObject.hpp"
+#include "GeometryBuffer.hpp"
+#include "RenderedObject.hpp" // SortedTri
 #include "log_app.h"
 #include "Window.hpp"
 #include "RendererCache.hpp"
@@ -23,17 +24,14 @@ private:
     ExampleAppLog& log;
     Framebuffer framebuffer; // CPU raster target, presented as a texture each frame
 
-    std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
-    std::vector<SortedTri>      sortedTris;  // all filled tris, depth-sorted for painter's
-    std::vector<core::Light>    effectiveLights; // user lights + headlight, rebuilt per frame
-    ShadingContext              shadeCtx;    // per-frame shading inputs for the rasterizer
+    GeometryBuffer            geom;        // flat scene geometry: transformed + clipped
+    std::vector<ObjectSlice>  slices;      // per-object render metadata (color/material/transform)
+    std::vector<SortedTri>    sortedTris;  // all filled tris, depth-sorted for painter's
+    std::vector<core::Light>  effectiveLights; // user lights + headlight, rebuilt per frame
+    ShadingContext            shadeCtx;    // per-frame shading inputs for the rasterizer
 
     void RenderBackground();
     void DrawPreview();
-    // Rasterize one object's lines/points into the framebuffer, restricted to
-    // rows [y_lo, y_hi) (the caller's band). Filled triangles go through the
-    // globally depth-sorted sortedTris list, not here.
-    void DrawObject(const RenderedObject& obj, int y_lo, int y_hi);
     // Clears + rasterizes the whole scene into `framebuffer`, parallelized over
     // horizontal bands (each band owns a disjoint row range, so no write races).
     void RasterizeFramebuffer();

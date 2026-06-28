@@ -28,28 +28,6 @@ void Renderer::RenderBackground() {
     ::RenderBackground(draw_list, window, viewport);
 }
 
-void Renderer::DrawObject(const RenderedObject& obj, int y_lo, int y_hi) {
-    const ImU32 col = obj.color;
-    const int ss = AppConfig::supersample;          // line/point sizes scale with SSAA
-    const bool zt = AppConfig::z_buffer;            // depth-test (hidden-line) when on
-    const bool less = !AppConfig::depth_ascending;  // nearer-is-smaller unless flipped
-
-    if (obj.type == core::ObjectType::POINT) {
-        if (!obj.mesh.vertices.empty()) {
-            const auto& v = obj.mesh.vertices[0];
-            DrawPoint(framebuffer, v.x, v.y, v.z, col, ss, zt, less, y_lo, y_hi);
-        }
-        return;
-    }
-
-    for (const auto& [i, j] : obj.mesh.line_indices) {
-        const auto& a = obj.mesh.vertices[i];
-        const auto& b = obj.mesh.vertices[j];
-        DrawLine(framebuffer, a.x, a.y, a.z, b.x, b.y, b.z, col, ss, zt, less, y_lo, y_hi);
-    }
-    // Filled triangles are drawn separately (see RasterizeFramebuffer).
-}
-
 void Renderer::DrawPreview() {
     const auto& pts = displayFile.getPreviewPoints();
     if (pts.empty()) return;
@@ -80,24 +58,28 @@ void Renderer::DrawPreview() {
 }
 
 void Renderer::ProcessPreClipping() {
+    const bool shading = Lighting::mode != Lighting::NONE;
+    // Flatten every object into the SoA GeometryBuffer (positions still in model
+    // space, plus the ObjectSlice table), then bake the matrices in per-vertex.
+    BuildGeometryBuffer(displayFile.getObjects(), geom, slices, shading);
     if (AppConfig::is3d && AppConfig::perspective) {
         // Split pipeline: transform to VRC, clip against the near plane (before
         // the divide), then project + scale to NCS (divide happens here).
-        TransformObjectAndDoNCS(drawObjects, displayFile.getObjects(), window.GetVRCMatrix());
-        ClipNearPlane(drawObjects, window.GetNearPlaneZ());
-        ProjectVertices(drawObjects, window.GetProjectionScaleMatrix());
+        TransformFlat(geom, slices, window.GetVRCMatrix(), shading);
+        geom = NearClipFlat(geom, window.GetNearPlaneZ());
+        ProjectFlat(geom, window.GetProjectionScaleMatrix());
     } else {
-        TransformObjectAndDoNCS(drawObjects, displayFile.getObjects(), window.GetWindowNCSMatrix());
+        TransformFlat(geom, slices, window.GetWindowNCSMatrix(), shading);
     }
 }
 
 void Renderer::ApplyClipping() {
     auto [clip_min, clip_max] = window.getClipBoundsNCS();
-    ClipObjects(drawObjects, clip_min, clip_max, AppConfig::clipping_mode);
+    geom = BoxClipFlat(geom, slices, clip_min, clip_max, AppConfig::clipping_mode);
 }
 
 void Renderer::ApplyViewportTransform() {
-    TransformToViewport(drawObjects, window, (float)AppConfig::supersample);
+    ViewportFlat(geom, window, (float)AppConfig::supersample);
 }
 
 void Renderer::GenerateDrawList() {
@@ -111,7 +93,7 @@ void Renderer::GenerateDrawList() {
         ApplyClipping();
         // Gather + depth-sort filled triangles in NCS space (z still meaningful)
         // before the viewport map drops z; lines/points use the viewport verts.
-        BuildSortedTriangles(drawObjects, window, (float)AppConfig::supersample, sortedTris);
+        BuildSortedTrianglesFlat(geom, slices, window, (float)AppConfig::supersample, sortedTris);
         ApplyViewportTransform();
     }
 }
@@ -122,6 +104,7 @@ void Renderer::RasterizeFramebuffer() {
 
     const bool zt = AppConfig::z_buffer;
     const bool less = !AppConfig::depth_ascending; // nearer-is-smaller unless flipped
+    const int  ss = AppConfig::supersample;        // line/point sizes scale with SSAA
     const float farZ = less ?  std::numeric_limits<float>::infinity()
                             : -std::numeric_limits<float>::infinity();
 
@@ -137,8 +120,21 @@ void Renderer::RasterizeFramebuffer() {
             DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.za, t.zb, t.zc,
                                t.P, t.N, t.mat, t.color, shadeCtx, zt, less, y_lo, y_hi);
 
-        for (const auto& obj : drawObjects)
-            DrawObject(obj, y_lo, y_hi);
+        // Wireframe lines and points, straight from the flat buffer (color via the
+        // owning ObjectSlice). Filled triangles were drawn above from sortedTris.
+        const size_t nL = geom.lineCount();
+        for (size_t l = 0; l < nL; ++l) {
+            core::Point a = geom.getPos(geom.lineIdx[2*l]);
+            core::Point b = geom.getPos(geom.lineIdx[2*l+1]);
+            ImU32 col = slices[geom.lineObj[l]].color;
+            DrawLine(framebuffer, a.x, a.y, a.z, b.x, b.y, b.z, col, ss, zt, less, y_lo, y_hi);
+        }
+        const size_t nP = geom.pointCount();
+        for (size_t p = 0; p < nP; ++p) {
+            core::Point v = geom.getPos(geom.pointIdx[p]);
+            ImU32 col = slices[geom.pointObj[p]].color;
+            DrawPoint(framebuffer, v.x, v.y, v.z, col, ss, zt, less, y_lo, y_hi);
+        }
     });
 }
 
