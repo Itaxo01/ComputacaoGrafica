@@ -4,6 +4,13 @@
 #include <GLFW/glfw3.h> // drags in the system OpenGL headers (glGenTextures, glTexImage2D, ...)
 #include <algorithm>
 
+// Windows ships an OpenGL 1.1 <GL/gl.h>, which predates GL_CLAMP_TO_EDGE (added in
+// OpenGL 1.2). Its value is fixed by the spec, so define it when the system header
+// doesn't. (Linux/Mesa headers already provide it, so this is a no-op there.)
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
 void Framebuffer::ensureTexture() {
     if (tex != 0) return;
     glGenTextures(1, &tex);
