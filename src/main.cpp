@@ -70,6 +70,14 @@ int main(int, char**) {
 
         // Nossas janelas rodam aqui!
         guiController.run();
+
+        // Ctrl+W closes the application.
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W))
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+        // Avança animações de transformação em curso (transições temporizadas).
+        objectController.Update(ImGui::GetIO().DeltaTime);
+
         renderer.render();
 
         // FPS Overlay

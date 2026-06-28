@@ -8,6 +8,9 @@
 #include "log_app.h"
 #include "Window.hpp"
 #include "RendererCache.hpp"
+#include "Framebuffer.hpp"
+#include "Lighting.hpp"
+#include "Shading.hpp"
 
 class Renderer {
 private:
@@ -18,13 +21,22 @@ private:
     RendererCache rendererCache;
     bool refresh_cache = false;
     ExampleAppLog& log;
+    Framebuffer framebuffer; // CPU raster target, presented as a texture each frame
 
     std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
     std::vector<SortedTri>      sortedTris;  // all filled tris, depth-sorted for painter's
+    std::vector<core::Light>    effectiveLights; // user lights + headlight, rebuilt per frame
+    ShadingContext              shadeCtx;    // per-frame shading inputs for the rasterizer
 
     void RenderBackground();
     void DrawPreview();
-    void DrawObject(const RenderedObject& obj);
+    // Rasterize one object's lines/points into the framebuffer, restricted to
+    // rows [y_lo, y_hi) (the caller's band). Filled triangles go through the
+    // globally depth-sorted sortedTris list, not here.
+    void DrawObject(const RenderedObject& obj, int y_lo, int y_hi);
+    // Clears + rasterizes the whole scene into `framebuffer`, parallelized over
+    // horizontal bands (each band owns a disjoint row range, so no write races).
+    void RasterizeFramebuffer();
     void draw_name_if_visible(const std::string& name, const core::Point& anchor);
     void ApplyClipping();
     void ApplyViewportTransform();

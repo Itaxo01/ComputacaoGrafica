@@ -1,14 +1,57 @@
 #include "Viewport.hpp"
 #include "AppConfig.hpp"
+#include "Lighting.hpp"
+#include "GuiLayout.hpp"
+
+// Lighting / shading controls. Standalone ImGui window so the multi-light editor
+// has room; the globals live in Lighting:: (read live by the renderer each frame).
+static void DrawLightingWindow() {
+    // Left column of the bottom row, mirroring the Log window to its right.
+    auto r = gui::layout::Get(gui::layout::Region::Lighting);
+    ImGui::SetNextWindowPos(r.pos, gui::layout::Cond());
+    ImGui::SetNextWindowSize(r.size, gui::layout::Cond());
+
+    ImGui::Begin("Lighting");
+
+    const char* modes[] = { "None", "Flat", "Gouraud", "Phong" };
+    ImGui::Combo("Shading Model", &Lighting::mode, modes, IM_ARRAYSIZE(modes));
+    if (!AppConfig::is3d)
+        ImGui::TextDisabled("(shading is intended for 3D mode)");
+    ImGui::ColorEdit3("Ambient", &Lighting::ambient.r);
+
+    ImGui::Separator();
+    ImGui::Checkbox("Headlight", &Lighting::headlight);
+    if (Lighting::headlight) {
+        ImGui::ColorEdit3("Headlight color", &Lighting::headlight_color.r, ImGuiColorEditFlags_NoInputs);
+        ImGui::DragFloat("Headlight intensity", &Lighting::headlight_intensity, 0.01f, 0.0f, 10.0f);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Point lights (%d)", (int)Lighting::lights.size());
+    if (ImGui::Button("Add light")) Lighting::lights.push_back(core::Light{});
+
+    int to_remove = -1;
+    for (int i = 0; i < (int)Lighting::lights.size(); ++i) {
+        ImGui::PushID(i);
+        core::Light& L = Lighting::lights[i];
+        ImGui::Checkbox("##en", &L.enabled); ImGui::SameLine();
+        ImGui::SetNextItemWidth(180);
+        ImGui::DragFloat3("pos", &L.position.x, 0.1f); ImGui::SameLine();
+        ImGui::ColorEdit3("##col", &L.color.r, ImGuiColorEditFlags_NoInputs); ImGui::SameLine();
+        ImGui::SetNextItemWidth(70);
+        ImGui::DragFloat("##int", &L.intensity, 0.01f, 0.0f, 10.0f); ImGui::SameLine();
+        if (ImGui::SmallButton("X")) to_remove = i;
+        ImGui::PopID();
+    }
+    if (to_remove >= 0) Lighting::lights.erase(Lighting::lights.begin() + to_remove);
+
+    ImGui::End();
+}
 
 void Viewport::DrawWindow() {
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 monitor_pos = viewport->Pos;
-    ImVec2 monitor_size = viewport->Size;
-    
-    // Proportional window configurations based on the app window/monitor size
-    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (29.0f / 1700.0f), monitor_pos.y + monitor_size.y * (18.0f / 940.0f)), ImGuiCond_FirstUseEver); 
-    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (893.0f / 1700.0f), monitor_size.y * (857.0f / 940.0f)), ImGuiCond_FirstUseEver); 
+    auto r = gui::layout::Get(gui::layout::Region::Viewport);
+    ImGui::SetNextWindowPos(r.pos, gui::layout::Cond());
+    ImGui::SetNextWindowSize(r.size, gui::layout::Cond());
     ImGui::Begin("Viewport");
         canvas_p0 = ImGui::GetCursorScreenPos();      // ImDrawList API uses screen coordinates!
         canvas_sz = ImGui::GetContentRegionAvail();   // Resize canvas to what's available
@@ -27,19 +70,20 @@ void Viewport::DrawWindow() {
         this->is_hovered = ImGui::IsItemHovered(); // Hovered
         this->is_active = ImGui::IsItemActive();   // Held
         
-        ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - 230, canvas_p0.y + 5));
+        const float opts_w = 215 * gui::layout::Scale();
+        ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - opts_w - 15, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
-       
-        ImGui::BeginChild("Viewport Options", ImVec2(215, 215), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-            ImGui::Checkbox("Show Axes", &show_axes);
-            ImGui::Checkbox("Show Grid", &show_grid);
-            ImGui::Checkbox("Show Axis Coordinates", &show_axis_coordinates);
+
+        ImGui::BeginChild("Viewport Options", ImVec2(opts_w, 300 * gui::layout::Scale()), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+            ImGui::Checkbox("Show Axes", &AppConfig::show_axes);
+            ImGui::Checkbox("Show Grid", &AppConfig::show_grid);
+            ImGui::Checkbox("Show Axis Coordinates", &AppConfig::show_axis_coordinates);
             if (AppConfig::is3d)
                 ImGui::Checkbox("Show Bounding Box", &AppConfig::show_bounding_box);
-            if(ImGui::RadioButton("Liang Barsky Clipping", &clipping_mode, 0)){
+            if(ImGui::RadioButton("Liang Barsky Clipping", &AppConfig::clipping_mode, 0)){
                 log.AddLog("Clipping mode changed to Liang Barsky Clipping\n");
             }
-            if(ImGui::RadioButton("Cohen Sutherland Clipping", &clipping_mode, 1)){
+            if(ImGui::RadioButton("Cohen Sutherland Clipping", &AppConfig::clipping_mode, 1)){
                 log.AddLog("Clipping mode changed to Cohen Sutherland Clipping\n");
             }
             if(ImGui::Checkbox("Enable 3D", &AppConfig::is3d)){
@@ -49,8 +93,22 @@ void Viewport::DrawWindow() {
                 log.AddLog("Perspective mode %s\n", AppConfig::perspective ? "enabled" : "disabled");
             }
             ImGui::Checkbox("Render Names", &AppConfig::render_names);
+            if (AppConfig::is3d && ImGui::Checkbox("Z-Buffer (depth test)", &AppConfig::z_buffer)) {
+                log.AddLog("Z-buffer %s\n", AppConfig::z_buffer ? "enabled" : "disabled (painter's)");
+            }
+            ImGui::SetNextItemWidth(110);
+            if (ImGui::SliderInt("Anti-aliasing", &AppConfig::supersample, 1, 4, "SSAA %dx")) {
+                if (AppConfig::supersample < 1) AppConfig::supersample = 1;
+                log.AddLog("Supersampling set to %dx\n", AppConfig::supersample);
+            }
+            ImGui::Separator();
+            if (ImGui::Button("Reset Layout")) {
+                gui::layout::RequestReset();
+                log.AddLog("Window layout reset to default\n");
+            }
         ImGui::EndChild();
- 
+
     ImGui::End();
 
+    DrawLightingWindow();
 }

@@ -1,4 +1,5 @@
 #include "ImGuiConfig.hpp"
+#include "GuiLayout.hpp"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
@@ -89,6 +90,9 @@ void InitializeImGui(GLFWwindow* window, const char* glsl_version)
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(main_scale);        // Bake a fixed style scale.
     style.FontScaleDpi = main_scale;        // Set initial font scale.
+
+    // Let the default-layout module scale its margins/min sizes to the same DPI.
+    gui::layout::SetScale(main_scale);
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);

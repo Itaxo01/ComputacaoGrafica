@@ -73,6 +73,12 @@ public:
     core::Point NCSToViewport(const core::Point &p) const;
     core::Point ViewportToNCS(const core::Point &p) const;
 
+    // World-space eye (Centre of Projection) position, for the Phong view vector.
+    // The COP sits at (0,0,-focal_distance) in VRC; map it back to world.
+    core::Point GetEyeWorld() const {
+        return camera.GetInverseVRCMatrix() * core::Point(0.0f, 0.0f, -camera.focal_distance);
+    }
+
     // Half-size of the 3D bounding box (same formula used by RendererBackground).
     float getBoundingBoxHalfSize() const;
 

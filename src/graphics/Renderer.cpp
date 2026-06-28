@@ -5,9 +5,12 @@
 #include "AppConfig.hpp"
 #include "RendererClipping.hpp"
 #include "RendererTransform.hpp"
+#include "RasterizationEngine.hpp"
+#include "ParallelUtils.hpp"
 #include "imgui.h"
-
-static inline ImVec2 ToImVec2(const core::Point& p) { return ImVec2(p.x, p.y); }
+#include <cmath>
+#include <limits>
+#include <cstdio>
 
 void Renderer::draw_name_if_visible(const std::string& name, const core::Point& anchor) {
     core::Point ncs_anchor = window.GetWindowNCSMatrix() * anchor;
@@ -25,26 +28,26 @@ void Renderer::RenderBackground() {
     ::RenderBackground(draw_list, window, viewport);
 }
 
-void Renderer::DrawObject(const RenderedObject& obj) {
-    const ImU32 col   = obj.color;
-    const float width = 2.0f;
+void Renderer::DrawObject(const RenderedObject& obj, int y_lo, int y_hi) {
+    const ImU32 col = obj.color;
+    const int ss = AppConfig::supersample;          // line/point sizes scale with SSAA
+    const bool zt = AppConfig::z_buffer;            // depth-test (hidden-line) when on
+    const bool less = !AppConfig::depth_ascending;  // nearer-is-smaller unless flipped
 
     if (obj.type == core::ObjectType::POINT) {
         if (!obj.mesh.vertices.empty()) {
             const auto& v = obj.mesh.vertices[0];
-            const float h = 1.0f;
-            draw_list->AddRectFilled(ImVec2(v.x-h, v.y-h), ImVec2(v.x+h, v.y+h),
-                                     col, 2.0f, ImDrawFlags_RoundCornersAll);
+            DrawPoint(framebuffer, v.x, v.y, v.z, col, ss, zt, less, y_lo, y_hi);
         }
         return;
     }
 
     for (const auto& [i, j] : obj.mesh.line_indices) {
-        draw_list->AddLine(ToImVec2(obj.mesh.vertices[i]),
-                           ToImVec2(obj.mesh.vertices[j]),
-                           col, width);
+        const auto& a = obj.mesh.vertices[i];
+        const auto& b = obj.mesh.vertices[j];
+        DrawLine(framebuffer, a.x, a.y, a.z, b.x, b.y, b.z, col, ss, zt, less, y_lo, y_hi);
     }
-    // Filled triangles are drawn separately, globally depth-sorted (see render()).
+    // Filled triangles are drawn separately (see RasterizeFramebuffer).
 }
 
 void Renderer::DrawPreview() {
@@ -90,13 +93,11 @@ void Renderer::ProcessPreClipping() {
 
 void Renderer::ApplyClipping() {
     auto [clip_min, clip_max] = window.getClipBoundsNCS();
-    ClipObjects(drawObjects, clip_min, clip_max, viewport.GetClippingMode());
+    ClipObjects(drawObjects, clip_min, clip_max, AppConfig::clipping_mode);
 }
 
 void Renderer::ApplyViewportTransform() {
-    auto canvas_p = viewport.GetCanvasP();
-    ImVec2 offset = canvas_p.first;
-    TransformToViewport(drawObjects, window, offset);
+    TransformToViewport(drawObjects, window, (float)AppConfig::supersample);
 }
 
 void Renderer::GenerateDrawList() {
@@ -110,9 +111,35 @@ void Renderer::GenerateDrawList() {
         ApplyClipping();
         // Gather + depth-sort filled triangles in NCS space (z still meaningful)
         // before the viewport map drops z; lines/points use the viewport verts.
-        BuildSortedTriangles(drawObjects, window, canvas_p.first, sortedTris);
+        BuildSortedTriangles(drawObjects, window, (float)AppConfig::supersample, sortedTris);
         ApplyViewportTransform();
     }
+}
+
+void Renderer::RasterizeFramebuffer() {
+    const int H = framebuffer.Height();
+    if (H <= 0 || framebuffer.Width() <= 0) return;
+
+    const bool zt = AppConfig::z_buffer;
+    const bool less = !AppConfig::depth_ascending; // nearer-is-smaller unless flipped
+    const float farZ = less ?  std::numeric_limits<float>::infinity()
+                            : -std::numeric_limits<float>::infinity();
+
+    // One band per hardware thread (TBB pool when available). Each band clears
+    // and fills a disjoint row range: solid triangles (depth-tested when z_buffer
+    // is on, else in painter's order), then wireframe lines / points on top.
+    cg_parallel_chunks((std::size_t)H, [&](std::size_t lo, std::size_t hi) {
+        int y_lo = (int)lo, y_hi = (int)hi;
+        framebuffer.ClearRows(y_lo, y_hi, 0u); // transparent: grid shows through
+        if (zt) framebuffer.ClearDepthRows(y_lo, y_hi, farZ);
+
+        for (const auto& t : sortedTris)
+            DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.za, t.zb, t.zc,
+                               t.P, t.N, t.mat, t.color, shadeCtx, zt, less, y_lo, y_hi);
+
+        for (const auto& obj : drawObjects)
+            DrawObject(obj, y_lo, y_hi);
+    });
 }
 
 void Renderer::render() {
@@ -120,12 +147,29 @@ void Renderer::render() {
     RenderBackground();
     GenerateDrawList();
 
-    // Solid surfaces first (back-to-front), then wireframe/points on top.
-    for (const auto& t : sortedTris)
-        draw_list->AddTriangleFilled(t.a, t.b, t.c, t.color);
+    // Build per-frame shading inputs. These are read live (not cached), so moving a
+    // light or orbiting updates the lighting immediately without a geometry rebuild.
+    effectiveLights.clear();
+    for (const auto& L : Lighting::lights) effectiveLights.push_back(L);
+    if (Lighting::headlight) {
+        core::Light hl;
+        hl.position  = window.GetEyeWorld();
+        hl.color     = Lighting::headlight_color;
+        hl.intensity = Lighting::headlight_intensity;
+        effectiveLights.push_back(hl);
+    }
+    shadeCtx.mode    = Lighting::mode;
+    shadeCtx.eye     = window.GetEyeWorld();
+    shadeCtx.ambient = Lighting::ambient;
+    shadeCtx.lights  = &effectiveLights;
 
-    for (const auto& obj : drawObjects)
-        DrawObject(obj);
+    // Rasterize the scene into the CPU framebuffer, then blit it over the grid.
+    ImVec2 sz = viewport.GetCanvasSize();
+    auto canvas_p = viewport.GetCanvasP();
+    framebuffer.Resize((int)std::lround(sz.x), (int)std::lround(sz.y), AppConfig::supersample);
+    RasterizeFramebuffer();
+    framebuffer.Resolve(); // CPU box-downsample (premultiplied) into display resolution
+    framebuffer.Present(draw_list, canvas_p.first, canvas_p.second);
 
     if (AppConfig::render_names) {
         for (const auto& obj : displayFile.getObjects())
@@ -133,6 +177,15 @@ void Renderer::render() {
     }
 
     DrawPreview();
+
+    // Viewport resolution readout (bottom-left), drawn on top of the scene like the
+    // other overlays so the framebuffer blit doesn't cover it.
+    char res[64];
+    std::snprintf(res, sizeof(res), "%d x %d px  (SSAA x%d)",
+                  (int)(sz.x + 0.5f), (int)(sz.y + 0.5f), AppConfig::supersample);
+    ImVec2 res_sz = ImGui::CalcTextSize(res);
+    draw_list->AddText(ImVec2(canvas_p.first.x + 6.0f, canvas_p.second.y - res_sz.y - 6.0f),
+                       IM_COL32(210, 210, 210, 220), res);
 }
 
 void Renderer::notifyTransformation() {

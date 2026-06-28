@@ -1,6 +1,7 @@
 #include "ObjectCreator.hpp"
 #include "ObjectIO.hpp"
 #include "AppConfig.hpp"
+#include "GuiLayout.hpp"
 #include "imgui.h"
 #include "ObjectFactories/PointFactory.hpp"
 #include "ObjectFactories/LineFactory.hpp"
@@ -65,22 +66,19 @@ static const char* curve_2d_bspline_instruction(int n) {
 }
 
 static const char* surface_instruction() {
-    // Bicubic surfaces are defined by 16 control points per patch, entered as a
-    // 4x4 matrix; clicking can't place 3D control points, so use Create by Text.
-    return "Bicubic surface: 16 control points per patch (4x4 matrix).\n"
-           "Use the Create by Text modal; rows/patches separated by ';'.\n"
-           "Stack k*16 points for k patches. Smoothness = grid samples per patch.";
+    // Bicubic surfaces are defined by an M×N control grid (M,N >= 4); clicking
+    // can't place 3D control points, so use Create by Text.
+    return "Bicubic surface: M×N control grid, M and N >= 4.\n"
+           "Use the Create by Text modal; separate grid rows with ';'.\n"
+           "Bezier needs M,N in {4,7,10,...}. Smoothness = samples per patch edge.";
 }
 
 // ─── DrawWindow ──────────────────────────────────────────────────────────────
 
 void ObjectCreator::DrawWindow(){
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 monitor_pos = viewport->Pos;
-    ImVec2 monitor_size = viewport->Size;
-
-    ImGui::SetNextWindowPos(ImVec2(monitor_pos.x + monitor_size.x * (899.0f / 1700.0f), monitor_pos.y + monitor_size.y * (22.0f / 940.0f)), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(monitor_size.x * (730.0f / 1700.0f), monitor_size.y * (204.0f / 940.0f)), ImGuiCond_FirstUseEver);
+    auto r = gui::layout::Get(gui::layout::Region::CreateObject);
+    ImGui::SetNextWindowPos(r.pos, gui::layout::Cond());
+    ImGui::SetNextWindowSize(r.size, gui::layout::Cond());
     ImGui::Begin("Create New Object");
         ImGui::Columns(2, "ObjectCreatorColumns", true);
 
@@ -140,6 +138,13 @@ void ObjectCreator::DrawWindow(){
                 ImGui::RadioButton("Bezier", &method, 0); ImGui::SameLine();
                 ImGui::RadioButton("B-Spline", &method, 1);
 
+                // Tessellation technique — both produce identical geometry; the
+                // choice selects which algorithm builds the surface.
+                ImGui::SetCursorPosX(curve_x);
+                ImGui::TextUnformatted("Eval:"); ImGui::SameLine();
+                ImGui::RadioButton("Blending", &surf_eval, SURF_BLENDING); ImGui::SameLine();
+                ImGui::RadioButton("Fwd Diff", &surf_eval, SURF_FORWARD_DIFF);
+
                 ImGui::SetCursorPosX(curve_x);
                 ImGui::Text("Smoothness:"); ImGui::SameLine();
                 ImGui::PushItemWidth(80);
@@ -170,10 +175,13 @@ void ObjectCreator::DrawWindow(){
             core::ObjectType text_mode   = mode;
             int             text_method = method;
             bool            text_filled = filled;
-            if (text_creator.DrawModal(text_pts, text_mode, text_method, text_filled)) {
+            int             text_rows = 0, text_cols = 0;
+            if (text_creator.DrawModal(text_pts, text_mode, text_method, text_filled, text_rows, text_cols)) {
                 points = text_pts;
                 method = text_method;
                 filled = text_filled;
+                surf_rows = text_rows;
+                surf_cols = text_cols;
                 // Only adopt the modal's mode as the active radio when it matches
                 // the current 2D/3D mode; otherwise create it without flipping UI.
                 if (core::typeAvailableInMode(text_mode, is3d)) mode = text_mode;
@@ -325,20 +333,16 @@ void ObjectCreator::AddGraphicObjectAs(core::ObjectType type, int curve_method, 
             break;
         }
         case core::ObjectType::SURFACE: {
-            // points carries k*16 control points (validated as a multiple of 16);
-            // each consecutive 16 form one 4x4 patch.
-            std::vector<std::vector<core::Point>> patches;
-            for (size_t i = 0; i + 16 <= points.size(); i += 16) {
-                std::vector<core::Point> patch;
-                patch.reserve(16);
-                for (size_t k = i; k < i + 16; ++k) patch.emplace_back(points[k]);
-                patches.push_back(std::move(patch));
-            }
-            if (patches.empty()) {
-                log.AddLog("[error] Surface needs 16 control points per patch.\n");
+            // points carries the M×N control grid row-major (surf_rows × surf_cols),
+            // validated by the text modal; the factory splits it into patches.
+            if (surf_rows < 4 || surf_cols < 4 || (int)points.size() < surf_rows * surf_cols) {
+                log.AddLog("[error] Surface needs an M×N control grid with M,N >= 4.\n");
                 break;
             }
-            core::SurfaceFactory f(name, patches, curve_method, curve_smoothness, col);
+            std::vector<core::Point> grid;
+            grid.reserve(points.size());
+            for (const auto& t : points) grid.emplace_back(t);
+            core::SurfaceFactory f(name, surf_rows, surf_cols, grid, curve_method, surf_eval, curve_smoothness, col);
             entityManager.add(f);
             break;
         }

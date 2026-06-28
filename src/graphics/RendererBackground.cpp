@@ -24,7 +24,6 @@ static float calculate_step(float width) {
 struct BgCtx {
     ImDrawList*      draw_list;
     const Window&    window;
-    const Viewport&  viewport;
     WindowAttributes w_attr;
     core::mat4       ncs_mat;
     core::Point      ncs_min;
@@ -102,7 +101,7 @@ static void RenderBoundingBox(const BgCtx& ctx) {
 }
 
 static void RenderGrid(const BgCtx& ctx) {
-    if (!ctx.viewport.show_grid) return;
+    if (!AppConfig::show_grid) return;
 
     if (AppConfig::is3d) {
         const float B = ctx.grid_extent, cx = ctx.cx, cz = ctx.cz;
@@ -116,7 +115,7 @@ static void RenderGrid(const BgCtx& ctx) {
             core::Point sa, sb;
             if (!ProjectLine(ctx, {gx0, 0, z}, {gx1, 0, z}, sa, sb)) continue;
             ctx.draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(80, 80, 80, 255));
-            if (ctx.viewport.show_axis_coordinates && std::abs(z - cz) > step * 0.1f) {
+            if (AppConfig::show_axis_coordinates && std::abs(z - cz) > step * 0.1f) {
                 snprintf(label, sizeof(label), "z=%.2f", z - cz);
                 ctx.draw_list->AddText(
                     ImVec2(std::clamp(sa.x + 4, ctx.canvas_p0.x + 2.0f, ctx.canvas_p1.x - 40.0f),
@@ -129,7 +128,7 @@ static void RenderGrid(const BgCtx& ctx) {
             core::Point sa, sb;
             if (!ProjectLine(ctx, {x, 0, gz0}, {x, 0, gz1}, sa, sb)) continue;
             ctx.draw_list->AddLine(ToImVec2(sa), ToImVec2(sb), IM_COL32(80, 80, 80, 255));
-            if (ctx.viewport.show_axis_coordinates && std::abs(x - cx) > step * 0.1f) {
+            if (AppConfig::show_axis_coordinates && std::abs(x - cx) > step * 0.1f) {
                 snprintf(label, sizeof(label), "x=%.2f", x - cx);
                 ctx.draw_list->AddText(
                     ImVec2(std::clamp(sa.x + 4, ctx.canvas_p0.x + 2.0f, ctx.canvas_p1.x - 40.0f),
@@ -138,7 +137,7 @@ static void RenderGrid(const BgCtx& ctx) {
             }
         }
 
-        if (ctx.viewport.show_axis_coordinates) {
+        if (AppConfig::show_axis_coordinates) {
             core::Point on = ctx.ncs_mat * core::Point(0, 0, 0);
             if (on.x >= -1.0f && on.x <= 1.0f && on.y >= -1.0f && on.y <= 1.0f) {
                 core::Point os = ctx.window.NCSToViewport(on);
@@ -164,7 +163,7 @@ static void RenderGrid(const BgCtx& ctx) {
             ts.x += ctx.canvas_p0.x; ts.y += ctx.canvas_p0.y;
             bs.x += ctx.canvas_p0.x; bs.y += ctx.canvas_p0.y;
             ctx.draw_list->AddLine(ToImVec2(ts), ToImVec2(bs), IM_COL32(100, 100, 100, 255));
-            if (ctx.viewport.show_axis_coordinates && std::abs(x) > step * 0.1f) {
+            if (AppConfig::show_axis_coordinates && std::abs(x) > step * 0.1f) {
                 snprintf(label, sizeof(label), "%.2f", x);
                 core::Point sp = LabelPos(ctx, core::Point(x, 0, 0), l.a, l.b);
                 ctx.draw_list->AddText(
@@ -183,7 +182,7 @@ static void RenderGrid(const BgCtx& ctx) {
             rs.x += ctx.canvas_p0.x; rs.y += ctx.canvas_p0.y;
             ls.x += ctx.canvas_p0.x; ls.y += ctx.canvas_p0.y;
             ctx.draw_list->AddLine(ToImVec2(rs), ToImVec2(ls), IM_COL32(100, 100, 100, 255));
-            if (ctx.viewport.show_axis_coordinates && std::abs(y) > step * 0.1f) {
+            if (AppConfig::show_axis_coordinates && std::abs(y) > step * 0.1f) {
                 snprintf(label, sizeof(label), "%.2f", y);
                 core::Point sp = LabelPos(ctx, core::Point(0, y, 0), l.a, l.b);
                 ctx.draw_list->AddText(
@@ -193,7 +192,7 @@ static void RenderGrid(const BgCtx& ctx) {
             }
         }
 
-        if (ctx.viewport.show_axis_coordinates) {
+        if (AppConfig::show_axis_coordinates) {
             core::Point on = ctx.ncs_mat * core::Point(0, 0, 0);
             if (on.x >= -1.0f && on.x <= 1.0f && on.y >= -1.0f && on.y <= 1.0f) {
                 core::Point os = ctx.window.NCSToViewport(on);
@@ -206,7 +205,7 @@ static void RenderGrid(const BgCtx& ctx) {
 }
 
 static void RenderAxes(const BgCtx& ctx) {
-    if (!ctx.viewport.show_axes) return;
+    if (!AppConfig::show_axes) return;
 
     if (AppConfig::is3d) {
         const float B = ctx.grid_extent, cx = ctx.cx, cy = ctx.cy, cz = ctx.cz;
@@ -277,7 +276,6 @@ void RenderBackground(ImDrawList* draw_list, const Window& window, const Viewpor
     BgCtx ctx {
         .draw_list = draw_list,
         .window    = window,
-        .viewport  = viewport,
         .w_attr    = w_attr,
         .ncs_mat   = window.GetWindowNCSMatrix(),
         .ncs_min   = core::Point(-1.0f, -1.0f, 0.0f),

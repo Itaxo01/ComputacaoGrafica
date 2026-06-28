@@ -33,6 +33,7 @@ private:
     inline void DrawAddScaling();
     inline void DrawAddTranslation();
     inline void DrawAddRotation();
+    void DrawTransformImport();
 public:
     ObjectGUI(EntityManager& em, ObjectController& oc, ExampleAppLog& log)
         : entityManager(em), objectController(oc), log(log),

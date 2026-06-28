@@ -42,27 +42,44 @@ void GuiController::HandleRightDragging(){
 }
 
 void GuiController::HandleScroll(){
-    float scroll = ImGui::GetIO().MouseWheel;
-    if (scroll == 0.0f) return;
+    ImGuiIO& io = ImGui::GetIO();
+    float sv = io.MouseWheel;   // touchpad vertical pan (up/down)
+    float sh = io.MouseWheelH;  // touchpad horizontal pan (left/right)
+    if (sv == 0.0f && sh == 0.0f) return;
 
     ImVec2 mouse_pos = ImGui::GetMousePos();
+    const bool ctrl = io.KeyCtrl, shift = io.KeyShift;
 
-    // Shift + scroll in 3D perspective moves the Centre of Projection
-    // (focal distance) → wide-angle / telephoto distortion.
-    // Plain scroll always zooms the view (works in perspective too).
-    if (AppConfig::is3d && AppConfig::perspective && ImGui::GetIO().KeyShift) {
-        // Larger step than zoom: the default focal distance is large, so a
-        // gentle factor would need many scrolls to reach a visible distortion.
-        float factor = scroll > 0.0f ? 0.8f : 1.25f;
+    if (ctrl && shift) {
+        // Rotate, like Ctrl+Shift+arrows. 3D has two DOF (horizontal = yaw,
+        // vertical = pitch); 2D has a single rotation, driven by horizontal.
+        if (sh != 0.0f) {
+            float deg = sh * 5.0f;
+            window.rotate(deg);
+            log.AddLog("Rotated %s by %.1f deg\n",
+                       AppConfig::is3d ? "camera yaw" : "window", deg);
+        }
+        if (AppConfig::is3d && sv != 0.0f) {
+            float deg = -sv * 5.0f;
+            window.orbitPitch(deg);
+            log.AddLog("Camera pitch %.1f deg\n", deg);
+        }
+    } else if (shift) {
+        // Translate in both axes — same directions as Shift+arrows, bigger delta.
+        float dx = -sh * 30.0f, dy = sv * 30.0f;
+        window.moveWindow(dx, dy, viewport.GetCanvasSize());
+        log.AddLog("Translated window ({%.0f}, {%.0f})\n", dx, dy);
+    } else if (ctrl && AppConfig::is3d && AppConfig::perspective && sv != 0.0f) {
+        // Perspective COP (wide-angle / telephoto) — relocated here from Shift.
+        float factor = sv > 0.0f ? 0.8f : 1.25f;
         window.adjustPerspective(factor);
-        log.AddLog("Perspective COP %s (%s)\n",
-                   scroll > 0.0f ? "moved back" : "moved closer",
-                   scroll > 0.0f ? "telephoto" : "wide angle");
-    } else {
-        float factor = scroll > 0.0f ? 0.9f : 1.1f;
+        log.AddLog("Perspective COP %s\n", sv > 0.0f ? "telephoto" : "wide angle");
+    } else if (sv != 0.0f) {
+        // Plain vertical pan zooms (anchored at the cursor). Horizontal-only is ignored.
+        float factor = sv > 0.0f ? 0.9f : 1.1f;
         window.zoom(factor, mouse_pos);
-        log.AddLog("Canvas zoomed {%s}. scroll = {%.1f} at position ({%.1f}, {%.1f})\n",
-                   scroll > 0.0f ? "in" : "out", scroll, mouse_pos.x, mouse_pos.y);
+        log.AddLog("Canvas zoomed {%s} at ({%.1f}, {%.1f})\n",
+                   sv > 0.0f ? "in" : "out", mouse_pos.x, mouse_pos.y);
     }
 }
 
@@ -148,8 +165,8 @@ void GuiController::HandleCanvasInteractions(){
             }
         }
 
-        float scroll = ImGui::GetIO().MouseWheel;
-        if(scroll != 0.0f){
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.MouseWheel != 0.0f || io.MouseWheelH != 0.0f) {
             HandleScroll();
         }
         HandleKeyboard();

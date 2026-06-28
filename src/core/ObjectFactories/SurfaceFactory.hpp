@@ -5,22 +5,35 @@
 #include <vector>
 
 namespace core {
-    // Builds a bicubic surface object from a list of 16-point patches. Each patch
-    // is tessellated into a resolution x resolution grid of points (evaluated via
-    // Q(s,t) = S·M·G·Mᵀ·Tᵀ) and emitted as iso-curve grid lines, so the surface
-    // renders through the existing line pipeline. method = BEZIER or BSPLINE only
-    // swaps the basis matrix M.
+    // Splits an M×N control grid (row-major, M = rows, N = cols, both >= 4) into
+    // the 16-control-point bicubic patches that make up the surface:
+    //   B-Spline: overlapping windows sliding by 1  -> (M-3)*(N-3) patches
+    //   Bezier:   composite windows sliding by 3     -> ((M-1)/3)*((N-1)/3) patches
+    // Each patch is row-major (cp[i*4 + j], i along s/rows, j along t/cols).
+    std::vector<std::vector<core::Point>>
+    surfaceGridToPatches(int rows, int cols,
+                         const std::vector<core::Point>& grid, int method);
+
+    // Builds a bicubic surface (Bezier or composite B-Spline) from an M×N control
+    // grid. Every patch is tessellated into a resolution x resolution grid of
+    // points and emitted as iso-curve grid lines, so the surface renders through
+    // the existing line pipeline. method (BEZIER / BSPLINE) selects both the basis
+    // matrix and the patch decomposition; technique (SURF_BLENDING /
+    // SURF_FORWARD_DIFF) selects how each patch's sample grid is evaluated.
     class SurfaceFactory : public ObjectFactory {
         std::string name_;
-        std::vector<std::vector<core::Point>> patches_;  // each holds 16 control points
+        int rows_;
+        int cols_;
+        std::vector<core::Point> grid_;  // row-major rows_*cols_ control points
         int method_;
+        int technique_;
         int resolution_;
         ImU32 color_;
         SurfaceMetadata meta_;
     public:
-        SurfaceFactory(const std::string& name,
-                       const std::vector<std::vector<core::Point>>& patches,
-                       int method, int resolution, ImU32 color);
+        SurfaceFactory(const std::string& name, int rows, int cols,
+                       const std::vector<core::Point>& grid,
+                       int method, int technique, int resolution, ImU32 color);
         Object build() override;
         std::unique_ptr<Metadata> takeMetadata() override;
     };

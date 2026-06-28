@@ -1,0 +1,11 @@
+# Famous rotating donut (donut.c) — tumbles forever around two axes.
+# Select the Donut object, then import this script.
+# Requires 3D mode. Stop it with the "Stop animation" button.
+
+duration 6
+loop
+
+# One full turn about X and one about Z per cycle; 360 deg returns to the
+# start pose, so the loop is seamless and the donut spins continuously.
+rotate 360 axis 1 0 0 around itself
+rotate 360 axis 0 0 1 around itself

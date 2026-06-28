@@ -13,6 +13,9 @@ class ObjectCreator{
         bool filled = false;       // only meaningful in polygon mode
         int curve_smoothness = 50; // points per segment for Curve2D
         int method = 0;            // 0=Bezier, 1=B-Spline (Curve2D / Surface)
+        int surf_rows = 0;         // surface control-grid shape (from the text modal)
+        int surf_cols = 0;
+        int surf_eval = SURF_FORWARD_DIFF; // surface tessellation technique
         char obj_name[64] = "";    // empty = auto-generate
         float color_f[3] = {1.0f, 1.0f, 1.0f};
         int object_color = IM_COL32_WHITE;
