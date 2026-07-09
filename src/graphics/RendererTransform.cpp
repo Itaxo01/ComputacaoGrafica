@@ -1,4 +1,5 @@
 #include "RendererTransform.hpp"
+#include "PipelineStages.hpp"
 #include "ParallelUtils.hpp"
 #include "AppConfig.hpp"
 #include "Lighting.hpp"
@@ -105,132 +106,79 @@ void BuildGeometryBuffer(const std::vector<core::Object>& src,
 void TransformFlat(GeometryBuffer& gb, const std::vector<ObjectSlice>& slices,
                    const core::mat4& ncs_mat, bool shading) {
     const size_t nv = gb.vertexCount();
-
-    if (!shading) {
-        gb.world.clear(); gb.normal.clear();
-        // Pre-combine ncs * transform per object so the per-vertex loop is a single
-        // matrix multiply (the matrices are tiny and there are few objects).
-        std::vector<core::mat4> comb(slices.size());
-        for (size_t o = 0; o < slices.size(); ++o) comb[o] = ncs_mat * slices[o].transform;
-        for_range(nv, [&](size_t i) {
-            const core::mat4& m = comb[gb.vobj[i]];
-            core::Point r = m * core::Point(gb.pos[3*i], gb.pos[3*i+1], gb.pos[3*i+2]);
-            gb.pos[3*i] = r.x; gb.pos[3*i+1] = r.y; gb.pos[3*i+2] = r.z;
-        });
-        return;
+    if (!shading) { gb.world.clear(); gb.normal.clear(); }
+    else {
+        if (gb.world.size()  != 3*nv) gb.world.assign(3*nv, 0.0f);
+        if (gb.normal.size() != 3*nv) gb.normal.assign(3*nv, 0.0f);
     }
+    GBView g = gb.view();
+    const ObjectSlice* sl = slices.data();
+    for_range(nv, [&](size_t i) { transformVertex(g, sl, ncs_mat, shading, i); });
 
-    // Shading on: world = transform * v (kept for lighting); pos = ncs * world.
-    if (gb.world.size()  != 3*nv) gb.world.assign(3*nv, 0.0f);
-    if (gb.normal.size() != 3*nv) gb.normal.assign(3*nv, 0.0f);
-    for_range(nv, [&](size_t i) {
-        const core::mat4& t = slices[gb.vobj[i]].transform;
-        core::Point wv = t * core::Point(gb.pos[3*i], gb.pos[3*i+1], gb.pos[3*i+2]);
-        gb.world[3*i] = wv.x; gb.world[3*i+1] = wv.y; gb.world[3*i+2] = wv.z;
-        core::Point r = ncs_mat * wv;
-        gb.pos[3*i] = r.x; gb.pos[3*i+1] = r.y; gb.pos[3*i+2] = r.z;
-    });
+    if (!shading) return;
 
-    // Smooth world-space normals: accumulate (area-weighted) world face normals onto
-    // shared vertices, then normalize. The scatter is run serially because triangles
-    // of the same object share vertices (write race); on the GPU this is the standard
-    // atomic-add accumulation. Normalization is a plain per-vertex map.
+    // Smooth world normals: serial face-normal scatter (shared vertices race), then a
+    // parallel normalize. On the GPU the scatter is the same code under atomicAdd.
     std::fill(gb.normal.begin(), gb.normal.end(), 0.0f);
     const size_t nt = gb.triCount();
     for (size_t t = 0; t < nt; ++t) {
         uint32_t ia = gb.triIdx[3*t], ib = gb.triIdx[3*t+1], ic = gb.triIdx[3*t+2];
-        core::Point A = gb.getWorld(ia), B = gb.getWorld(ib), C = gb.getWorld(ic);
-        core::Point fn = cross(B - A, C - A);
+        core::Point fn = faceNormalWorld(g, t);
         gb.normal[3*ia]+=fn.x; gb.normal[3*ia+1]+=fn.y; gb.normal[3*ia+2]+=fn.z;
         gb.normal[3*ib]+=fn.x; gb.normal[3*ib+1]+=fn.y; gb.normal[3*ib+2]+=fn.z;
         gb.normal[3*ic]+=fn.x; gb.normal[3*ic+1]+=fn.y; gb.normal[3*ic+2]+=fn.z;
     }
-    for_range(nv, [&](size_t i) {
-        core::Point n = gb.getNormal((uint32_t)i);
-        float l = std::sqrt(dot(n, n));
-        if (l > 1e-12f) { gb.normal[3*i]=n.x/l; gb.normal[3*i+1]=n.y/l; gb.normal[3*i+2]=n.z/l; }
-    });
+    for_range(nv, [&](size_t i) { normalizeVertexNormal(g, i); });
 }
 
 void ProjectFlat(GeometryBuffer& gb, const core::mat4& mat) {
-    const size_t nv = gb.vertexCount();
-    for_range(nv, [&](size_t i) {
-        core::Point r = mat * core::Point(gb.pos[3*i], gb.pos[3*i+1], gb.pos[3*i+2]);
-        gb.pos[3*i] = r.x; gb.pos[3*i+1] = r.y; gb.pos[3*i+2] = r.z;
-    });
+    GBView g = gb.view();
+    for_range(gb.vertexCount(), [&](size_t i) { projectVertex(g, mat, i); });
 }
 
-void ViewportFlat(GeometryBuffer& gb, const Window& window, float scale) {
-    // Expanded layout invariant: point verts, then line verts, then tri verts. Tri
-    // verts were already consumed (in NCS) by BuildSortedTrianglesFlat, so only the
-    // point/line verts still need mapping to pixel space.
+void ViewportFlat(GeometryBuffer& gb, float cw, float ch, float scale) {
+    // Expanded layout: point verts, then line verts, then tri verts. Tri verts were
+    // already consumed (in NCS) by BuildSortedTrianglesFlat, so map only point/line.
+    GBView g = gb.view();
     const size_t lineVertEnd = gb.pointCount() + 2 * gb.lineCount();
-    for_range(lineVertEnd, [&](size_t i) {
-        core::Point s = window.NCSToViewport(core::Point(gb.pos[3*i], gb.pos[3*i+1], gb.pos[3*i+2]));
-        gb.pos[3*i] = s.x * scale;
-        gb.pos[3*i+1] = s.y * scale;
-        // z keeps the NCS depth so wireframe lines/points can be depth-tested.
-    });
+    for_range(lineVertEnd, [&](size_t i) { viewportVertex(g, cw, ch, scale, i); });
+}
+
+namespace {
+    // Appends built triangles to a vector (used per-thread; spliced under a lock).
+    struct VecSortedSink {
+        std::vector<SortedTri>* v;
+        void emit(const SortedTri& t) { v->push_back(t); }
+    };
 }
 
 void BuildSortedTrianglesFlat(const GeometryBuffer& gb, const std::vector<ObjectSlice>& slices,
-                              const Window& window, float scale, std::vector<SortedTri>& out) {
+                              float cw, float ch, float scale, std::vector<SortedTri>& out) {
     out.clear();
     const bool cull = AppConfig::is3d && AppConfig::backface_cull;
-    const bool shaded = gb.shaded();
+    const bool ccw  = AppConfig::cull_ccw;
+    const int  meshType = (int)core::ObjectType::MESH;
     const size_t nt = gb.triCount();
     out.reserve(nt);
 
+    GBView g = const_cast<GeometryBuffer&>(gb).view(); // read-only use
+    const ObjectSlice* sl = slices.data();
     std::mutex out_mtx;
-
-    auto build_range = [&](size_t lo, size_t hi, std::vector<SortedTri>& sink) {
-        for (size_t t = lo; t < hi; ++t) {
-            const ObjectSlice& sl = slices[gb.triObj[t]];
-            // Only cull imported meshes; user-drawn filled polygons are single-sided
-            // surfaces that must stay visible regardless of winding.
-            const bool cullThis = cull && (sl.type == core::ObjectType::MESH);
-
-            uint32_t ia = gb.triIdx[3*t], ib = gb.triIdx[3*t+1], ic = gb.triIdx[3*t+2];
-            core::Point A = gb.getPos(ia), B = gb.getPos(ib), C = gb.getPos(ic); // NCS: z is depth
-
-            core::Point va = window.NCSToViewport(A); // maps x/y to screen, drops z
-            core::Point vb = window.NCSToViewport(B);
-            core::Point vc = window.NCSToViewport(C);
-
-            float area = (vb.x - va.x) * (vc.y - va.y) - (vb.y - va.y) * (vc.x - va.x);
-            if (cullThis) {
-                bool back = AppConfig::cull_ccw ? (area <= 0.0f) : (area >= 0.0f);
-                if (back) continue;
-            }
-
-            SortedTri tt;
-            tt.a = ImVec2(va.x * scale, va.y * scale);
-            tt.b = ImVec2(vb.x * scale, vb.y * scale);
-            tt.c = ImVec2(vc.x * scale, vc.y * scale);
-            tt.color = sl.color;
-            tt.depth = (A.z + B.z + C.z) / 3.0f;
-            tt.za = A.z; tt.zb = B.z; tt.zc = C.z;
-            if (shaded) {
-                tt.P[0] = gb.getWorld(ia);  tt.P[1] = gb.getWorld(ib);  tt.P[2] = gb.getWorld(ic);
-                tt.N[0] = gb.getNormal(ia); tt.N[1] = gb.getNormal(ib); tt.N[2] = gb.getNormal(ic);
-                tt.mat = sl.shadeMat;
-            }
-            sink.push_back(tt);
-        }
-    };
 
     if (nt >= kTriangleParallelThreshold) {
         cg_parallel_chunks(nt, [&](size_t lo, size_t hi) {
-            std::vector<SortedTri> local;
-            local.reserve(hi - lo);
-            build_range(lo, hi, local);
-            std::lock_guard<std::mutex> g(out_mtx);
-            out.insert(out.end(),
-                       std::make_move_iterator(local.begin()),
-                       std::make_move_iterator(local.end()));
+            std::vector<SortedTri> local; local.reserve(hi - lo);
+            VecSortedSink sink{&local};
+            for (size_t t = lo; t < hi; ++t)
+                buildSortedTriangle(g, sl, t, cw, ch, scale, meshType, cull, ccw, sink);
+            std::lock_guard<std::mutex> lk(out_mtx);
+            out.insert(out.end(), std::make_move_iterator(local.begin()),
+                                  std::make_move_iterator(local.end()));
         });
     } else {
-        build_range(0, nt, out);
+        VecSortedSink sink{&out};
+        for (size_t t = 0; t < nt; ++t)
+            buildSortedTriangle(g, sl, t, cw, ch, scale, meshType, cull, ccw, sink);
     }
 
     // The painter's sort is pointless when the z-buffer resolves visibility per pixel.

@@ -39,11 +39,20 @@ SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui
 
 OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
 
+# CUDA sources (compiled only by the `cuda` target, with nvcc). The *.cu live in
+# the graphics dir; CudaPipeline_stub.cpp (a normal *.cpp, always in SOURCES)
+# provides the same symbols for the CPU build when USE_CUDA is unset.
+CUDA_SOURCES = $(wildcard $(GRAPHICS_DIR)/*.cu)
+CUDA_OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(CUDA_SOURCES)))))
+NVCC = nvcc
+CUDA_ARCH = -arch=sm_75   # GeForce GTX 1650 = compute capability 7.5
+NVCC_INCLUDES = -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(FACTORIES_DIR) -I$(METADATAS_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IO_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
+
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
 CXXFLAGS = -std=c++20 -MMD -MP -I$(GRAPHICS_DIR) -I$(WINDOW_DIR) -I$(CORE_DIR) -I$(FACTORIES_DIR) -I$(METADATAS_DIR) -I$(GUI_DIR) -I$(CONTROLLER_DIR) -I$(IO_DIR) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends # Define DONT_DRAW_SHAPE_NAME makes so that the name is added to the Shape class and showed on the viewport
-CXXFLAGS += -g -Wall -Wformat
+CXXFLAGS += -Wall -Wformat
 LIBS =
 
 
@@ -102,10 +111,17 @@ endif
 ##---------------------------------------------------------------------
 
 vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(FACTORIES_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IO_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
+vpath %.cu $(GRAPHICS_DIR)
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+# CUDA compilation (only used by the `cuda` target). nvcc compiles device + host
+# code; -MMD keeps header-dependency tracking like the C++ rule.
+$(BUILD_DIR)/%.o: %.cu
+	@mkdir -p $(dir $@)
+	$(NVCC) $(CUDA_ARCH) -std=c++20 -DUSE_CUDA -MMD $(NVCC_INCLUDES) `pkg-config --cflags glfw3` -c -o $@ $<
 
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
@@ -114,6 +130,17 @@ fast: CXXFLAGS += -O3
 
 fast: $(EXE)
 	@echo Fast build complete for $(ECHO_MESSAGE)
+
+# --- LINUX GPU BUILD (CUDA) ---------------------------------------------------
+# Requires the CUDA toolkit (nvcc on PATH). Builds the *.cpp with -DUSE_CUDA (so the
+# stub is empty and the GPU dispatch is active) and the *.cu with nvcc, then links
+# with nvcc + cudart. Run `make clean` when switching between `make` and `make cuda`
+# (object files don't track the -DUSE_CUDA flag change).
+cuda: CXXFLAGS += -DUSE_CUDA -O2
+cuda: $(OBJS) $(CUDA_OBJS)
+	@mkdir -p $(dir $(EXE))
+	$(NVCC) $(CUDA_ARCH) -o $(EXE) $(OBJS) $(CUDA_OBJS) $(LIBS) -lcudart
+	@echo "CUDA build complete. Toggle the GPU path with the GPU CUDA checkbox."
 
 $(EXE): $(OBJS)
 	@mkdir -p $(dir $@)
@@ -192,3 +219,4 @@ clean:
 # NOTE: this -include must stay at the very end, AFTER `all:` — otherwise the first
 # included .d's target would hijack the default goal.
 -include $(OBJS:.o=.d)
+-include $(CUDA_OBJS:.o=.d)

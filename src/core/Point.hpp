@@ -3,7 +3,10 @@
 
 #include <ostream>
 #include <cmath>
+#include <tuple>
+#include <utility>
 #include "AppConfig.hpp"
+#include "HostDevice.hpp"
 
 namespace core {
     static constexpr float EPS = 1e-9;
@@ -12,23 +15,23 @@ namespace core {
     public:
         float x = 0, y = 0, z = 0;
 
-        Point() = default;
-        Point(float x, float y, float z = 0.0f) : x(x), y(y), z(z) {}
+        CG_HD Point() = default;
+        CG_HD Point(float x, float y, float z = 0.0f) : x(x), y(y), z(z) {}
         Point(const std::pair<float, float> &p) : x(p.first), y(p.second), z(0.0f) {}
         Point(const std::tuple<float, float, float> &p) {
             auto [px, py, pz] = p;
             x = px; y = py; z = pz;
         }
 
-        friend Point operator+(const Point &p, const Point &q) { return Point(p.x+q.x, p.y+q.y, p.z+q.z); }
-        friend Point operator-(const Point &p, const Point &q) { return Point(p.x-q.x, p.y-q.y, p.z-q.z); }
-        friend Point operator*(const Point &p, const float k)  { return Point(p.x*k,   p.y*k,   p.z*k);   }
-        friend Point operator/(const Point &p, const float k)  { return Point(p.x/k,   p.y/k,   p.z/k);   }
+        friend CG_HD Point operator+(const Point &p, const Point &q) { return Point(p.x+q.x, p.y+q.y, p.z+q.z); }
+        friend CG_HD Point operator-(const Point &p, const Point &q) { return Point(p.x-q.x, p.y-q.y, p.z-q.z); }
+        friend CG_HD Point operator*(const Point &p, const float k)  { return Point(p.x*k,   p.y*k,   p.z*k);   }
+        friend CG_HD Point operator/(const Point &p, const float k)  { return Point(p.x/k,   p.y/k,   p.z/k);   }
 
-        Point operator+=(const Point &q) { x+=q.x; y+=q.y; z+=q.z; return *this; }
-        Point operator-=(const Point &q) { x-=q.x; y-=q.y; z-=q.z; return *this; }
-        Point operator*=(const float k)  { x*=k;   y*=k;   z*=k;   return *this; }
-        Point operator/=(const float k)  { x/=k;   y/=k;   z/=k;   return *this; }
+        CG_HD Point operator+=(const Point &q) { x+=q.x; y+=q.y; z+=q.z; return *this; }
+        CG_HD Point operator-=(const Point &q) { x-=q.x; y-=q.y; z-=q.z; return *this; }
+        CG_HD Point operator*=(const float k)  { x*=k;   y*=k;   z*=k;   return *this; }
+        CG_HD Point operator/=(const float k)  { x/=k;   y/=k;   z/=k;   return *this; }
 
         bool operator==(const Point &q) const { return (std::abs(x-q.x)<EPS && std::abs(y-q.y)<EPS && std::abs(z-q.z)<EPS); }
         bool operator!=(const Point &q) const { return !(*this == q); }
@@ -46,11 +49,11 @@ namespace core {
             return p.y > q.y ? p : (q.y > p.y ? q : (p.x < q.x ? p : q));
         }
 
-        friend float dot(const Point &p, const Point &q) { return p.x*q.x + p.y*q.y + p.z*q.z; }
+        friend CG_HD float dot(const Point &p, const Point &q) { return p.x*q.x + p.y*q.y + p.z*q.z; }
         friend float dist2(const Point &p, const Point &q) { return dot(p-q, p-q); }
         friend float dist(const Point &p, const Point &q)  { return sqrtl(dist2(p, q)); }
 
-        friend Point cross(const Point &p, const Point &q) {
+        friend CG_HD Point cross(const Point &p, const Point &q) {
             return Point(p.y*q.z - p.z*q.y, p.z*q.x - p.x*q.z, p.x*q.y - p.y*q.x);
         }
         friend float cross2D(const Point &p, const Point &q) { return p.x*q.y - p.y*q.x; }

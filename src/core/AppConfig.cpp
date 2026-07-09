@@ -19,4 +19,6 @@ namespace AppConfig {
     int supersample = 2; // SSAA factor: framebuffer is rendered at NxN the viewport
 
     bool z_buffer = true; // per-pixel depth test; when off, falls back to painter's sort
+
+    bool use_cuda = false; // GPU pipeline (needs -DUSE_CUDA build + a device)
 }

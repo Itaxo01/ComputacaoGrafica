@@ -79,22 +79,76 @@ void Renderer::ApplyClipping() {
 }
 
 void Renderer::ApplyViewportTransform() {
-    ViewportFlat(geom, window, (float)AppConfig::supersample);
+    ImVec2 sz = viewport.GetCanvasSize();
+    ViewportFlat(geom, sz.x, sz.y, (float)AppConfig::supersample);
 }
 
-void Renderer::GenerateDrawList() {
+bool Renderer::cacheDirty() {
     WindowAttributes w = window.getWindowAttributes();
     auto canvas_p = viewport.GetCanvasP();
     if (refresh_cache || rendererCache.cache_changed(w, canvas_p.first, canvas_p.second)) {
-        log.AddLog("Scene changed, refreshing object cache\n");
         rendererCache.store_cache(w, canvas_p.first, canvas_p.second);
         refresh_cache = false;
+        return true;
+    }
+    return false;
+}
+
+void Renderer::GenerateDrawList() {
+    if (cacheDirty()) {
+        log.AddLog("Scene changed, refreshing object cache\n");
         ProcessPreClipping();
         ApplyClipping();
         // Gather + depth-sort filled triangles in NCS space (z still meaningful)
         // before the viewport map drops z; lines/points use the viewport verts.
-        BuildSortedTrianglesFlat(geom, slices, window, (float)AppConfig::supersample, sortedTris);
+        ImVec2 sz = viewport.GetCanvasSize();
+        BuildSortedTrianglesFlat(geom, slices, sz.x, sz.y, (float)AppConfig::supersample, sortedTris);
         ApplyViewportTransform();
+    }
+}
+
+cuda::GeomParams Renderer::makeGeomParams(bool shading) {
+    cuda::GeomParams gp;
+    gp.is3d = AppConfig::is3d; gp.perspective = AppConfig::perspective; gp.shading = shading;
+    gp.vrc        = window.GetVRCMatrix();
+    gp.projScale  = window.GetProjectionScaleMatrix();
+    gp.windowNcs  = window.GetWindowNCSMatrix();
+    gp.nearZ      = window.GetNearPlaneZ();
+    auto [cmin, cmax] = window.getClipBoundsNCS();
+    gp.clipMin = cmin; gp.clipMax = cmax;
+    gp.clippingMode    = AppConfig::clipping_mode;
+    gp.backfaceCull    = AppConfig::backface_cull;
+    gp.cullCcw         = AppConfig::cull_ccw;
+    gp.depthSort       = AppConfig::depth_sort;
+    gp.depthAscending  = AppConfig::depth_ascending;
+    gp.zBuffer         = AppConfig::z_buffer;
+    ImVec2 sz = viewport.GetCanvasSize();
+    gp.canvasW = sz.x; gp.canvasH = sz.y;
+    gp.scale   = (float)AppConfig::supersample;
+    return gp;
+}
+
+cuda::FrameParams Renderer::makeFrameParams() {
+    cuda::FrameParams fp;
+    fp.shadeMode  = Lighting::mode;
+    fp.eye        = window.GetEyeWorld();
+    fp.ambient    = Lighting::ambient;
+    fp.lights     = effectiveLights; // already rebuilt this frame in render()
+    fp.zBuffer    = AppConfig::z_buffer;
+    fp.depthLess  = !AppConfig::depth_ascending;
+    fp.supersample = AppConfig::supersample;
+    ImVec2 sz = viewport.GetCanvasSize();
+    fp.displayW = (int)std::lround(sz.x);
+    fp.displayH = (int)std::lround(sz.y);
+    return fp;
+}
+
+void Renderer::GenerateGeometryCuda() {
+    if (cacheDirty()) {
+        log.AddLog("Scene changed, refreshing GPU geometry\n");
+        const bool shading = Lighting::mode != Lighting::NONE;
+        BuildGeometryBuffer(displayFile.getObjects(), geom, slices, shading);
+        cuda::processGeometry(cudaCtx, geom, slices, makeGeomParams(shading));
     }
 }
 
@@ -117,8 +171,7 @@ void Renderer::RasterizeFramebuffer() {
         if (zt) framebuffer.ClearDepthRows(y_lo, y_hi, farZ);
 
         for (const auto& t : sortedTris)
-            DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.za, t.zb, t.zc,
-                               t.P, t.N, t.mat, t.color, shadeCtx, zt, less, y_lo, y_hi);
+            DrawSortedTri(framebuffer, t, shadeCtx, zt, less, y_lo, y_hi);
 
         // Wireframe lines and points, straight from the flat buffer (color via the
         // owning ObjectSlice). Filled triangles were drawn above from sortedTris.
@@ -141,10 +194,15 @@ void Renderer::RasterizeFramebuffer() {
 void Renderer::render() {
     draw_list = viewport.GetDrawList();
     RenderBackground();
-    GenerateDrawList();
+
+    // Pick the pipeline. Toggling it must force a geometry rebuild (the other path's
+    // cached geometry isn't valid for this one).
+    const bool useCuda = cuda::available() && AppConfig::use_cuda;
+    if (useCuda != prevUseCuda) { refresh_cache = true; prevUseCuda = useCuda; }
 
     // Build per-frame shading inputs. These are read live (not cached), so moving a
     // light or orbiting updates the lighting immediately without a geometry rebuild.
+    // Used by the CPU rasterizer (shadeCtx) and the CUDA path (makeFrameParams).
     effectiveLights.clear();
     for (const auto& L : Lighting::lights) effectiveLights.push_back(L);
     if (Lighting::headlight) {
@@ -159,13 +217,30 @@ void Renderer::render() {
     shadeCtx.ambient = Lighting::ambient;
     shadeCtx.lights  = &effectiveLights;
 
-    // Rasterize the scene into the CPU framebuffer, then blit it over the grid.
     ImVec2 sz = viewport.GetCanvasSize();
     auto canvas_p = viewport.GetCanvasP();
     framebuffer.Resize((int)std::lround(sz.x), (int)std::lround(sz.y), AppConfig::supersample);
-    RasterizeFramebuffer();
-    framebuffer.Resolve(); // CPU box-downsample (premultiplied) into display resolution
-    framebuffer.Present(draw_list, canvas_p.first, canvas_p.second);
+
+    if (useCuda) {
+        // GPU path: geometry runs on cache miss; rasterize + resolve happen on the
+        // device every frame, only the display-res image is copied back to present.
+        GenerateGeometryCuda();
+        const int rw = framebuffer.ResolvedWidth(), rh = framebuffer.ResolvedHeight();
+        if ((int)cudaResolved.size() != rw * rh) cudaResolved.assign((size_t)rw * rh, 0u);
+        // Preferred: CUDA writes the resolve straight into the GL texture (no host
+        // round-trip). Falls back to a device->host copy + upload if interop fails.
+        unsigned tex = framebuffer.PreparePresentTexture();
+        bool usedInterop = false;
+        cuda::rasterize(cudaCtx, makeFrameParams(), tex, cudaResolved.data(), &usedInterop);
+        if (usedInterop) framebuffer.DrawTexture(draw_list, canvas_p.first, canvas_p.second);
+        else framebuffer.PresentExternal(cudaResolved.data(), draw_list, canvas_p.first, canvas_p.second);
+    } else {
+        // CPU path: rasterize the scene into the CPU framebuffer, then blit it.
+        GenerateDrawList();
+        RasterizeFramebuffer();
+        framebuffer.Resolve(); // CPU box-downsample (premultiplied) into display resolution
+        framebuffer.Present(draw_list, canvas_p.first, canvas_p.second);
+    }
 
     if (AppConfig::render_names) {
         for (const auto& obj : displayFile.getObjects())

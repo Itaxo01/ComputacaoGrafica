@@ -94,6 +94,22 @@ public:
     // the display-space rectangle [p0, p1].
     void Present(ImDrawList* dl, const ImVec2& p0, const ImVec2& p1);
 
+    // Like Present, but the resolved (display-size) image was produced elsewhere
+    // (e.g. downloaded from the GPU rasterizer). `src` must point at rwidth*rheight
+    // ImU32 pixels. Copies into the internal resolve buffer, then uploads as usual.
+    void PresentExternal(const ImU32* src, ImDrawList* dl, const ImVec2& p0, const ImVec2& p1);
+
+    // Ensure the GL texture exists with sized (GL_RGBA8) storage at the resolved size
+    // and return its id. Used by the CUDA-OpenGL interop path: CUDA writes the image
+    // straight into this texture (no host copy), then DrawTexture() blits it.
+    unsigned PreparePresentTexture();
+    // Record an AddImage of the current texture (assumes it already holds the image).
+    void DrawTexture(ImDrawList* dl, const ImVec2& p0, const ImVec2& p1);
+
+    // Resolved (display) dimensions — the size of the buffer PresentExternal expects.
+    inline int ResolvedWidth()  const { return rwidth;  }
+    inline int ResolvedHeight() const { return rheight; }
+
     ~Framebuffer();
 
 private:
@@ -107,4 +123,5 @@ private:
     bool needs_realloc = false;     // true after a resize: next upload must reallocate
 
     void ensureTexture();
+    void ensureStorage();           // (re)spec GL_RGBA8 storage at resolved size when resized
 };

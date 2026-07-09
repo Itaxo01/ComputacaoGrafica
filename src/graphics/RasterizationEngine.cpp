@@ -2,88 +2,17 @@
 #include <algorithm>
 #include <cmath>
 
-// Twice the signed area of triangle (a, b, p) — the edge function. Positive on
-// one side of edge a→b, negative on the other.
-static inline float edge(const ImVec2& a, const ImVec2& b, float px, float py) {
-    return (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
-}
-
-void DrawTriangleFilled(Framebuffer& fb, const ImVec2& a, const ImVec2& b,
-                        const ImVec2& c, float za, float zb, float zc,
-                        const core::Point P[3], const core::Point N[3],
-                        const ShadeMaterial& mat, ImU32 flatColor,
-                        const ShadingContext& sctx,
-                        bool depth_test, bool depth_less, int y_lo, int y_hi) {
-    int minx = (int)std::floor(std::min({a.x, b.x, c.x}));
-    int maxx = (int)std::ceil (std::max({a.x, b.x, c.x}));
-    int miny = (int)std::floor(std::min({a.y, b.y, c.y}));
-    int maxy = (int)std::ceil (std::max({a.y, b.y, c.y}));
-
-    minx = std::max(minx, 0);
-    maxx = std::min(maxx, fb.Width() - 1);
-    miny = std::max(miny, y_lo);
-    maxy = std::min(maxy, y_hi - 1);
-    if (minx > maxx || miny > maxy) return;
-
-    // Degenerate (zero-area) triangle: nothing to fill.
-    float area = edge(a, b, c.x, c.y);
-    if (area == 0.0f) return;
-    // w0+w1+w2 == area, so dividing the weighted depth sum by area normalizes the
-    // barycentric coordinates. Screen-space linear interp of post-divide z is exact.
-    const float invArea = 1.0f / area;
-
-    // Per-triangle shading precompute (mode 0 = none, 1 = flat, 2 = gouraud, 3 = phong).
-    const int mode = sctx.mode;
-    ImU32 flatShaded = flatColor;
-    core::Color3 gc0, gc1, gc2; // Gouraud per-vertex colors
-    if (mode == 1) { // FLAT — one color from the face normal at the centroid
-        core::Point fn = cross(P[1] - P[0], P[2] - P[0]);
-        core::Point centroid = (P[0] + P[1] + P[2]) * (1.0f / 3.0f);
-        flatShaded = packColor(shadePhong(centroid, fn, mat, sctx));
-    } else if (mode == 2) { // GOURAUD — light the 3 vertices, interpolate color
-        gc0 = shadePhong(P[0], N[0], mat, sctx);
-        gc1 = shadePhong(P[1], N[1], mat, sctx);
-        gc2 = shadePhong(P[2], N[2], mat, sctx);
-    }
-
-    for (int y = miny; y <= maxy; ++y) {
-        float py = (float)y + 0.5f;
-        for (int x = minx; x <= maxx; ++x) {
-            float px = (float)x + 0.5f;
-            float w0 = edge(b, c, px, py);
-            float w1 = edge(c, a, px, py);
-            float w2 = edge(a, b, px, py);
-            // Inside when all edge functions share a sign (works for either winding).
-            bool inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) ||
-                          (w0 <= 0 && w1 <= 0 && w2 <= 0);
-            if (!inside) continue;
-
-            ImU32 col;
-            if (mode == 0) {
-                col = flatColor;
-            } else if (mode == 1) {
-                col = flatShaded;
-            } else {
-                float l0 = w0 * invArea, l1 = w1 * invArea, l2 = w2 * invArea;
-                if (mode == 2) { // Gouraud: interpolate the vertex colors
-                    col = packColor({ l0*gc0.r + l1*gc1.r + l2*gc2.r,
-                                      l0*gc0.g + l1*gc1.g + l2*gc2.g,
-                                      l0*gc0.b + l1*gc1.b + l2*gc2.b });
-                } else {         // Phong: interpolate position + normal, light per pixel
-                    core::Point Pp = P[0]*l0 + P[1]*l1 + P[2]*l2;
-                    core::Point Np = N[0]*l0 + N[1]*l1 + N[2]*l2;
-                    col = packColor(shadePhong(Pp, Np, mat, sctx));
-                }
-            }
-
-            if (depth_test) {
-                float z = (w0 * za + w1 * zb + w2 * zc) * invArea;
-                fb.SetPixelDepthUnchecked(x, y, col, z, depth_less);
-            } else {
-                fb.SetPixelUnchecked(x, y, col);
-            }
-        }
-    }
+void DrawSortedTri(Framebuffer& fb, const SortedTri& t, const ShadingContext& sctx,
+                   bool depth_test, bool depth_less, int y_lo, int y_hi) {
+    // The per-pixel coverage + shading is the shared body; only the pixel commit is
+    // CPU-specific (Framebuffer write, depth-tested or overwrite).
+    const core::Light* lp = (sctx.lights && !sctx.lights->empty()) ? sctx.lights->data() : nullptr;
+    const int nl = sctx.lights ? (int)sctx.lights->size() : 0;
+    rasterizeTriangleInto(t, fb.Width(), y_lo, y_hi, sctx.mode, sctx.eye, sctx.ambient, lp, nl,
+        [&](int x, int y, float z, ImU32 col) {
+            if (depth_test) fb.SetPixelDepthUnchecked(x, y, col, z, depth_less);
+            else            fb.SetPixelUnchecked(x, y, col);
+        });
 }
 
 void DrawLine(Framebuffer& fb, float x0f, float y0f, float z0, float x1f, float y1f, float z1,

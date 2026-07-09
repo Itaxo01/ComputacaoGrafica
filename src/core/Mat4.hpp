@@ -4,6 +4,7 @@
 #define MAT4_H
 
 #include "Point.hpp"
+#include "HostDevice.hpp"
 #include <cstring>
 #ifdef DEBUG
     #include <cassert>
@@ -16,16 +17,16 @@ namespace core {
         public:
             float data[16] = {0.0f};
 
-            mat4(bool identity = false) {
+            CG_HD mat4(bool identity = false) {
                 if(identity) {
                     data[0] = 1.0f, data[5] = 1.0f, data[10] = 1.0f, data[15] = 1.0f;
                 }
             }
 
-            inline float *operator[](int i){ return &data[i*4];}
-            inline const float* operator[](int i) const { return &data[i*4]; }
+            CG_HD inline float *operator[](int i){ return &data[i*4];}
+            CG_HD inline const float* operator[](int i) const { return &data[i*4]; }
 
-            friend mat4 operator*(const mat4 &a, const mat4 &b){
+            friend CG_HD mat4 operator*(const mat4 &a, const mat4 &b){
                 mat4 result;
                 for(int i = 0; i<4; i++){
                     for(int j = 0; j<4; j++){
@@ -39,8 +40,8 @@ namespace core {
                 return result;
             }
 
-            // Isso está extensivo para maximizar a velocidade            
-            friend core::Point operator*(const mat4 &m, const Point &p){
+            // Isso está extensivo para maximizar a velocidade
+            friend CG_HD core::Point operator*(const mat4 &m, const Point &p){
                 float w = m.data[12]*p.x + m.data[13]*p.y + m.data[14]*p.z + m.data[15];
                 
                 // Preventing Div-By-Zero
@@ -53,7 +54,7 @@ namespace core {
                 );
             }
 
-            mat4& operator*=(const mat4& b) {
+            CG_HD mat4& operator*=(const mat4& b) {
                 *this = (*this) * b;
                 return *this;
             }

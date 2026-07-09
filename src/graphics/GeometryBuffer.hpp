@@ -6,19 +6,9 @@
 #include "Object.hpp"   // core::ObjectType
 #include "Shading.hpp"  // ShadeMaterial
 #include "Mat4.hpp"
+#include "GeometryView.hpp" // GBView
+#include "ObjectSlice.hpp"  // ObjectSlice
 #include "imgui.h"
-
-// Per-object render metadata, indexed by the per-primitive *Obj arrays of a
-// GeometryBuffer. This small, scene-sized table replaces the scalars that used to
-// live on every RenderedObject (color / filled / material / transform). Keeping it
-// out of the per-vertex buffers means the hot pipeline loops touch only floats.
-struct ObjectSlice {
-    core::ObjectType type   = core::ObjectType::NONE;
-    ImU32            color  = 0xFF;   // flat draw color (Material::color)
-    bool             filled = false;  // Material::filled (drives the clip rules)
-    ShadeMaterial    shadeMat;        // ka/kd/ks/shininess (used when shading on)
-    core::mat4       transform;       // model -> world
-};
 
 // All scene geometry flattened into a handful of contiguous arrays (SoA). This is
 // the CPU stand-in for the device buffers a CUDA port would upload: every pipeline
@@ -66,6 +56,21 @@ struct GeometryBuffer {
     core::Point getPos(uint32_t v)    const { return { pos[3*v],    pos[3*v+1],    pos[3*v+2] }; }
     core::Point getWorld(uint32_t v)  const { return { world[3*v],  world[3*v+1],  world[3*v+2] }; }
     core::Point getNormal(uint32_t v) const { return { normal[3*v], normal[3*v+1], normal[3*v+2] }; }
+
+    // A raw-pointer view over this buffer for the shared per-element pipeline stages.
+    GBView view() {
+        GBView v;
+        v.pos = pos.data();
+        v.world  = shaded() ? world.data()  : nullptr;
+        v.normal = shaded() ? normal.data() : nullptr;
+        v.vobj = vobj.data();
+        v.pointIdx = pointIdx.data(); v.lineIdx = lineIdx.data(); v.triIdx = triIdx.data();
+        v.pointObj = pointObj.data(); v.lineObj = lineObj.data(); v.triObj = triObj.data();
+        v.vertexCount = vertexCount(); v.pointCount = pointCount();
+        v.lineCount = lineCount(); v.triCount = triCount();
+        v.shaded = shaded();
+        return v;
+    }
 
     void clear() {
         pos.clear(); world.clear(); normal.clear(); vobj.clear();

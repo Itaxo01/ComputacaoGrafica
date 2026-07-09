@@ -96,6 +96,11 @@ void Viewport::DrawWindow() {
             if (AppConfig::is3d && ImGui::Checkbox("Z-Buffer (depth test)", &AppConfig::z_buffer)) {
                 log.AddLog("Z-buffer %s\n", AppConfig::z_buffer ? "enabled" : "disabled (painter's)");
             }
+#ifdef USE_CUDA
+            if (ImGui::Checkbox("GPU (CUDA)", &AppConfig::use_cuda)) {
+                log.AddLog("CUDA pipeline %s\n", AppConfig::use_cuda ? "enabled" : "disabled (CPU)");
+            }
+#endif
             ImGui::SetNextItemWidth(110);
             if (ImGui::SliderInt("Anti-aliasing", &AppConfig::supersample, 1, 4, "SSAA %dx")) {
                 if (AppConfig::supersample < 1) AppConfig::supersample = 1;

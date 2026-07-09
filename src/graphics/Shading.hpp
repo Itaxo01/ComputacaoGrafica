@@ -2,6 +2,7 @@
 #include "Point.hpp"
 #include "Material.hpp" // core::Color3
 #include "Light.hpp"
+#include "HostDevice.hpp"
 #include "imgui.h"
 #include <vector>
 #include <cmath>
@@ -24,22 +25,25 @@ struct ShadingContext {
 };
 
 // Classic Phong illumination evaluated at one world-space point with one world-space
-// normal. Returns linear RGB that may exceed 1 (clamped when packed). Two-sided: the
-// normal is flipped to face the viewer so winding/back-faces still light correctly.
-inline core::Color3 shadePhong(const core::Point& P, core::Point N,
-                               const ShadeMaterial& m, const ShadingContext& ctx) {
+// normal, over a RAW light array (so it runs on both CPU and GPU — no std::vector).
+// Returns linear RGB that may exceed 1 (clamped when packed). Two-sided: the normal
+// is flipped to face the viewer so winding/back-faces still light correctly.
+CG_HD inline core::Color3 shadePhongRaw(const core::Point& P, core::Point N,
+                                        const ShadeMaterial& m, const core::Point& eye,
+                                        const core::Color3& ambient,
+                                        const core::Light* lights, int nLights) {
     float nl = std::sqrt(dot(N, N));
     if (nl > 1e-12f) N /= nl;
 
-    core::Point V = ctx.eye - P;
+    core::Point V = eye - P;
     float vl = std::sqrt(dot(V, V));
     if (vl > 1e-12f) V /= vl;
     if (dot(N, V) < 0.0f) N = N * -1.0f;
 
-    core::Color3 out{ m.ka.r * ctx.ambient.r, m.ka.g * ctx.ambient.g, m.ka.b * ctx.ambient.b };
-    if (!ctx.lights) return out;
+    core::Color3 out{ m.ka.r * ambient.r, m.ka.g * ambient.g, m.ka.b * ambient.b };
 
-    for (const auto& L : *ctx.lights) {
+    for (int i = 0; i < nLights; ++i) {
+        const core::Light& L = lights[i];
         if (!L.enabled) continue;
         core::Point Ld = L.position - P;
         float ll = std::sqrt(dot(Ld, Ld));
@@ -72,8 +76,16 @@ inline core::Color3 shadePhong(const core::Point& P, core::Point N,
     return out;
 }
 
+// Host convenience wrapper: pull the raw light array out of the ShadingContext.
+inline core::Color3 shadePhong(const core::Point& P, const core::Point& N,
+                               const ShadeMaterial& m, const ShadingContext& ctx) {
+    const core::Light* lp = (ctx.lights && !ctx.lights->empty()) ? ctx.lights->data() : nullptr;
+    int n = ctx.lights ? (int)ctx.lights->size() : 0;
+    return shadePhongRaw(P, N, m, ctx.eye, ctx.ambient, lp, n);
+}
+
 // Pack linear RGB (clamped to [0,1]) into ImGui's ImU32, keeping a given alpha.
-inline ImU32 packColor(const core::Color3& c, int alpha = 255) {
+CG_HD inline ImU32 packColor(const core::Color3& c, int alpha = 255) {
     auto cl = [](float v) { int i = (int)(v * 255.0f + 0.5f); return i < 0 ? 0 : (i > 255 ? 255 : i); };
     return IM_COL32(cl(c.r), cl(c.g), cl(c.b), alpha);
 }

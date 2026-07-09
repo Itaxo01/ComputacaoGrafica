@@ -10,6 +10,7 @@ imgui.ini
 *.obj
 !models/*.mtl
 !models/*.obj
+cuda_test/
 # EUVO FICA MALUCO COM ESSE CACHE 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites

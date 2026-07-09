@@ -10,6 +10,11 @@
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
 #endif
+// GL_RGBA8 is a sized internal format (required for CUDA-OpenGL image interop).
+// Core since OpenGL 1.1; define it if the system header predates it.
+#ifndef GL_RGBA8
+#define GL_RGBA8 0x8058
+#endif
 
 void Framebuffer::ensureTexture() {
     if (tex != 0) return;
@@ -100,21 +105,46 @@ void Framebuffer::Resolve() {
     });
 }
 
+// (Re)allocate the texture storage as GL_RGBA8 at the resolved size when the size
+// changed. Allocates storage only (no pixel upload) so the same texture serves both
+// the CPU upload path and the CUDA interop path (which needs a sized format).
+void Framebuffer::ensureStorage() {
+    ensureTexture();
+    if (needs_realloc) {
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, rwidth, rheight, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        needs_realloc = false;
+    }
+}
+
+unsigned Framebuffer::PreparePresentTexture() {
+    if (rwidth <= 0 || rheight <= 0) return 0;
+    ensureStorage();
+    return tex;
+}
+
+void Framebuffer::DrawTexture(ImDrawList* dl, const ImVec2& p0, const ImVec2& p1) {
+    if (tex == 0) return;
+    dl->AddImage((ImTextureID)(intptr_t)tex, p0, p1);
+}
+
 void Framebuffer::Present(ImDrawList* dl, const ImVec2& p0, const ImVec2& p1) {
     if (rwidth <= 0 || rheight <= 0) return;
-    ensureTexture();
+    ensureStorage();
     glBindTexture(GL_TEXTURE_2D, tex);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // rows are rwidth*4 bytes, always 4-aligned
-    if (needs_realloc) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rwidth, rheight, 0,
-                     GL_RGBA, GL_UNSIGNED_BYTE, resolved.data());
-        needs_realloc = false;
-    } else {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, rwidth, rheight,
-                        GL_RGBA, GL_UNSIGNED_BYTE, resolved.data());
-    }
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, rwidth, rheight,
+                    GL_RGBA, GL_UNSIGNED_BYTE, resolved.data());
     // ImGui uses a top-left UV origin for images, matching our row 0 = top buffer.
     dl->AddImage((ImTextureID)(intptr_t)tex, p0, p1);
+}
+
+void Framebuffer::PresentExternal(const ImU32* src, ImDrawList* dl, const ImVec2& p0, const ImVec2& p1) {
+    if (rwidth <= 0 || rheight <= 0 || src == nullptr) return;
+    if ((int)resolved.size() != rwidth * rheight) resolved.assign((size_t)rwidth * rheight, 0u);
+    std::copy(src, src + (size_t)rwidth * rheight, resolved.begin());
+    Present(dl, p0, p1);
 }
 
 Framebuffer::~Framebuffer() {

@@ -31,6 +31,11 @@ namespace AppConfig {
     // and the painter's triangle sort is skipped. When off, uses depth_sort.
     // The test direction follows depth_ascending (flip if a model looks inside-out).
     extern bool z_buffer;
+
+    // Run the render pipeline on the GPU (CUDA). Only effective when the program is
+    // built with -DUSE_CUDA (the `cuda` make target) and a device is present;
+    // otherwise the CPU pipeline runs regardless. Toggle at runtime for A/B parity.
+    extern bool use_cuda;
 }
 
 inline std::string format(float x, int precision) {

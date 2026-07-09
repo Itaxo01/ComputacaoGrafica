@@ -12,6 +12,7 @@
 #include "Framebuffer.hpp"
 #include "Lighting.hpp"
 #include "Shading.hpp"
+#include "CudaPipeline.hpp"
 
 class Renderer {
 private:
@@ -30,6 +31,11 @@ private:
     std::vector<core::Light>  effectiveLights; // user lights + headlight, rebuilt per frame
     ShadingContext            shadeCtx;    // per-frame shading inputs for the rasterizer
 
+    // CUDA path (no-op unless built with -DUSE_CUDA and a device is present).
+    cuda::Context*       cudaCtx = nullptr;  // persistent device buffers
+    bool                 prevUseCuda = false; // detect toggle → force geometry rebuild
+    std::vector<ImU32>   cudaResolved;        // host landing buffer for the GPU image
+
     void RenderBackground();
     void DrawPreview();
     // Clears + rasterizes the whole scene into `framebuffer`, parallelized over
@@ -43,11 +49,21 @@ private:
     void ProcessPreClipping();
     void GenerateDrawList();
 
+    // Returns true (and refreshes the cache stamp) when the scene must be rebuilt
+    // this frame; shared by the CPU and CUDA geometry paths.
+    bool cacheDirty();
+    // CUDA cache-miss geometry path: flatten + upload + run device geometry kernels.
+    void GenerateGeometryCuda();
+    cuda::GeomParams  makeGeomParams(bool shading);
+    cuda::FrameParams makeFrameParams();
+
 public:
     Renderer(DisplayFile& df, Viewport& v, Window& w, ExampleAppLog& log)
         : displayFile(df), viewport(v), window(w), log(log) {
         rendererCache = RendererCache(w.getWindowAttributes());
+        cudaCtx = cuda::createContext(); // nullptr without -DUSE_CUDA / device
     }
+    ~Renderer() { cuda::destroyContext(cudaCtx); }
 
     void notifyTransformation();
     void render();
