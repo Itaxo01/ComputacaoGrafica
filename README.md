@@ -4,7 +4,7 @@
 
 **Um sistema gráfico 2D/3D completo escrito do zero em C++ — sem OpenGL, sem bibliotecas de matemática, sem engine.**
 
-Modelagem, transformações, projeção, recorte, rasterização, z-buffer e iluminação Phong rodando de forma paralelizada na CPU.
+Modelagem, transformações, projeção, perspectiva, recorte, rasterização, z-buffer e iluminação Phong rodando de forma paralelizada na CPU.
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white)](https://en.cppreference.com/)
 [![Dear ImGui](https://img.shields.io/badge/UI-Dear%20ImGui-1f6feb?style=flat-square)](https://github.com/ocornut/imgui)
@@ -35,36 +35,50 @@ O resultado é um "mini renderizador" navegável, similar ao Blender em certos a
 
 ```mermaid
 flowchart LR
-    subgraph S1["1 · Geometria e projeção"]
+    subgraph S1["1 · O objeto nasce"]
         direction TB
-        A["<b>Display File</b><br/>objetos + matriz de modelagem"]
-        A --> B["<b>Modelagem → VRC</b><br/>matriz do objeto e da câmera<br/>compostas em um só passe"]
-        B --> P{"Perspectiva?"}
-        P -- não --> N["<b>Window → NCS</b><br/>ortográfica: descarta o Z"]
-        P -- sim --> C1["<b>Clip no plano near</b><br/>antes da divisão por w"]
-        C1 --> C2["<b>Projeção → NCS</b><br/>x' = x·d / (z+d)"]
+        U1["<b>Desenhado na interface</b><br/>clique no viewport ou<br/>coordenadas digitadas"]
+        U2["<b>Importado de arquivo</b><br/>.obj + .mtl"]
+        FAC["<b>A factory monta a malha</b><br/>curvas e superfícies são<br/>tesseladas aqui — uma vez só"]
+        EM["<b>O gerenciador registra</b><br/>id, nome e metadados"]
+        DF["<b>Display File</b><br/>a cena que o renderizador lê"]
+        TRF["<b>Transformar ou animar</b><br/>muda a matriz do objeto<br/>e invalida o cache"]
+        U1 --> FAC
+        U2 --> FAC
+        FAC --> EM --> DF
+        TRF -.-> DF
     end
 
-    subgraph S2["2 · Recorte e visibilidade"]
+    subgraph S2["2 · Da cena para a tela <i>(refeito só quando algo muda)</i>"]
         direction TB
-        D["<b>Clipping 2D</b><br/>Liang-Barsky <i>ou</i> Cohen-Sutherland<br/>polígonos: Sutherland-Hodgman"]
-        D --> E["<b>Coleta de triângulos</b><br/>back-face culling + depth sort<br/><i>o Z ainda existe aqui</i>"]
-        E --> F["<b>Transformação de viewport</b><br/>NCS → pixels, × SSAA 1–4"]
+        P{"Com<br/>perspectiva?"}
+        N["<b>Direto para as coordenadas normalizadas</b><br/>uma matriz só carrega objeto e window;<br/>a projeção paralela apenas descarta o Z"]
+        V["<b>Primeiro para o espaço da câmera</b><br/>a divisão perspectiva ainda não pode acontecer"]
+        CN["<b>Corta o que está atrás do olho</b><br/>antes da divisão por w"]
+        PR["<b>Aí sim, projeta</b><br/>x' = x·d / (z+d)"]
+        CL["<b>Recorta nas bordas da window</b><br/>Liang-Barsky ou Cohen-Sutherland;<br/>polígonos por Sutherland-Hodgman"]
+        TRI["<b>Junta os triângulos preenchidos</b><br/>descarta os de costas e ordena<br/>por profundidade"]
+        VP["<b>Espalha na área do viewport</b><br/>as normalizadas viram pixels, × SSAA"]
+        P -- não --> N
+        P -- sim --> V --> CN --> PR
+        N --> CL
+        PR --> CL
+        CL --> TRI --> VP
     end
 
-    subgraph S3["3 · Rasterização em CPU"]
+    subgraph S3["3 · Virando pixel <i>(todo frame)</i>"]
         direction TB
-        G["<b>Rasterização paralela</b><br/>função de aresta · Bresenham<br/>uma faixa de linhas por thread"]
-        G --> H["<b>Z-buffer</b><br/><i>ou</i> algoritmo do pintor"]
-        G --> I["<b>Shading Phong</b><br/>flat · Gouraud · por pixel"]
-        H --> J["<b>Framebuffer</b><br/>resolve box = anti-aliasing"]
-        I --> J
-        J --> L["<b>Present</b><br/>vira textura na tela<br/><i>o único momento com OpenGL</i>"]
+        BG["<b>Eixos e grid</b><br/>vão direto para o ImGui,<br/>por baixo de tudo"]
+        LI["<b>As luzes são refeitas agora</b><br/>fora do cache, para acenderem na hora"]
+        RA["<b>Rasteriza</b><br/>uma faixa de linhas por thread;<br/>em cada pixel, a profundidade e o Phong"]
+        RS["<b>Reduz o supersampling</b><br/>a média dos sub-pixels é o anti-aliasing"]
+        PRE["<b>Entrega a imagem</b><br/>o framebuffer vira textura —<br/>o único instante com OpenGL"]
+        LI --> RA --> RS --> PRE
+        BG -.-> PRE
     end
 
-    N --> D
-    C2 --> D
-    F --> G
+    DF --> P
+    VP --> RA
 
     classDef entrada fill:#8957e5,stroke:#6e40c9,color:#fff
     classDef geom    fill:#1f6feb,stroke:#1158c7,color:#fff
@@ -72,19 +86,26 @@ flowchart LR
     classDef raster  fill:#238636,stroke:#1a7f37,color:#fff
     classDef saida   fill:#da3633,stroke:#b62324,color:#fff
     classDef decisao fill:#30363d,stroke:#8b949e,color:#fff
+    classDef cena    fill:#0d7d8c,stroke:#0a626e,color:#fff
     classDef etapa   fill:none,stroke:#8b949e,stroke-dasharray:4 4,color:#8b949e
 
     class S1,S2,S3 etapa
-    class A entrada
-    class B,N,C2,E,F geom
+    class U1,U2,FAC,EM,TRF entrada
+    class DF cena
     class P decisao
-    class C1,D corte
-    class G,H,I,J raster
-    class L saida
+    class N,V,PR,TRI,VP geom
+    class CN,CL corte
+    class BG,LI,RA,RS raster
+    class PRE saida
 ```
 
-> Todo o caminho de `Display File` até `Transformação de viewport` é **cacheado**: só roda de novo
-> quando a cena, a câmera ou o tamanho do canvas mudam. A rasterização, essa sim, roda todo frame.
+O corte entre as etapas 2 e 3 é o que segura o desempenho: **a etapa 2 inteira é cacheada** e só roda de novo
+quando a cena, a câmera ou o tamanho do canvas mudam — arrastar uma luz não recalcula geometria nenhuma.
+A etapa 3 roda sempre.
+
+Vale notar também que, com o shading ligado, a transformação da etapa 2 guarda de lado as posições de
+mundo dos vértices e as normais suaves (média das faces vizinhas): a projeção destrói essa informação,
+mas o Phong precisa dela lá no fim, por pixel.
 
 ---
 
@@ -182,7 +203,8 @@ A iluminação, como mencionada anteriormente, implementa o modelo de Phong, que
 <div align="center">
 <img src="media/animacoes.gif" width="100%">
 
-**Animação por script** — o donut de `donut.c` girando a partir de `models/donut_spin.txt`, com transformações interpoladas em loop. Modelo exportado do Blender encontrado online e exportado como .obj. 
+**Animação por script** — o donut de `donut.c` girando a partir de `models/donut_spin.txt`, com transformações interpoladas em loop. Modelo exportado do Blender encontrado online e exportado como .obj. O modelo do Donut é bem pesado, cerca de **300 mil faces**, para renderizá-lo foi utilizada a versão em **CUDA**, que **não** foi finalizada (Ver branch no Github).
+
 </div>
 
 ---
@@ -247,7 +269,7 @@ fiquem no mesmo diretório do executável (o alvo já cuida disso).
 
 ## Autores
 
-Desenvolvido por **[Kauan Fank](https://github.com/Itaxo01)** e **Abel Scheidt**
+Desenvolvido por **[Kauan Fank](https://github.com/Itaxo01)** e **[Abel Scheidt](https://github.com/abel-scheidt)**
 para a disciplina de Computação Gráfica.
 
 Interface construída com [Dear ImGui](https://github.com/ocornut/imgui) e [GLFW](https://www.glfw.org/).
