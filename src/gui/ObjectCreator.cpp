@@ -342,7 +342,7 @@ void ObjectCreator::AddGraphicObjectAs(core::ObjectType type, int curve_method, 
             std::vector<core::Point> grid;
             grid.reserve(points.size());
             for (const auto& t : points) grid.emplace_back(t);
-            core::SurfaceFactory f(name, surf_rows, surf_cols, grid, curve_method, surf_eval, curve_smoothness, col);
+            core::SurfaceFactory f(name, surf_rows, surf_cols, grid, curve_method, surf_eval, curve_smoothness, is_filled, col);
             entityManager.add(f);
             break;
         }

@@ -188,8 +188,9 @@ void ObjectCreatorText::draw_mode_selector() {
         type_radio("B-Spline Surf##oct", core::ObjectType::SURFACE, 1);
     }
 
-    // Polygon: filled toggle
-    if (mode == core::ObjectType::POLYGON) {
+    // Polygon / surface: filled toggle. On a surface it swaps the iso-curve
+    // wireframe for a solid tessellation.
+    if (mode == core::ObjectType::POLYGON || mode == core::ObjectType::SURFACE) {
         ImGui::SetCursorPosX(polygon_x);
         ImGui::Checkbox("Filled##oct", &filled);
     }

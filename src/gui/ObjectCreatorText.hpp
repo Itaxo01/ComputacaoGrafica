@@ -20,7 +20,7 @@ class ObjectCreatorText {
     // Internal mode state — seeded by Open(), editable inside the modal
     core::ObjectType mode   = core::ObjectType::POINT;
     int             method = 0;     // 0=Bezier, 1=B-Spline (Curve2D only)
-    bool            filled = false; // Polygon only
+    bool            filled = false; // Polygon and surface
     bool            target_3d = false; // which object set the selector offers;
                                        // independent of AppConfig::is3d
 

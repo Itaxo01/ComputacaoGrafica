@@ -159,16 +159,17 @@ surfaceGridToPatches(int rows, int cols,
 
 SurfaceFactory::SurfaceFactory(const std::string& name, int rows, int cols,
                                const std::vector<core::Point>& grid,
-                               int method, int technique, int resolution, ImU32 color)
+                               int method, int technique, int resolution, bool filled, ImU32 color)
     : name_(name), rows_(rows), cols_(cols), grid_(grid), method_(method),
       technique_(technique), resolution_(resolution < 2 ? 2 : resolution),
-      color_(color) {}
+      filled_(filled), color_(color) {}
 
 Object SurfaceFactory::build() {
     Object obj;
     obj.name = name_;
     obj.type = ObjectType::SURFACE;
     obj.material.color = color_;
+    obj.material.filled = filled_;
 
     const float (*M)[4] = (method_ == BSPLINE) ? M_BSPLINE : M_BEZIER;
     const int R = resolution_;
@@ -193,13 +194,28 @@ Object SurfaceFactory::build() {
         else
             tessellateForwardDiff(M, cp, R, E, Et, mesh.vertices);
 
-        // Grid lines: iso-s curves (vary t) and iso-t curves (vary s).
-        for (int si = 0; si < R; ++si)
-            for (int ti = 0; ti + 1 < R; ++ti)
-                mesh.line_indices.push_back({ base + si * R + ti, base + si * R + ti + 1 });
-        for (int ti = 0; ti < R; ++ti)
+        if (filled_) {
+            // Two triangles per grid cell, wound consistently so the accumulated
+            // vertex normals agree across the whole patch (the shading itself is
+            // two-sided, and surfaces are never back-face culled).
             for (int si = 0; si + 1 < R; ++si)
-                mesh.line_indices.push_back({ base + si * R + ti, base + (si + 1) * R + ti });
+                for (int ti = 0; ti + 1 < R; ++ti) {
+                    const uint32_t v00 = base + si * R + ti;
+                    const uint32_t v01 = v00 + 1;
+                    const uint32_t v10 = base + (si + 1) * R + ti;
+                    const uint32_t v11 = v10 + 1;
+                    mesh.tri_indices.emplace_back(v00, v10, v11);
+                    mesh.tri_indices.emplace_back(v00, v11, v01);
+                }
+        } else {
+            // Grid lines: iso-s curves (vary t) and iso-t curves (vary s).
+            for (int si = 0; si < R; ++si)
+                for (int ti = 0; ti + 1 < R; ++ti)
+                    mesh.line_indices.push_back({ base + si * R + ti, base + si * R + ti + 1 });
+            for (int ti = 0; ti < R; ++ti)
+                for (int si = 0; si + 1 < R; ++si)
+                    mesh.line_indices.push_back({ base + si * R + ti, base + (si + 1) * R + ti });
+        }
     }
 
     meta_.rows           = rows_;
@@ -208,6 +224,7 @@ Object SurfaceFactory::build() {
     meta_.method         = method_;
     meta_.technique      = technique_;
     meta_.resolution     = resolution_;
+    meta_.filled         = filled_;
     return obj;
 }
 

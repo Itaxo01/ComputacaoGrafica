@@ -285,7 +285,8 @@ namespace obj {
 
                 std::string nm = current_object.empty() ? "surface" : current_object;
                 int method = (surf_method == BSPLINE) ? BSPLINE : BEZIER;
-                core::SurfaceFactory sf(nm, rows, cols, grid, method, surf_eval, 12, (ImU32)pending_color);
+                core::SurfaceFactory sf(nm, rows, cols, grid, method, surf_eval, 12,
+                                        pending_filled, (ImU32)pending_color);
                 em.add(sf);
                 res.object_count++;
             } else {
@@ -294,6 +295,7 @@ namespace obj {
             surf_index_lists.clear();
             surf_method = -1;
             surf_eval = SURF_FORWARD_DIFF;
+            pending_filled = false;  // consumed, like the polygon path
         };
 
         auto bucketFor = [&](const std::string& m) -> std::vector<PendingFace>& {
@@ -558,6 +560,7 @@ namespace obj {
         f << "o " << obj.name << "\n";
         f << "# color " << r << " " << g << " " << b << " " << a << "\n";
         f << "# surface_eval " << (meta->technique == SURF_BLENDING ? "blending" : "fwddiff") << "\n";
+        f << "# filled " << (obj.material.filled ? 1 : 0) << "\n";
 
         const int rows = meta->rows, cols = meta->cols;
         const int base = vi;

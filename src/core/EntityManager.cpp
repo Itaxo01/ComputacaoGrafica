@@ -155,7 +155,7 @@ void EntityManager::UpdateObjectPoints(long long id,
         }
         case core::ObjectType::SURFACE: {
             if (new_rows >= 4 && new_cols >= 4 && (int)pts.size() >= new_rows * new_cols) {
-                core::SurfaceFactory f(name, new_rows, new_cols, pts, new_method, surf_technique, surf_resolution, color);
+                core::SurfaceFactory f(name, new_rows, new_cols, pts, new_method, surf_technique, surf_resolution, new_filled, color);
                 add(f);
             }
             break;

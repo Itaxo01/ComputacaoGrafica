@@ -217,7 +217,10 @@ void ClipObjects(std::vector<RenderedObject>& objs,
                  const core::Point& wp0, const core::Point& wp1,
                  int line_clip_mode) {
     cg_parallel_for_each(objs.begin(), objs.end(), [&](auto& obj) {
-        if ((obj.type == core::ObjectType::POLYGON || obj.type == core::ObjectType::MESH) && obj.filled) {
+        const bool has_fill = obj.type == core::ObjectType::POLYGON ||
+                              obj.type == core::ObjectType::MESH ||
+                              obj.type == core::ObjectType::SURFACE;
+        if (has_fill && obj.filled) {
             auto orig_verts   = obj.mesh.vertices;
             auto orig_tri_idx = std::move(obj.mesh.tri_indices);
             // Shading attributes ride through the clip (interpolated by SHClipping).

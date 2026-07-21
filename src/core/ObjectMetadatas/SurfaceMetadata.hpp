@@ -21,4 +21,5 @@ struct SurfaceMetadata : public Metadata {
     int method     = BEZIER;
     int technique  = SURF_FORWARD_DIFF;  // SURF_BLENDING / SURF_FORWARD_DIFF
     int resolution = 12;        // samples per patch edge (grid is resolution x resolution)
+    bool filled    = false;     // solid (tessellated triangles) vs. iso-curve wireframe
 };

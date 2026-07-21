@@ -10,7 +10,7 @@ class ObjectCreator{
     private:
         core::ObjectType mode = core::ObjectType::POINT;
         std::vector<std::tuple<float, float, float>> points;
-        bool filled = false;       // only meaningful in polygon mode
+        bool filled = false;       // polygon fill / solid surface tessellation
         int curve_smoothness = 50; // points per segment for Curve2D
         int method = 0;            // 0=Bezier, 1=B-Spline (Curve2D / Surface)
         int surf_rows = 0;         // surface control-grid shape (from the text modal)

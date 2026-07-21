@@ -16,10 +16,14 @@ namespace core {
 
     // Builds a bicubic surface (Bezier or composite B-Spline) from an M×N control
     // grid. Every patch is tessellated into a resolution x resolution grid of
-    // points and emitted as iso-curve grid lines, so the surface renders through
-    // the existing line pipeline. method (BEZIER / BSPLINE) selects both the basis
-    // matrix and the patch decomposition; technique (SURF_BLENDING /
-    // SURF_FORWARD_DIFF) selects how each patch's sample grid is evaluated.
+    // points; `filled` then selects how that grid is emitted:
+    //   false -> iso-curve grid lines, drawn by the line pipeline (wireframe look)
+    //   true  -> two triangles per grid cell, drawn solid by the rasterizer and
+    //            lit by the shading model (the grid lines are dropped, since a
+    //            wireframe coincident with the fill would z-fight against it)
+    // method (BEZIER / BSPLINE) selects both the basis matrix and the patch
+    // decomposition; technique (SURF_BLENDING / SURF_FORWARD_DIFF) selects how
+    // each patch's sample grid is evaluated.
     class SurfaceFactory : public ObjectFactory {
         std::string name_;
         int rows_;
@@ -28,12 +32,13 @@ namespace core {
         int method_;
         int technique_;
         int resolution_;
+        bool filled_;
         ImU32 color_;
         SurfaceMetadata meta_;
     public:
         SurfaceFactory(const std::string& name, int rows, int cols,
                        const std::vector<core::Point>& grid,
-                       int method, int technique, int resolution, ImU32 color);
+                       int method, int technique, int resolution, bool filled, ImU32 color);
         Object build() override;
         std::unique_ptr<Metadata> takeMetadata() override;
     };

@@ -1,6 +1,7 @@
 # Bspline bicubic surface sample — 3 patches
 o BSplineSurface
 # color 80 200 255 255
+# filled 1
 v -7.5 -4.5 1.0944
 v -7.5 -1.5 1.3511
 v -7.5 1.5 1.3511

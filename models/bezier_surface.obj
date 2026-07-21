@@ -1,6 +1,7 @@
 # Bezier bicubic surface sample — 3 patches
 o BezierSurface
 # color 80 200 255 255
+# filled 1
 v -9.0 -6.0 0.6992
 v -9.0 -2.0 0.8535
 v -9.0 2.0 0.8535

@@ -74,7 +74,7 @@ void Viewport::DrawWindow() {
         ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - opts_w - 15, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
 
-        ImGui::BeginChild("Viewport Options", ImVec2(opts_w, 300 * gui::layout::Scale()), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::BeginChild("Viewport Options", ImVec2(opts_w, (AppConfig::is3d ? 300 : 215) * gui::layout::Scale()), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
             ImGui::Checkbox("Show Axes", &AppConfig::show_axes);
             ImGui::Checkbox("Show Grid", &AppConfig::show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &AppConfig::show_axis_coordinates);
