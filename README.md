@@ -114,17 +114,6 @@ Posteriormente, o **SGI** foi extendido para suportar 3D, e assim surgem as prin
 | **Superfícies bicúbicas** | Patches de 16 pontos de controle, em versão **Bézier** e **B-Spline** |
 | **Bounding box** | Caixa envolvente opcional para dar noção de profundidade |
 
-### Restante da interface
-As demais funcionalidades são em geral compartilhadas entre 2D e 3D, com uma e outra modificação. 
-
-A interface é composta por 5 janelas, sendo elas:
-| Janela | Descrição |
-| --- | --- |
-| **Viewport** | No lado esquerdo, se encontra o Viewport. É onde o framebuffer é desenhado, e é onde podemos interagir com o mundo e modificar as configurações de renderização. |
-| **Object Creator** | No canto superior direito se encontra o menu de criação de objetos, e também o IO de arquivos .obj (e .mtl, se presentes) |
-| **Object Manager** | No centro da parte direita se encontra o gerenciador de objetos, nele podemos editar, deletar, ver os detalhes e aplicar transformações aos objetos.|
-| **Lightning** | Na parte direita inferior da tela, a janela a esquerda é o menu de iluminação.  
-
 ### Renderização
 Depois que os valores do objeto são definidos no `src/gui/ObjectCreator.hpp` ou pelo `src/io/ObjSerializer.hpp`, ele passa para o `src/core/EntityManager.hpp`, onde sua criação é efetivada e o objeto é guardado no `src/window/DisplayFile.hpp`. A cada frame, o loop renderiza os objetos do display file no viewport, executando o pipeline:
 
@@ -174,53 +163,64 @@ A iluminação, como mencionada anteriormente, implementa o modelo de Phong, que
 
 <div align="center">
 
-| | |
-|:--:|:--:|
-| <img src="media/curvas2d.png" width="100%"><br>**Curvas de Bézier e B-Spline** | <img src="media/superficies.png" width="100%"><br>**Superfícies bicúbicas** |
-| <img src="media/shading.png" width="100%"><br>**Flat · Gouraud · Phong** | <img src="media/zbuffer.png" width="100%"><br>**Z-buffer vs. algoritmo do pintor** |
-| <img src="media/perspectiva.gif" width="100%"><br>**Câmera em perspectiva** | <img src="media/animacao.gif" width="100%"><br>**Animação de transformações** |
+| <img src="media/curvas.gif" width="100%"> | <img src="media/superficies.gif" width="100%"> | <img src="media/perspectiva.gif" width="100%"> |
+|:--:|:--:|:--:|
+| **Curvas 2D**<br><sub>Bézier e B-Spline construídas clique a clique,<br>recortadas nas bordas da window</sub> | **Superfícies bicúbicas**<br><sub>patches de Bézier e B-Spline tesselados,<br>preenchidos e com z-buffer</sub> | **Câmera em perspectiva**<br><sub>órbita e distância focal em uma cena<br>com dezenas de malhas importadas</sub> |
 
+</div>
+
+<br>
+
+<div align="center">
+<img src="media/shaders.gif" width="100%">
+
+**Modelos de iluminação** — alternando entre *None*, *Flat*, *Gouraud* e *Phong*.
+</div>
+
+<br>
+
+<div align="center">
+<img src="media/animacoes.gif" width="100%">
+
+**Animação por script** — o donut de `donut.c` girando a partir de `models/donut_spin.txt`, com transformações interpoladas em loop. Modelo exportado do Blender encontrado online e exportado como .obj. 
 </div>
 
 ---
 
-## 🕹️ Controles
+## Controles
 
 | Ação | Atalho |
 |---|---|
-| Zoom | Scroll do mouse · `Ctrl` + `↑`/`↓` |
-| Pan / translação da window | Arrastar com o **botão direito** · `Shift` + setas |
-| Rotação da window (2D) | `Ctrl` + `Shift` + `←`/`→` |
-| Órbita da câmera (3D) | Arrastar com o botão direito |
+| Zoom | Scroll do mouse ou `Ctrl` + `↑`/`↓` |
+| Pan / translação da window | Arrastar com o **botão direito** ou `Shift` + setas ou `Shift` + Scroll do mouse |
+| Rotação da window (2D e 3D) | `Ctrl` + `Shift` + `←`/`→` ou `Ctrl` + `Shift` + Scroll (Funciona melhor com scroll analógico ou touchpad)|
 | Distância focal (perspectiva) | `Shift` + scroll |
 | Confirmar criação | `Enter` ou duplo-clique |
 | Cancelar criação | `Esc` |
 
-> Em modo perspectiva, os controles de rotação da window dão lugar aos controles de câmera.
-
 ### Janelas da interface
 
-- **Viewport** — o canvas, com um painel flutuante de opções (eixos, grid, 3D, perspectiva,
-  z-buffer, SSAA, algoritmo de recorte, bounding box).
-- **Object Creator** — criação por clique ou por texto, e importação de arquivos.
-- **Object Manager** — lista de objetos, detalhes, seleção múltipla e aba de transformações.
+
+- **Viewport** — É onde o framebuffer é desenhado, e é onde podemos interagir com o mundo e modificar as configurações de renderização.
+- **Object Creator** — menu de criação de objetos, e também o IO de arquivos .obj (e .mtl, se presentes).
+- **Object Manager** — lista de objetos, detalhes, seleção múltipla e manipulação dos objetos.
 - **Lighting** — modelo de shading, luz ambiente, headlight e editor de luzes pontuais.
-- **Log** — registro das ações, útil para depuração.
+- **Log** — registro das ações, ignorável.
 
 Todas as janelas são móveis e redimensionáveis; `Reset Layout` devolve tudo ao lugar
 (o layout padrão é calculado em função da resolução e do DPI do monitor).
 
 ---
 
-## 🛠️ Compilação
+## Compilação
 
-**Dependências:** compilador com C++20, GLFW e (opcional, recomendado) Intel TBB.
+**Dependências:** compilador com C++20, GLFW e (opcional, não é necessário) Intel TBB.
 
 ```bash
 # Ubuntu / Debian
 sudo apt install build-essential libglfw3-dev libtbb-dev
 
-make fast     # build otimizado (-O3)
+make fast -j16     # build otimizado (-O3)
 ./programa_foda.out
 ```
 
@@ -232,8 +232,8 @@ só mais devagar.
 <summary><b>Cross-compilação para Windows a partir do Linux</b></summary>
 
 ```bash
-make windows        # standalone, sem TBB (mais lento, mas um .exe só)
-make windows_fast   # com TBB, empacota as DLLs necessárias em um .zip
+make windows -j16        # standalone, sem TBB (mais lento, mas um .exe só)
+make windows_fast -j16   # com TBB, empacota as DLLs necessárias em um .zip
 ```
 
 Usa o MinGW-w64 e os binários pré-compilados em `libs/windows/`. O build `windows_fast`
@@ -244,45 +244,8 @@ fiquem no mesmo diretório do executável (o alvo já cuida disso).
 
 ---
 
-## 🏗️ Arquitetura
 
-```
-src/
-├── core/          Modelo do mundo: Point, Mat4, Mesh, Material, Light, Object
-│   ├── ObjectFactories/    Uma factory por tipo (ponto, linha, curva, superfície, malha…)
-│   └── ObjectMetadatas/    Metadados específicos (grau da curva, patches da superfície…)
-├── graphics/      O pipeline: transformações → recorte → rasterização → shading
-│   ├── RendererTransform   Modelagem, VRC, projeção
-│   ├── RendererClipping    Liang-Barsky, Cohen-Sutherland, Sutherland-Hodgman
-│   ├── RasterizationEngine Triângulos, linhas e pontos direto no framebuffer
-│   ├── Framebuffer         Buffer de cor + z-buffer, com supersampling
-│   └── Shading             Phong: flat, Gouraud e por pixel
-├── window/        Window (mundo), DisplayFile e a câmera VRC
-├── gui/           Janelas ImGui: viewport, criadores, gerenciador, iluminação, layout
-├── controller/    Orquestração entre GUI e modelo; animações
-└── io/            Serializadores .obj e .mtl
-```
-
-O desenho segue um caminho único e explícito por frame:
-
-```
-Objeto → matriz de modelagem → VRC → projeção → recorte near → NCS
-       → recorte 2D → transformação de viewport → rasterização → framebuffer → textura
-```
-
----
-
-## 🧭 Status e próximos passos
-
-- ✅ Pipeline 2D/3D completo, com iluminação, z-buffer e anti-aliasing.
-- ✅ Importação/exportação `.obj` + `.mtl`.
-- 🚧 **Porte para CUDA** (branch [`CUDA`](../../tree/CUDA)): o pipeline foi reescrito sobre um
-  *flat geometry buffer* (SoA) com compactação por prefix-sum, preparando os kernels de GPU.
-  A CPU continua como caminho padrão e fallback.
-
----
-
-## 👥 Autores
+## Autores
 
 Desenvolvido por **[Kauan Fank](https://github.com/Itaxo01)** e **Abel Scheidt**
 para a disciplina de Computação Gráfica.
