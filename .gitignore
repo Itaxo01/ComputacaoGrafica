@@ -11,6 +11,10 @@ imgui.ini
 !models/*.mtl
 !models/*.obj
 cuda_test/
+compile_commands.json
+create_zip.sh
+libs/
+build/
 # EUVO FICA MALUCO COM ESSE CACHE 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites
