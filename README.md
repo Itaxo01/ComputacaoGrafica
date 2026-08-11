@@ -266,6 +266,15 @@ fiquem no mesmo diretório do executável (o alvo já cuida disso).
 
 ---
 
+## Bugs e algumas considerações
+
+Existem alguns bugs misteriosos que não consegui reproduzir consistentemente, especialmente relacionados a exclusão de objetos, que tende a crashar o programa esporadicamente. 
+
+O programa também pode requerir um computador relativamente bom para reproduzir os resultados gravados. 
+Ele conhecidamente não está no seu auge, já que apesar de fazer o processamento em paralelo, não aproveita a GPU (Com excessão da branch experimental em CUDA) e não aproveita instruções avançadas de vetorização da CPU, ao menos não explicitamente (Pode ser que o compilador otimize algo do tipo).
+Periodicamente eu tento melhorar um pouco esse desempenho.
+Caso encontre algum bug ou queira sugerir alguma melhoria, mande uma mensagem para <kauan.fank@gmail.com>
+
 
 ## Autores
 
