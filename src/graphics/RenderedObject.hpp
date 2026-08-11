@@ -46,3 +46,13 @@ struct SortedTri {
     core::Point  N[3];   // per-vertex world normal
     ShadeMaterial mat;    // material reflectivities
 };
+
+// A SortedTri's pixel bounding box, in a SEPARATE array from sortedTris itself.
+// The banded rasterizer scans every triangle in every band to find the ones it
+// owns; walking a 16-byte record instead of the 156-byte SortedTri keeps that
+// scan ~10x smaller (at 300k triangles: ~5 MB streamed per band instead of
+// ~47 MB, against 4 MB of L3 per CCX). Computed once in BuildSortedTriangles,
+// so the rasterizer also stops redoing the same floor/ceil/min/max per band.
+struct TriBounds {
+    int min_x, min_y, max_x, max_y;
+};

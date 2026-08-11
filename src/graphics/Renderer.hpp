@@ -25,6 +25,7 @@ private:
 
     std::vector<RenderedObject> drawObjects; // working copy: transformed + clipped
     std::vector<SortedTri>      sortedTris;  // all filled tris, depth-sorted for painter's
+    std::vector<TriBounds>      triBounds;   // pixel bbox per sortedTris entry (index-aligned)
     std::vector<core::Light>    effectiveLights; // user lights + headlight, rebuilt per frame
     ShadingContext              shadeCtx;    // per-frame shading inputs for the rasterizer
 

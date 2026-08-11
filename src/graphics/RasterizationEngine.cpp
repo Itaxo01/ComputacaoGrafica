@@ -10,19 +10,17 @@ static inline float edge(const ImVec2& a, const ImVec2& b, float px, float py) {
 
 void DrawTriangleFilled(Framebuffer& fb, const ImVec2& a, const ImVec2& b,
                         const ImVec2& c, float za, float zb, float zc,
+                        int bb_min_x, int bb_min_y, int bb_max_x, int bb_max_y,
                         const core::Point P[3], const core::Point N[3],
                         const ShadeMaterial& mat, ImU32 flatColor,
                         const ShadingContext& sctx,
                         bool depth_test, bool depth_less, int y_lo, int y_hi) {
-    int minx = (int)std::floor(std::min({a.x, b.x, c.x}));
-    int maxx = (int)std::ceil (std::max({a.x, b.x, c.x}));
-    int miny = (int)std::floor(std::min({a.y, b.y, c.y}));
-    int maxy = (int)std::ceil (std::max({a.y, b.y, c.y}));
-
-    minx = std::max(minx, 0);
-    maxx = std::min(maxx, fb.Width() - 1);
-    miny = std::max(miny, y_lo);
-    maxy = std::min(maxy, y_hi - 1);
+    // The bbox arrives precomputed (BuildSortedTriangles), so all that is left
+    // here is clamping it to the framebuffer and to the caller's band.
+    int minx = std::max(bb_min_x, 0);
+    int maxx = std::min(bb_max_x, fb.Width() - 1);
+    int miny = std::max(bb_min_y, y_lo);
+    int maxy = std::min(bb_max_y, y_hi - 1);
     if (minx > maxx || miny > maxy) return;
 
     // Degenerate (zero-area) triangle: nothing to fill.

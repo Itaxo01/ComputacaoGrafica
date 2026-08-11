@@ -45,6 +45,12 @@ void Renderer::DrawObject(const RenderedObject& obj, int y_lo, int y_hi) {
     for (const auto& [i, j] : obj.mesh.line_indices) {
         const auto& a = obj.mesh.vertices[i];
         const auto& b = obj.mesh.vertices[j];
+        // Every band is handed every line, and DrawLine walks the full Bresenham
+        // span before its per-pixel band filter rejects the writes. Skipping lines
+        // that miss the band outright turns that into one compare.
+        const float lo_y = (a.y < b.y ? a.y : b.y);
+        const float hi_y = (a.y < b.y ? b.y : a.y) + (float)ss; // thickness stamps downward
+        if (hi_y < (float)y_lo || lo_y >= (float)y_hi) continue;
         DrawLine(framebuffer, a.x, a.y, a.z, b.x, b.y, b.z, col, ss, zt, less, y_lo, y_hi);
     }
     // Filled triangles are drawn separately (see RasterizeFramebuffer).
@@ -111,7 +117,8 @@ void Renderer::GenerateDrawList() {
         ApplyClipping();
         // Gather + depth-sort filled triangles in NCS space (z still meaningful)
         // before the viewport map drops z; lines/points use the viewport verts.
-        BuildSortedTriangles(drawObjects, window, (float)AppConfig::supersample, sortedTris);
+        BuildSortedTriangles(drawObjects, window, (float)AppConfig::supersample,
+                             sortedTris, triBounds);
         ApplyViewportTransform();
     }
 }
@@ -133,9 +140,16 @@ void Renderer::RasterizeFramebuffer() {
         framebuffer.ClearRows(y_lo, y_hi, 0u); // transparent: grid shows through
         if (zt) framebuffer.ClearDepthRows(y_lo, y_hi, farZ);
 
-        for (const auto& t : sortedTris)
+        // Band ownership is decided from the small triBounds array, so a band only
+        // pulls the 156-byte SortedTri for triangles that actually touch its rows.
+        for (std::size_t i = 0, n = sortedTris.size(); i < n; ++i) {
+            const TriBounds& bb = triBounds[i];
+            if (bb.max_y < y_lo || bb.min_y >= y_hi) continue;
+            const SortedTri& t = sortedTris[i];
             DrawTriangleFilled(framebuffer, t.a, t.b, t.c, t.za, t.zb, t.zc,
+                               bb.min_x, bb.min_y, bb.max_x, bb.max_y,
                                t.P, t.N, t.mat, t.color, shadeCtx, zt, less, y_lo, y_hi);
+        }
 
         for (const auto& obj : drawObjects)
             DrawObject(obj, y_lo, y_hi);

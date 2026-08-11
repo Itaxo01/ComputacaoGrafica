@@ -29,5 +29,18 @@ void TransformToViewport(std::vector<RenderedObject>& objs, const Window& window
 // `scale` like TransformToViewport. Must run on NCS-space `objs`, i.e. after
 // clipping but BEFORE TransformToViewport. Behavior is governed by the AppConfig
 // backface_cull / cull_ccw / depth_sort / depth_ascending flags.
+//
+// `bounds` comes back index-aligned with `out`, holding each triangle's pixel
+// bbox so the banded rasterizer can reject triangles outside its band cheaply.
+// Keep the two in step: anything that reorders one must reorder the other.
 void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window& window,
-                          float scale, std::vector<SortedTri>& out);
+                          float scale, std::vector<SortedTri>& out,
+                          std::vector<TriBounds>& bounds);
+
+// PERF NOTE (remaining serial stage): TransformObjectAndDoNCS re-derives smooth
+// world normals from scratch on every rebuild, and the scatter-add over shared
+// vertices cannot be parallelized as written (two threads hit the same wn[] slot).
+// The fix is to cache object-space smooth normals on core::Mesh — they only change
+// when the mesh geometry does, i.e. never for an imported OBJ — and rotate them
+// per frame instead. That needs the inverse-transpose for non-uniform scale,
+// which is why it is not done here.

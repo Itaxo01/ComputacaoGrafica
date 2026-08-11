@@ -34,7 +34,7 @@ void TransformObjectAndDoNCS(std::vector<RenderedObject>& dest,
                               const core::mat4& ncs_mat) {
     dest.resize(src.size());
     const bool shading = Lighting::mode != Lighting::NONE;
-    cg_parallel_for_each(dest.begin(), dest.end(), [&](RenderedObject& ro) {
+    cg_parallel_for_each_heavy(dest.begin(), dest.end(), [&](RenderedObject& ro) {
         size_t i = &ro - dest.data();
         const core::Object& obj = src[i];
         ro.type     = obj.type;
@@ -67,6 +67,11 @@ void TransformObjectAndDoNCS(std::vector<RenderedObject>& dest,
         // Smooth world-space vertex normals: sum the (area-weighted) world face
         // normals over shared vertices, then normalize. Cross of world-space edges
         // is already the world normal, so no inverse-transpose matrix is needed.
+        //
+        // The accumulation stays serial: shared vertices mean two threads would
+        // race on the same wn[] slot. It is the last serial stage of the rebuild —
+        // see the note in RendererTransform.hpp on caching object-space normals,
+        // which removes it entirely rather than making it thread-safe.
         auto& wn = ro.mesh.world_normals;
         wn.assign(nv, core::Point(0.0f, 0.0f, 0.0f));
         for (const auto& [ti, tj, tk] : ro.mesh.tri_indices) {
@@ -76,10 +81,11 @@ void TransformObjectAndDoNCS(std::vector<RenderedObject>& dest,
             core::Point fn = cross(B - A, C - A);
             wn[ti] += fn; wn[tj] += fn; wn[tk] += fn;
         }
-        for (auto& n : wn) {
-            float l = std::sqrt(dot(n, n));
-            if (l > 1e-12f) n /= l;
-        }
+        // The normalize is a pure per-vertex map, so it does parallelize.
+        for_vertices(nv, [&](size_t j) {
+            float l = std::sqrt(dot(wn[j], wn[j]));
+            if (l > 1e-12f) wn[j] /= l;
+        });
 
         // Material subset. Many .mtl set Ka=0; fall back to Kd so ambient isn't black.
         core::Color3 ka = obj.material.ambient;
@@ -89,14 +95,20 @@ void TransformObjectAndDoNCS(std::vector<RenderedObject>& dest,
 }
 
 void ProjectVertices(std::vector<RenderedObject>& objs, const core::mat4& mat) {
-    cg_parallel_for_each(objs.begin(), objs.end(), [&](RenderedObject& obj) {
+    cg_parallel_for_each_heavy(objs.begin(), objs.end(), [&](RenderedObject& obj) {
         auto& verts = obj.mesh.vertices;
         for_vertices(verts.size(), [&](size_t j) { verts[j] = mat * verts[j]; });
     });
 }
 
 void TransformToViewport(std::vector<RenderedObject>& objs, const Window& window, float scale) {
-    cg_parallel_for_each(objs.begin(), objs.end(), [&](RenderedObject& obj) {
+    cg_parallel_for_each_heavy(objs.begin(), objs.end(), [&](RenderedObject& obj) {
+        // Only lines and points read these verts downstream (DrawObject); filled
+        // triangles got their screen coords in BuildSortedTriangles. An imported
+        // OBJ has tri_indices but no line_indices, so for a 300k-face mesh this
+        // whole pass used to transform ~900k vertices that nothing ever read.
+        if (obj.mesh.line_indices.empty() && obj.type != core::ObjectType::POINT) return;
+
         auto& verts = obj.mesh.vertices;
         for_vertices(verts.size(), [&](size_t j) {
             core::Point s = window.NCSToViewport(verts[j]); // maps x/y to viewport, drops z
@@ -108,8 +120,10 @@ void TransformToViewport(std::vector<RenderedObject>& objs, const Window& window
 }
 
 void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window& window,
-                          float scale, std::vector<SortedTri>& out) {
+                          float scale, std::vector<SortedTri>& out,
+                          std::vector<TriBounds>& bounds) {
     out.clear();
+    bounds.clear();
     const bool cull = AppConfig::is3d && AppConfig::backface_cull;
 
     // Reserve the upper bound (pre-cull total) once so the parallel splices below
@@ -117,6 +131,7 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
     size_t total_tris = 0;
     for (const auto& o : objs) total_tris += o.mesh.tri_indices.size();
     out.reserve(total_tris);
+    bounds.reserve(total_tris);
 
     std::mutex out_mtx;
 
@@ -128,8 +143,10 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
         const bool shaded = !o.mesh.world_vertices.empty();
         const size_t nt = o.mesh.tri_indices.size();
 
-        // Builds the screen triangles for indices [lo, hi) of this object into sink.
-        auto build_range = [&](size_t lo, size_t hi, std::vector<SortedTri>& sink) {
+        // Builds the screen triangles for indices [lo, hi) of this object into sink,
+        // with their pixel bboxes appended index-aligned into bsink.
+        auto build_range = [&](size_t lo, size_t hi, std::vector<SortedTri>& sink,
+                               std::vector<TriBounds>& bsink) {
             for (size_t idx = lo; idx < hi; ++idx) {
                 const auto& [ti, tj, tk] = o.mesh.tri_indices[idx];
                 const core::Point& A = o.mesh.vertices[ti];   // NCS space: z is depth
@@ -162,6 +179,13 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
                     t.N[2] = o.mesh.world_normals[tk];
                     t.mat = o.shadeMat;
                 }
+                // Pixel bbox, computed here once instead of per band per frame.
+                bsink.push_back({
+                    (int)std::floor(std::min({t.a.x, t.b.x, t.c.x})),
+                    (int)std::floor(std::min({t.a.y, t.b.y, t.c.y})),
+                    (int)std::ceil (std::max({t.a.x, t.b.x, t.c.x})),
+                    (int)std::ceil (std::max({t.a.y, t.b.y, t.c.y})),
+                });
                 sink.push_back(t);
             }
         };
@@ -173,22 +197,43 @@ void BuildSortedTriangles(const std::vector<RenderedObject>& objs, const Window&
         if (nt >= kTriangleParallelThreshold) {
             cg_parallel_chunks(nt, [&](size_t lo, size_t hi) {
                 std::vector<SortedTri> local;
+                std::vector<TriBounds> blocal;
                 local.reserve(hi - lo);
-                build_range(lo, hi, local);
+                blocal.reserve(hi - lo);
+                build_range(lo, hi, local, blocal);
                 std::lock_guard<std::mutex> g(out_mtx);
                 out.insert(out.end(),
                            std::make_move_iterator(local.begin()),
                            std::make_move_iterator(local.end()));
+                bounds.insert(bounds.end(), blocal.begin(), blocal.end());
             });
         } else {
-            build_range(0, nt, out);
+            build_range(0, nt, out, bounds);
         }
     }
 
     // The painter's sort is pointless when the z-buffer resolves visibility per pixel.
+    // `bounds` is index-aligned with `out`, so sort a permutation and apply it to
+    // both — sorting `out` alone would silently pair triangles with other
+    // triangles' bounding boxes.
     if (AppConfig::is3d && AppConfig::depth_sort && !AppConfig::z_buffer) {
-        std::sort(out.begin(), out.end(), [](const SortedTri& a, const SortedTri& b) {
-            return AppConfig::depth_ascending ? (a.depth < b.depth) : (a.depth > b.depth);
+        const size_t n = out.size();
+        std::vector<uint32_t> order(n);
+        for (size_t i = 0; i < n; ++i) order[i] = (uint32_t)i;
+        std::sort(order.begin(), order.end(), [&](uint32_t i, uint32_t j) {
+            return AppConfig::depth_ascending ? (out[i].depth < out[j].depth)
+                                              : (out[i].depth > out[j].depth);
         });
+
+        std::vector<SortedTri> sorted_out;
+        std::vector<TriBounds> sorted_bounds;
+        sorted_out.reserve(n);
+        sorted_bounds.reserve(n);
+        for (uint32_t i : order) {
+            sorted_out.push_back(std::move(out[i]));
+            sorted_bounds.push_back(bounds[i]);
+        }
+        out    = std::move(sorted_out);
+        bounds = std::move(sorted_bounds);
     }
 }

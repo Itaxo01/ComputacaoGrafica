@@ -25,8 +25,14 @@
 //
 // The inner loop uses UNCHECKED framebuffer writes: the bbox is pre-clamped to
 // valid pixels here, so no per-pixel bounds branch is needed on the hot path.
+//
+// bb_* is the triangle's pixel bounding box (floor/ceil of the vertex extents),
+// passed in rather than recomputed: the banded rasterizer calls this for the same
+// triangle from several bands, and the caller needs the box anyway to decide
+// whether the triangle touches the band at all.
 void DrawTriangleFilled(Framebuffer& fb, const ImVec2& a, const ImVec2& b,
                         const ImVec2& c, float za, float zb, float zc,
+                        int bb_min_x, int bb_min_y, int bb_max_x, int bb_max_y,
                         const core::Point P[3], const core::Point N[3],
                         const ShadeMaterial& mat, ImU32 flatColor,
                         const ShadingContext& sctx,

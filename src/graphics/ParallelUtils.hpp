@@ -53,6 +53,48 @@
 
 #endif
 
+// ─── for_each sem o guarda de serialização ───────────────────────────────────
+// cg_parallel_for_each serializa entradas com menos de 1000 elementos, o que é
+// certo quando cada elemento é leve, mas errado quando cada elemento é um MESH
+// INTEIRO: uma cena com 3 objetos de 100k faces cada rodava numa thread só.
+// Use esta variante quando o custo por elemento é alto (os estágios do
+// renderizador que percorrem malhas). Para uma malha única e gigante, o ganho
+// vem do split interno por triângulos/vértices, não daqui.
+#ifdef USE_TBB_EXECUTION
+    // `par` e não `par_unseq`: os estágios que usam esta função alocam, movem
+    // vetores e (nas malhas grandes) pegam um mutex ao juntar os buckets por
+    // thread. `unseq` permite que a implementação intercale as invocações no
+    // mesmo thread, o que proíbe justamente esse tipo de operação; `par` só
+    // exige que os elementos sejam independentes, que é o nosso caso.
+    template<typename Iterator, typename Function>
+    inline void cg_parallel_for_each_heavy(Iterator begin, Iterator end, Function func) {
+        std::for_each(std::execution::par, begin, end, func);
+    }
+#else
+    template <typename Iterator, typename Function>
+    void cg_parallel_for_each_heavy(Iterator begin, Iterator end, Function func) {
+        auto total = std::distance(begin, end);
+        if (total == 0) return;
+        unsigned int num_threads = std::thread::hardware_concurrency();
+        if (num_threads == 0) num_threads = 2;
+        if ((decltype(total))num_threads > total) num_threads = (unsigned int)total;
+
+        auto chunk = total / num_threads;
+        std::vector<std::future<void>> futures;
+        auto chunk_start = begin;
+        for (unsigned int i = 0; i + 1 < num_threads; ++i) {
+            auto chunk_end = chunk_start;
+            std::advance(chunk_end, chunk);
+            futures.push_back(std::async(std::launch::async, [chunk_start, chunk_end, func]() {
+                for (auto it = chunk_start; it != chunk_end; ++it) func(*it);
+            }));
+            chunk_start = chunk_end;
+        }
+        for (auto it = chunk_start; it != end; ++it) func(*it); // thread principal
+        for (auto& f : futures) f.wait();
+    }
+#endif
+
 // ─── Paralelismo de blocos grossos (coarse-grained) ──────────────────────────
 // Divide o intervalo [0, count) em ~um bloco contíguo por thread de hardware e
 // chama func(begin, end) para cada bloco. Diferente de cg_parallel_for_each,

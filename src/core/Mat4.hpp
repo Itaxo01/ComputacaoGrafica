@@ -39,18 +39,28 @@ namespace core {
                 return result;
             }
 
-            // Isso está extensivo para maximizar a velocidade            
+            // Isso está extensivo para maximizar a velocidade
             friend core::Point operator*(const mat4 &m, const Point &p){
+                const float x = m.data[0]*p.x + m.data[1]*p.y + m.data[2]*p.z  + m.data[3];
+                const float y = m.data[4]*p.x + m.data[5]*p.y + m.data[6]*p.z  + m.data[7];
+                const float z = m.data[8]*p.x + m.data[9]*p.y + m.data[10]*p.z + m.data[11];
+
+                // Caminho afim (última linha = 0,0,0,1): vale para as matrizes de
+                // modelo, a NCS e a de viewport, ou seja, a grande maioria das
+                // multiplicações do pipeline. Só a projeção perspectiva precisa da
+                // divisão, e evitá-la aqui economiza 3 divisões por vértice (divss
+                // custa ~10 ciclos de latência no Zen2, contra ~0.5 do mulss).
+                if (m.data[12] == 0.0f && m.data[13] == 0.0f &&
+                    m.data[14] == 0.0f && m.data[15] == 1.0f)
+                    return core::Point(x, y, z);
+ 
                 float w = m.data[12]*p.x + m.data[13]*p.y + m.data[14]*p.z + m.data[15];
-                
+
                 // Preventing Div-By-Zero
                 if (w == 0.0f) w = 1.0f;
 
-                return core::Point(
-                    (m.data[0]*p.x + m.data[1]*p.y + m.data[2]*p.z + m.data[3]) / w,
-                    (m.data[4]*p.x + m.data[5]*p.y + m.data[6]*p.z + m.data[7]) / w,
-                    (m.data[8]*p.x + m.data[9]*p.y + m.data[10]*p.z + m.data[11]) / w
-                );
+                const float inv_w = 1.0f / w; // uma divisão em vez de três
+                return core::Point(x * inv_w, y * inv_w, z * inv_w);
             }
 
             mat4& operator*=(const mat4& b) {

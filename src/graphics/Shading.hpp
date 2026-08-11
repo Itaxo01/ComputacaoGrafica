@@ -23,6 +23,24 @@ struct ShadingContext {
     const std::vector<core::Light>* lights = nullptr;
 };
 
+// (R·V)^shininess for the specular lobe. std::pow is a libm call (tens of cycles)
+// and this runs PER PIXEL in Phong mode, but every .mtl in practice stores an
+// integer Ns — so exponentiate by squaring when the exponent is one, and fall back
+// to std::pow otherwise. Safe against overflow here: R and V are unit vectors, so
+// the base is in (0, 1].
+inline float specularPow(float base, float exponent) {
+    const int n = (int)exponent;
+    if ((float)n == exponent && n >= 0 && n <= 1024) {
+        float result = 1.0f, b = base;
+        for (int e = n; e; e >>= 1) {
+            if (e & 1) result *= b;
+            b *= b;
+        }
+        return result;
+    }
+    return std::pow(base, exponent);
+}
+
 // Classic Phong illumination evaluated at one world-space point with one world-space
 // normal. Returns linear RGB that may exceed 1 (clamped when packed). Two-sided: the
 // normal is flipped to face the viewer so winding/back-faces still light correctly.
@@ -62,7 +80,7 @@ inline core::Color3 shadePhong(const core::Point& P, core::Point N,
             core::Point R = N * (2.0f * ndotl) - Ld;
             float rv = dot(R, V);
             if (rv > 0.0f) {
-                float s = std::pow(rv, m.shininess);
+                float s = specularPow(rv, m.shininess);
                 out.r += m.ks.r * ir * s;
                 out.g += m.ks.g * ig * s;
                 out.b += m.ks.b * ib * s;
