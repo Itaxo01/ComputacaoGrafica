@@ -132,10 +132,19 @@ void Renderer::RasterizeFramebuffer() {
     const float farZ = less ?  std::numeric_limits<float>::infinity()
                             : -std::numeric_limits<float>::infinity();
 
-    // One band per hardware thread (TBB pool when available). Each band clears
-    // and fills a disjoint row range: solid triangles (depth-tested when z_buffer
-    // is on, else in painter's order), then wireframe lines / points on top.
-    cg_parallel_chunks((std::size_t)H, [&](std::size_t lo, std::size_t hi) {
+    // Bands of rows, each clearing and filling a DISJOINT row range: solid
+    // triangles (depth-tested when z_buffer is on, else in painter's order), then
+    // wireframe lines / points on top. Disjoint ranges are what makes the
+    // scheduling free to move: which thread runs a band, and when, never changes
+    // which pixels that band touches, so the output is identical however the work
+    // is distributed.
+    //
+    // Balanced (K bands per thread) and not one-band-per-thread: the cost of a
+    // band depends on how much geometry lands in it, and a model occupying a
+    // horizontal slice of the screen leaves most bands empty while one carries the
+    // frame. See cg_parallel_chunks_balanced for the measurements. min_chunk keeps
+    // bands from getting so thin that re-scanning triBounds dominates.
+    cg_parallel_chunks_balanced((std::size_t)H, [&](std::size_t lo, std::size_t hi) {
         int y_lo = (int)lo, y_hi = (int)hi;
         framebuffer.ClearRows(y_lo, y_hi, 0u); // transparent: grid shows through
         if (zt) framebuffer.ClearDepthRows(y_lo, y_hi, farZ);
@@ -153,7 +162,7 @@ void Renderer::RasterizeFramebuffer() {
 
         for (const auto& obj : drawObjects)
             DrawObject(obj, y_lo, y_hi);
-    });
+    }, kDefaultChunksPerThread, /*min_chunk rows=*/8);
 }
 
 void Renderer::render() {

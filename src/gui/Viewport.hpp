@@ -28,6 +28,17 @@ public:
     bool IsHovered() const {return is_hovered;}
     bool IsActive() const {return is_active;}
 
+    // Set the canvas rectangle directly, without an ImGui frame. DrawWindow()
+    // is the normal path and measures this from the Viewport window; the
+    // headless benchmark (src/bench) has no ImGui context and feeds a fixed
+    // rectangle instead, so that the Window -> NCS -> viewport mapping is the
+    // same one the GUI produces. Nothing in the application calls this.
+    void SetCanvas(const ImVec2 &p0, const ImVec2 &p1) {
+        canvas_p0 = p0;
+        canvas_p1 = p1;
+        canvas_sz = ImVec2(p1.x - p0.x, p1.y - p0.y);
+    }
+
     ImVec2 GetCanvasSize() {return canvas_sz;};
     std::pair<ImVec2, ImVec2> GetCanvasP() const {return std::make_pair(canvas_p0, canvas_p1);}
     ImDrawList* GetDrawList() {return draw_list;}

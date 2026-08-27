@@ -23,6 +23,7 @@ METADATAS_DIR = ./src/core/ObjectMetadatas
 WINDOW_DIR = ./src/window
 GRAPHICS_DIR = ./src/graphics
 IO_DIR = ./src/io
+BENCH_DIR = ./src/bench
 BUILD_DIR = ./build/obj
 
 SOURCES = $(wildcard ./src/*.cpp)
@@ -38,6 +39,21 @@ SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 
 OBJS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
+
+# --- HEADLESS BENCHMARK (src/bench) ---
+# Same sources as the app minus main.cpp, plus the bench harness. Objects live in
+# their OWN build dir: the bench is always compiled -O3, and sharing ./build/obj
+# with a plain `make` (no -O) would silently link whichever .o happened to be
+# there first — make only checks timestamps, not the flags a file was built with.
+BENCH_EXE  = ./bench.out
+BENCH_BUILD_DIR = ./build/obj-bench
+BENCH_SOURCES = $(filter-out ./src/main.cpp, $(SOURCES))
+BENCH_SOURCES += $(wildcard $(BENCH_DIR)/*.cpp)
+BENCH_OBJS = $(addprefix $(BENCH_BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(BENCH_SOURCES)))))
+
+# Matches `fast` (-O3) plus what perf needs to walk the stack. Override to compare
+# flag sets, e.g. `make bench BENCH_OPT="-O2 -g -fno-omit-frame-pointer"`.
+BENCH_OPT ?= -O3 -g -fno-omit-frame-pointer
 
 UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
@@ -101,7 +117,7 @@ endif
 ## BUILD RULES
 ##---------------------------------------------------------------------
 
-vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(FACTORIES_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IO_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
+vpath %.cpp ./src $(GRAPHICS_DIR) $(WINDOW_DIR) $(CORE_DIR) $(FACTORIES_DIR) $(GUI_DIR) $(CONTROLLER_DIR) $(IO_DIR) $(BENCH_DIR) $(IMGUI_DIR) $(IMGUI_DIR)/backends
 
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
@@ -111,9 +127,23 @@ all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
 fast: CXXFLAGS += -O3
-
 fast: $(EXE)
 	@echo Fast build complete for $(ECHO_MESSAGE)
+
+profile: CXXFLAGS += -O3 -g -fno-omit-frame-pointer
+profile: $(EXE)
+	@echo Fast build complete for profile $(ECHO_MESSAGE)
+
+# Headless benchmark: runs the render pipeline with no window, no GL context and
+# no input, so a before/after measurement compares the code and nothing else.
+# See src/bench/BenchMain.cpp, and `./bench.out --help` for the options.
+$(BENCH_BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(BENCH_OPT) -c -o $@ $<
+
+bench: $(BENCH_OBJS)
+	$(CXX) -o $(BENCH_EXE) $^ $(CXXFLAGS) $(BENCH_OPT) $(LIBS)
+	@echo Bench build complete for $(ECHO_MESSAGE) "[$(BENCH_OPT)]" -- run $(BENCH_EXE) --help
 
 $(EXE): $(OBJS)
 	@mkdir -p $(dir $@)
@@ -183,7 +213,7 @@ windows_fast: $(OBJS)
 
 clean:
 	rm -rf build
-	rm -f $(EXE)
+	rm -f $(EXE) $(BENCH_EXE)
 
 # Header-dependency tracking: -MMD -MP (in CXXFLAGS) emits a .d per .o listing the
 # headers it includes, so editing a header rebuilds every .o that uses it. Without
@@ -192,3 +222,4 @@ clean:
 # NOTE: this -include must stay at the very end, AFTER `all:` — otherwise the first
 # included .d's target would hijack the default goal.
 -include $(OBJS:.o=.d)
+-include $(BENCH_OBJS:.o=.d)

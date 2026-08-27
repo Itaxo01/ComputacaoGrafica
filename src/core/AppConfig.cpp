@@ -19,4 +19,11 @@ namespace AppConfig {
     int supersample = 2; // SSAA factor: framebuffer is rendered at NxN the viewport
 
     bool z_buffer = true; // per-pixel depth test; when off, falls back to painter's sort
+
+#ifdef USE_TBB_EXECUTION
+    const bool tbb_available = true;
+#else
+    const bool tbb_available = false;
+#endif
+    bool use_tbb = tbb_available; // locked to false when the build has no TBB
 }

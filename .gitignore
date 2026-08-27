@@ -15,6 +15,9 @@ compile_commands.json
 create_zip.sh
 libs/
 build/
+TODO.md
+
+perf.*
 # EUVO FICA MALUCO COM ESSE CACHE 
 ### gitignore padrão do C++, não modifiquei nada
 # Prerequisites

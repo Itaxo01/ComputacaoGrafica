@@ -31,6 +31,15 @@ namespace AppConfig {
     // and the painter's triangle sort is skipped. When off, uses depth_sort.
     // The test direction follows depth_ascending (flip if a model looks inside-out).
     extern bool z_buffer;
+
+    // Parallel backend (see graphics/ParallelUtils.hpp). `tbb_available` mirrors
+    // the USE_TBB_EXECUTION build flag: it is the compile-time truth, so the GUI
+    // can grey the toggle out instead of offering a switch that does nothing.
+    // `use_tbb` picks the backend for the NEXT parallel region — it is read by the
+    // calling thread before the region opens, never by the workers inside one, so
+    // flipping it can never split a region in half.
+    extern const bool tbb_available;
+    extern bool use_tbb;
 }
 
 inline std::string format(float x, int precision) {

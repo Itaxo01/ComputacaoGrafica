@@ -94,6 +94,12 @@ public:
     // the display-space rectangle [p0, p1].
     void Present(ImDrawList* dl, const ImVec2& p0, const ImVec2& p1);
 
+    // Read-only view of the display-size buffer, i.e. exactly the pixels Present
+    // would upload. Used by the headless benchmark to checksum a frame: an
+    // optimization that is supposed to be invisible has to produce the same bytes,
+    // and that is worth proving rather than assuming.
+    const std::vector<ImU32>& ResolvedPixels() const { return resolved; }
+
     ~Framebuffer();
 
 private:

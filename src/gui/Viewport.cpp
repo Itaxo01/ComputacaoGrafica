@@ -74,7 +74,7 @@ void Viewport::DrawWindow() {
         ImGui::SetCursorScreenPos(ImVec2(canvas_p1.x - opts_w - 15, canvas_p0.y + 5));
         ImGui::SetNextWindowBgAlpha(0.8f); // Slightly transparent background
 
-        ImGui::BeginChild("Viewport Options", ImVec2(opts_w, (AppConfig::is3d ? 300 : 215) * gui::layout::Scale()), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::BeginChild("Viewport Options", ImVec2(opts_w, (AppConfig::is3d ? 325 : 240) * gui::layout::Scale()), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
             ImGui::Checkbox("Show Axes", &AppConfig::show_axes);
             ImGui::Checkbox("Show Grid", &AppConfig::show_grid);
             ImGui::Checkbox("Show Axis Coordinates", &AppConfig::show_axis_coordinates);
@@ -101,6 +101,16 @@ void Viewport::DrawWindow() {
                 if (AppConfig::supersample < 1) AppConfig::supersample = 1;
                 log.AddLog("Supersampling set to %dx\n", AppConfig::supersample);
             }
+            // Parallel backend, switchable mid-run so the two schedulers can be
+            // compared on the same scene. Greyed out (and stuck on the native
+            // implementation) when the build has no TBB to switch to.
+            ImGui::BeginDisabled(!AppConfig::tbb_available);
+            if (ImGui::Checkbox("TBB Parallelism", &AppConfig::use_tbb)) {
+                log.AddLog("Parallel backend: %s\n", AppConfig::use_tbb ? "TBB" : "native");
+            }
+            ImGui::EndDisabled();
+            if (!AppConfig::tbb_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Built without TBB: using the native scheduler.");
             ImGui::Separator();
             if (ImGui::Button("Reset Layout")) {
                 gui::layout::RequestReset();
